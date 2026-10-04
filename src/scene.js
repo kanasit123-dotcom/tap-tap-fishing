@@ -1,0 +1,185 @@
+import Phaser from 'phaser';
+import { SPECIES, LANES } from './species.js';
+import { WORLD } from './model.js';
+
+export class CoveScene extends Phaser.Scene {
+  constructor(controller) { super('cove'); this.controller = controller; this.caught = null; }
+
+  preload() {
+    this.load.image('cove', `${import.meta.env.BASE_URL}assets/cove.png`);
+    this.load.spritesheet('creatures', `${import.meta.env.BASE_URL}assets/sea-creatures.png`, { frameWidth: 384, frameHeight: 512 });
+    this.load.on('loaderror', () => this.controller.assetError());
+  }
+
+  create() {
+    this.sky = this.add.rectangle(240, 380, 480, 760, 0x73c8f4).setDepth(-3);
+    this.background = this.add.image(240, 380, 'cove').setDepth(-2);
+    this.layout(this.scale.gameSize);
+    this.scale.on('resize', (size) => this.layout(size));
+    this.makeHookTexture();
+    this.rope = this.add.graphics().setDepth(12);
+    this.fishes = this.physics.add.group();
+    const start = [90, 340, 145, 390, 105, 365, 200, 305];
+    SPECIES.forEach((species, i) => {
+      const fish = this.fishes.create(start[i], LANES[species.lane], 'creatures', species.frame);
+      fish.setDisplaySize(species.width, species.width * 4 / 3).setDepth(5 + species.lane * 0.1);
+      fish.setData('species', species).setData('index', i);
+      fish.body.setSize(245, 235, true).setAllowGravity(false);
+      this.swim(fish, i % 2 ? -1 : 1);
+    });
+    this.boat = this.drawBoat();
+    this.hook = this.physics.add.image(240, 186, 'hook').setDisplaySize(28, 28).setDepth(15);
+    this.hook.body.setSize(32, 40, true).setAllowGravity(false);
+    this.physics.add.overlap(this.hook, this.fishes, (_hook, fish) => {
+      const species = fish.getData('species');
+      if (!this.controller.round.catch(species.id)) return;
+      fish.body.enable = false;
+      fish.setDepth(14).setAngle(-12);
+      this.caught = fish;
+      this.controller.onHook(species);
+    }, () => !this.controller.round.paused && this.controller.round.phase === 'casting');
+    this.bubbles = Array.from({ length: 17 }, (_, i) => {
+      const bubble = this.add.circle(28 + (i * 109) % 424, 175 + (i * 51) % 430, 1.5 + i % 3, 0xffffff, 0.22);
+      bubble.setStrokeStyle(1, 0xffffff, 0.2).setDepth(2);
+      return bubble;
+    });
+    this.input.on('pointerdown', () => this.controller.cast());
+    this.controller.ready(this);
+  }
+
+  layout(size) {
+    const zoom = Math.min(size.width / WORLD.width, size.height / WORLD.height);
+    const width = size.width / zoom;
+    const height = size.height / zoom;
+    this.cameras.main.setSize(size.width, size.height).setZoom(zoom).centerOn(240, height / 2);
+    this.sky?.setPosition(240, height / 2).setDisplaySize(width, height);
+    // Keep the waterline beside the boat while expanding the painted environment.
+    const artHeight = height + 100;
+    this.background?.setPosition(240, 132 - artHeight * 0.108 + artHeight / 2).setDisplaySize(width, artHeight);
+  }
+
+  makeHookTexture() {
+    const g = this.make.graphics({ x: 0, y: 0 }, false);
+    g.lineStyle(9, 0x075a6d, 1);
+    g.beginPath(); g.moveTo(36, 3); g.lineTo(36, 43); g.arc(26, 43, 10, 0, Math.PI, false); g.lineTo(16, 32); g.strokePath();
+    g.lineStyle(5, 0xfff0b6, 1);
+    g.beginPath(); g.moveTo(36, 3); g.lineTo(36, 43); g.arc(26, 43, 10, 0, Math.PI, false); g.lineTo(16, 32); g.strokePath();
+    g.fillStyle(0xffd45c); g.fillTriangle(12, 36, 20, 34, 16, 27);
+    g.generateTexture('hook', 64, 64); g.destroy();
+  }
+
+  drawBoat() {
+    const g = this.add.graphics().setDepth(16);
+    g.fillStyle(0x087b89, 0.22); g.fillEllipse(240, 131, 175, 14);
+    g.lineStyle(3, 0x205d67); g.fillStyle(0xfff5c7);
+    g.beginPath(); g.moveTo(158, 107); g.lineTo(326, 107); g.lineTo(301, 134); g.lineTo(185, 134); g.closePath(); g.fillPath(); g.strokePath();
+    g.fillStyle(0xf06a55); g.fillRect(171, 109, 140, 6);
+    g.fillStyle(0x1593a0); g.fillCircle(205, 123, 5); g.fillCircle(225, 123, 5); g.fillCircle(245, 123, 5);
+    g.lineStyle(5, 0x31565f); g.lineBetween(262, 107, 262, 43);
+    g.fillStyle(0xfffbec); g.fillTriangle(258, 43, 218, 95, 258, 95);
+    g.fillStyle(0xffd264); g.fillTriangle(268, 52, 298, 96, 268, 96);
+    g.fillStyle(0xef6b5c); g.fillTriangle(262, 40, 285, 46, 262, 53);
+    g.fillStyle(0xffd09a); g.fillCircle(198, 97, 10);
+    g.fillStyle(0x16687c); g.fillRoundedRect(185, 84, 27, 8, 3);
+    g.fillStyle(0xffd052); g.fillRoundedRect(190, 79, 17, 9, 3);
+    g.fillStyle(0x244853); g.fillCircle(200, 96, 1.5);
+    g.lineStyle(4, 0x285565); g.lineBetween(221, 108, 240, 132);
+    return g;
+  }
+
+  swim(fish, direction) {
+    const species = fish.getData('species');
+    fish.body.enable = true;
+    fish.setAngle(0).setFlipX(direction < 0).setDepth(5 + species.lane * 0.1);
+    fish.setVelocity(direction * species.speed, 0);
+  }
+
+  resetRound() {
+    this.caught = null;
+    this.fishes.getChildren().forEach((fish, i) => {
+      this.tweens.killTweensOf(fish);
+      fish.setAlpha(1).setDisplaySize(fish.getData('species').width, fish.getData('species').width * 4 / 3);
+      fish.body.enable = true;
+      fish.body.reset(65 + (i * 83) % 350, LANES[fish.getData('species').lane]);
+      this.swim(fish, i % 2 ? -1 : 1);
+    });
+    this.physics.resume();
+    this.tweens.resumeAll();
+  }
+
+  celebrate(species) {
+    const fish = this.caught;
+    this.caught = null;
+    if (fish) {
+      this.tweens.add({ targets: fish, x: 198, y: 98, alpha: 0, duration: 650, ease: 'Back.easeIn', onComplete: () => {
+        fish.setAlpha(1).setAngle(0);
+        fish.body.enable = true;
+        fish.body.reset(fish.getData('index') % 2 ? 495 : -15, LANES[species.lane]);
+        this.swim(fish, fish.getData('index') % 2 ? -1 : 1);
+      } });
+    }
+    const label = this.add.text(240, 170, `+${species.points}`, { fontFamily: 'Tahoma, sans-serif', fontSize: '32px', fontStyle: 'bold', color: '#ffea8e', stroke: '#176174', strokeThickness: 5 }).setOrigin(0.5).setDepth(21);
+    this.tweens.add({ targets: label, y: 132, alpha: 0, duration: 1000, onComplete: () => label.destroy() });
+    for (let i = 0; i < 15; i++) {
+      const confetti = this.add.rectangle(240, 146, 5, 8, [0xffd05b, 0xff786b, 0xffffff, 0x89e8ab][i % 4]).setDepth(20);
+      this.tweens.add({ targets: confetti, x: 120 + i * 18, y: 210 + i % 5 * 18, angle: i * 50, alpha: 0, duration: 1000, onComplete: () => confetti.destroy() });
+    }
+  }
+
+  update(_time, delta) {
+    if (!this.hook) return;
+    const round = this.controller.round;
+    if (round.paused) { this.physics.pause(); this.tweens.pauseAll(); return; }
+    if (this.physics.world.isPaused) { this.physics.resume(); this.tweens.resumeAll(); }
+    const before = round.phase;
+    round.tick(delta / 1000);
+    if (before === 'casting' && round.phase === 'returning') this.controller.audio.play('miss');
+    const h = round.hook;
+    this.hook.body.reset(h.x, h.y);
+    this.hook.setAngle(-round.angle * 180 / Math.PI);
+    this.rope.clear().lineStyle(4, 0x0b647b, 0.5).lineBetween(240, 132, h.x, h.y);
+    this.rope.lineStyle(2, 0xfff4c6, 1).lineBetween(240, 132, h.x, h.y);
+    if (this.caught && round.phase === 'reeling') this.caught.setPosition(h.x + 5, h.y + 15);
+    this.fishes.getChildren().forEach((fish) => {
+      if (!fish.body.enable) return;
+      if (fish.x > 550) fish.body.reset(-55, fish.y);
+      if (fish.x < -70) fish.body.reset(535, fish.y);
+    });
+    this.bubbles.forEach((bubble, i) => {
+      bubble.y -= Math.min(delta / 1000, 0.1) * (9 + i % 5);
+      if (bubble.y < 160) bubble.y = 590;
+    });
+    this.boat.y = Math.sin(round.elapsed * 2.1) * 1.2;
+    this.controller.renderHUD();
+  }
+
+  snapshot() {
+    const round = this.controller.round;
+    return { ready: true, phase: round.phase, paused: round.paused, angle: round.angle, hook: round.hook, length: round.length, targetLength: round.targetLength, taps: round.taps, requiredTaps: round.requiredTaps, score: round.score, catches: [...round.catches], remaining: round.remaining,
+      audio: { state: this.controller.audio.context?.state ?? 'locked', enabled: this.controller.audio.enabled, level: this.controller.audio.level() },
+      fishes: this.fishes.getChildren().map((f) => ({ id: f.getData('species').id, x: f.x, y: f.y, active: f.body.enable })) };
+  }
+
+  arrangeForTest(id = 'goldfish') {
+    if (this.controller.round.phase !== 'aim') throw new Error('Arrange only before a cast');
+    this.controller.round.elapsed = 0;
+    this.controller.round.angle = 0;
+    this.fishes.getChildren().forEach((fish) => {
+      this.tweens.killTweensOf(fish);
+      fish.body.setVelocity(0, 0);
+      fish.body.enable = fish.getData('species').id === id;
+      fish.body.reset(fish.body.enable ? 240 : -200, fish.body.enable ? LANES[fish.getData('species').lane] : 600);
+      fish.setAlpha(fish.body.enable ? 1 : 0);
+    });
+  }
+}
+
+export function createGame(controller) {
+  return new Phaser.Game({
+    type: Phaser.CANVAS, parent: 'sea', width: WORLD.width, height: WORLD.height, transparent: true,
+    render: { antialias: true, roundPixels: false },
+    scale: { mode: Phaser.Scale.RESIZE },
+    physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, debug: false, fps: 60 } },
+    audio: { noAudio: true }, scene: [new CoveScene(controller)],
+  });
+}
