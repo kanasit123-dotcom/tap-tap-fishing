@@ -1,6 +1,9 @@
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
-import { SPECIES } from '../src/species.js';
+import { speciesWithArt } from '../src/species.js';
+
+// Production lists only creatures that already have artwork (no DEV emoji placeholders).
+const BOOK = speciesWithArt(false);
 
 const url = process.argv[2];
 if (!url || !/^https?:\/\//.test(url)) throw new Error('Usage: npm run test:pages -- <site-url>');
@@ -29,14 +32,16 @@ try {
   await mkdir('test-results', { recursive: true });
   await page.screenshot({ path: 'test-results/pages-sea.png' });
   await page.locator('#collection').click();
-  await expect(page.locator('.collection-item')).toHaveCount(SPECIES.length);
-  await expect(page.locator('.species-art image')).toHaveCount(SPECIES.length);
+  await expect(page.locator('.collection-item')).toHaveCount(BOOK.length);
+  await expect(page.locator('.species-art')).toHaveCount(BOOK.length);
+  await expect(page.locator('.species-art.emoji')).toHaveCount(0);
+  await expect(page.locator('#music')).toBeVisible();
   await page.screenshot({ path: 'test-results/pages-book.png' });
   await page.locator('#close-book').click();
   await page.locator('#cast').click();
   await expect(page.locator('#phase-text')).toHaveText(/เบ็ดกำลังลง|ติดเบ็ดแล้ว/);
   expect(errors).toEqual([]);
-  console.log(JSON.stringify({ url: page.url(), status: 'passed', collectionEntries: SPECIES.length, canvas: 'colored and moving', errors }));
+  console.log(JSON.stringify({ url: page.url(), status: 'passed', collectionEntries: BOOK.length, canvas: 'colored and moving', errors }));
 } finally {
   await browser.close();
 }

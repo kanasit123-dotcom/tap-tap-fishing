@@ -2,7 +2,31 @@
 
 Date: 2026-10-04
 
-## Latest: Dense Schools, Mystery Catches And Reel Gesture Guard
+## Latest: Living Sea, Special Items And Synthesised Sound (Claude Code, uncommitted)
+
+- Only this repository changed. Storage key `tap-tap-fishing-v1` and the 12 original collection IDs are unchanged;
+  old saves load with the new entries at zero, plus `music` (default on) and `maps` (0-3).
+- `npm run check`: 50 unit tests passed (model, spawner statistics, layout, catalog/assets, progress, audio with a fake
+  Web Audio context); normal and Pages builds succeed (existing Phaser bundle-size warning remains).
+- Full Playwright run (`test-results/new-sea-full/`): 51 passed, 2 desktop touch skips, 1 failure — the pocket-watch
+  assertion compared wall-clock time on the slower tablet run. The test now compares against elapsed game time and passed
+  on desktop/tablet/phone (`test-results/new-sea-watch/`). After moving the treasure-rain banner into the status label,
+  full-bleed, compact-fit and special-item tests passed again on all three Chromium projects (`test-results/new-sea-final/`).
+- Earlier device run (`test-results/new-sea-devices/`) exposed two real issues, both fixed and re-verified:
+  1. iPad rotation: Phaser stored the rotated container size without resizing the canvas (canvas stayed 768x944 inside
+     1024x688). `measure()` now refreshes the scale manager when canvas and container differ.
+  2. Page reloads caused by editing `src/` while Playwright used the dev server create false failures — don't edit during runs.
+- WebKit (Windows port) runs the selected input/render cases including "creatures enter …", which now waits on game time
+  because software rendering advances the game slower than the wall clock. It still has no Web Audio here.
+- Production smoke on a local `/tap-tap-fishing/` preview: 12 book entries (only creatures with artwork), no emoji
+  placeholders, music button present, colored/moving canvas, no page/request errors.
+- The ChatGPT art pipeline was verified with synthetic sheets (transparent and flat-colour backgrounds) and with a
+  synthetic boat + portrait/landscape backgrounds inside the real game (anchoring, waterline/sand alignment, mirrored tiles,
+  submerged hull tint); the synthetic files were then removed. Real artwork has not arrived yet.
+- Not verified: real iPad/iPhone sound and music on hardware (iOS unlock/rebuild path is unit-tested only), how the
+  synthesised music/gulls feel to the family, and spawn balance in real play (map frequency, treasure-rain length).
+
+## Previous: Dense Schools, Mystery Catches And Reel Gesture Guard
 
 - User reported real-device zoom despite the earlier Chromium touch-emulation pass. That result did not prove iOS behavior.
 - Only this fishing repository changed. Audio, round rules, storage module/key and sibling games remain unchanged.

@@ -7,7 +7,7 @@ export default defineConfig({
     { name: 'tablet', use: { ...devices['iPad (gen 7)'], defaultBrowserType: 'chromium' } },
     { name: 'phone', use: { ...devices['iPhone 13'], defaultBrowserType: 'chromium' } },
     { name: 'webkit-tablet', timeout: 60_000,
-      grep: /rapid touches|deep catch|touch taps|six aligned|keyboard controls|real hook collision/,
+      grep: /rapid touches|deep catch|touch taps|creatures enter|keyboard controls|real hook collision/,
       use: { ...devices['iPad (gen 7)'], defaultBrowserType: 'webkit' } },
   ],
   webServer: { command: 'npm run dev -- --port 5193 --strictPort', url: 'http://127.0.0.1:5193', reuseExistingServer: !process.env.CI },

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FishingRound, WORLD, GOAL } from '../src/model.js';
+import { FishingRound, WORLD, GOAL, BONUS_SECONDS, MAP_PIECES, TIME_BONUS } from '../src/model.js';
 import { SPECIES } from '../src/species.js';
 
 function tick(round, seconds) { for (let i = 0; i < Math.ceil(seconds * 60); i++) round.tick(1 / 60); }
@@ -14,6 +14,7 @@ function land(round, now = 0) {
   for (let i = 0; i < taps; i++) assert.equal(round.reel(now + i * 100), true);
   tick(round, 1);
 }
+function catchAndLand(round, id) { catchFish(round, id); land(round); tick(round, 2.2); }
 
 test('starts ready and idle time does not finish relaxed play', () => {
   const r = new FishingRound(); tick(r, 300);
@@ -25,7 +26,14 @@ test('casts lock the aim, do not double-cast, and return without a penalty after
   const angle = r.angle;
   assert.equal(r.cast(), true); assert.equal(r.cast(), false);
   tick(r, 1); assert.equal(r.angle, angle);
-  tick(r, 5); assert.equal(r.phase, 'aim'); assert.equal(r.length, WORLD.rest); assert.equal(r.score, 0);
+  tick(r, 6); assert.equal(r.phase, 'aim'); assert.equal(r.length, WORLD.rest); assert.equal(r.score, 0);
+});
+test('the hook turns back at the layout floor and side walls', () => {
+  const r = new FishingRound(); r.setBounds({ floor: 300, left: 0, right: 480 });
+  r.cast(); let deepest = 0;
+  for (let i = 0; i < 300 && r.phase === 'casting'; i++) { r.tick(1 / 60); deepest = Math.max(deepest, r.hook.y); }
+  assert.equal(r.phase, 'returning'); assert.ok(deepest > 290 && deepest < 306, `turned at ${deepest}`);
+  r.setBounds({ floor: NaN, left: 0, right: 480 }); assert.equal(r.bounds.floor, 300);
 });
 test('catch is only allowed during a cast, known species only, once per hook', () => {
   const r = new FishingRound(); assert.equal(r.catch('goldfish'), false);
@@ -46,10 +54,10 @@ test('points and collection callback happen on landing, exactly once', () => {
   land(r); assert.equal(r.score, 5); assert.deepEqual(r.catches, ['goldfish']);
   tick(r, 10); assert.deepEqual(landed, ['goldfish']); assert.equal(r.score, 5);
 });
-test('every species can be reeled to the surface with finite taps, deeper catches cost two more', () => {
+test('every species can be reeled to the surface with its own finite tap count', () => {
   for (const s of SPECIES) {
-    const r = new FishingRound(); catchFish(r, s.id, 400);
-    assert.equal(r.requiredTaps, s.taps + 2); land(r);
+    const r = new FishingRound('arcade'); catchFish(r, s.id, 400);
+    assert.equal(r.requiredTaps, s.taps); land(r);
     assert.equal(r.score, s.points); assert.deepEqual(r.catches, [s.id]);
   }
 });
@@ -74,6 +82,39 @@ test('eight landed catches complete a relaxed trip without a timer', () => {
   for (let i = 0; i < GOAL; i++) { catchFish(r); land(r); tick(r, 2); }
   assert.equal(r.phase, 'complete'); assert.equal(r.score, 40); assert.equal(r.catches.length, 8);
   assert.equal(r.cast(), false);
+});
+test('a message bottle doubles only the next catch, never itself', () => {
+  const r = new FishingRound();
+  catchAndLand(r, 'bottle'); assert.equal(r.score, 5); assert.equal(r.doubleNext, true);
+  catchAndLand(r, 'turtle'); assert.equal(r.score, 5 + 44); assert.equal(r.landing.multiplier, 2); assert.equal(r.doubleNext, false);
+  catchAndLand(r, 'goldfish'); assert.equal(r.score, 5 + 44 + 5);
+});
+test('a pocket watch adds time in arcade mode and does nothing to relaxed play', () => {
+  const arcade = new FishingRound('arcade'); arcade.remaining = 30;
+  catchFish(arcade, 'watch'); land(arcade);
+  assert.ok(arcade.remaining > 30 + TIME_BONUS - 1.5); assert.equal(arcade.score, 10);
+  const relaxed = new FishingRound(); catchAndLand(relaxed, 'watch'); assert.equal(relaxed.remaining, 90);
+});
+test('four map pieces start the treasure rain, which halves taps and pauses the arcade clock', () => {
+  const r = new FishingRound('arcade', () => {}, { maps: 2 });
+  assert.equal(r.maps, 2);
+  catchAndLand(r, 'map'); assert.equal(r.maps, 3); assert.equal(r.bonus, 0);
+  catchFish(r, 'map'); land(r);
+  assert.equal(r.maps, 0); assert.equal(r.landing.bonusStarted, true); assert.ok(r.bonus > BONUS_SECONDS - 1.5);
+  const clock = r.remaining; tick(r, 3); assert.equal(r.remaining, clock);
+  catchFish(r, 'chest'); assert.equal(r.requiredTaps, Math.ceil(16 / 2));
+  land(r); tick(r, 2);
+  tick(r, BONUS_SECONDS); assert.equal(r.bonus, 0);
+  const after = r.remaining; tick(r, 1); assert.ok(r.remaining < after);
+  assert.equal(new FishingRound('relaxed', () => {}, { maps: MAP_PIECES + 1 }).maps, 1);
+});
+test('treasure-rain catches do not end the trip; a goal reached during the rain waits for it to finish', () => {
+  const r = new FishingRound('relaxed', () => {}, { maps: 3 });
+  for (let i = 0; i < GOAL - 1; i++) catchAndLand(r, 'goldfish');
+  catchAndLand(r, 'map');
+  assert.equal(r.tripCatches, GOAL); assert.ok(r.bonus > 0); assert.equal(r.phase, 'aim');
+  catchAndLand(r, 'coins'); assert.equal(r.tripCatches, GOAL); assert.equal(r.phase, 'aim');
+  tick(r, BONUS_SECONDS); assert.equal(r.phase, 'complete');
 });
 test('invalid time deltas and tap timestamps do not corrupt state', () => {
   const r = new FishingRound(); catchFish(r);

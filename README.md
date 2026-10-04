@@ -28,6 +28,34 @@ npm run build
 npm run preview -- --port 5194
 ```
 
+## Version 0.2.0
+
+- **Living sea instead of fixed rows.** `src/spawner.js` decides when and what enters each of seven lanes
+  (six swimming lanes + the seabed): random exponential gaps, schools of different sizes and speeds,
+  calm/normal/rush waves, lanes that change direction only while empty, and faster groups capped so they never
+  swim through slower ones. Creatures enter from beyond the screen edge and leave on the far side on every
+  screen width (the old loop popped fish in and out mid-screen on wide displays).
+- **Lanes fill the screen.** `src/layout.js` spreads the lanes from just under the surface down to the top of the
+  cast/reel controls, and scales creatures with the lane spacing, so tall phones no longer leave the lower half empty.
+  The background is scaled uniformly (no more stretching), aligned to the waterline and seabed, and repeated mirrored
+  on very wide screens; the painting that needs the fewest repeats is chosen per screen shape.
+- **34 collection entries** (`src/species.js`): 12 original IDs kept for saved progress, plus sardine, butterflyfish,
+  parrotfish, seahorse, jellyfish, lionfish, tuna, eagle ray, moray, swordfish, grouper, hammerhead, crab, sea star,
+  golden lobster king (jackpot) and treasures. The book is grouped by zone.
+- **Special items:** message bottle = next catch x2, pocket watch = +10 s (arcade only), old boot = 1-point joke,
+  coins/pearl/chest/crown = treasure, map piece: four pieces (saved across trips) start a 20-second treasure rain
+  in every lane with half the taps; it pauses the arcade clock and does not count towards the 8-catch goal.
+- **Sound:** all synthesised (`src/audio.js`): sea swell and surf, bubbles, distant gulls, a soft island music loop
+  (separate music button, faster during the treasure rain), rod whoosh, line ratchet while casting/retrieving,
+  reel clicks with rising pitch per tap, hook strike, struggling splashes, surface splash, fanfares, coin shimmer.
+  iOS unlock on pointerup/touchend/click/keydown and a rebuilt AudioContext after the page was hidden.
+- **Boat, rod and hook:** wooden boat with wheelhouse and fisherman; the rod is drawn in code, bends with line
+  tension and its reel handle turns with every tap; steel J-hook with barb and a lead sinker.
+- **New artwork pending:** the user is generating semi-realistic sheets in ChatGPT from
+  [docs/ART-PROMPTS.md](docs/ART-PROMPTS.md); `python tools/sprites.py` cuts them into `public/assets/sprites/`.
+  Until then production shows only the 12 creatures that have (legacy cartoon) art; DEV `?qa=1` draws emoji placeholders
+  for the rest so every mechanic can be tested.
+
 ## Version 0.1.0
 
 - Starts directly in the playable sea, no landing page or sign-in.
@@ -85,14 +113,18 @@ the wheel animation, status and sound effects still work. A service worker/offli
 | `src/scene.js` | Phaser rendering, Arcade Physics overlap, swimming, effects and responsive camera |
 | `src/main.js` | Accessible DOM controls, dialogs and application integration |
 | `src/input.js` | Single-touch activation, Safari gesture guards, compatibility-event suppression, keyboard/mouse input |
-| `src/species.js` | Species, source rectangles, atlas metadata, rows, swim spacing, scores and tap counts |
+| `src/species.js` | Catalog: lane, points, taps, size, speed, rarity, school size, motion, effects, art lookup |
+| `src/spawner.js` | Irregular arrivals per lane, waves, cooldowns, treasure-rain pool (pure, seeded in tests) |
+| `src/layout.js` | Lane positions from the visible sea and the controls; background placement |
+| `src/art-manifest.js` | Generated list of processed sprites/backgrounds (plus hand-set boat/background anchors) |
+| `tools/sprites.py` | Cuts ChatGPT sheets from `art/incoming/` into sprites and updates the manifest |
 | `src/progress.js` | Separate validated local storage and idempotent completed-trip recording |
-| `src/audio.js` | Gesture-unlocked Web Audio effects and optional Thai device speech |
+| `src/audio.js` | Synthesised ambience, music and effects, iOS unlock/rebuild, optional Thai device speech |
 | `public/assets/` | Original background and two transparent creature atlases |
 | `tests/` | Model/storage unit tests and real-browser workflow/input/render tests |
 
 Read [AI-HANDOFF.md](AI-HANDOFF.md) and [docs/QA.md](docs/QA.md) before continuing.
-Artwork provenance and generation prompts: [docs/ARTWORK.md](docs/ARTWORK.md).
+Artwork provenance and generation prompts: [docs/ARTWORK.md](docs/ARTWORK.md); prompts for the new set: [docs/ART-PROMPTS.md](docs/ART-PROMPTS.md).
 
 ## Design References
 
@@ -109,5 +141,5 @@ not a diagnosis of the user's exact iPad/browser version.
 
 ## Not Included Yet
 
-Multiple environments, boat upgrades, two-player play, a deeper bonus stage, recorded Thai voice
-and real-device Safari approval. Do not imply these are finished.
+Multiple environments, boat upgrades, two-player play, recorded Thai voice, the redrawn semi-realistic artwork
+(waiting for the user's ChatGPT images) and real-device Safari approval. Do not imply these are finished.

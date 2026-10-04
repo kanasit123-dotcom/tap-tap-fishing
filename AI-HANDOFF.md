@@ -11,10 +11,47 @@ Published and verified online: first Actions deployment succeeded and the live H
 The deployment smoke checked colored/moving canvas, all twelve book entries, casting, no exposed QA interface and no request/page errors.
 Check docs/QA.md and the latest Actions run before assuming future pushes are live.
 Dev server running locally on port 5193.
-Latest update: denser 32-instance schools, deep mystery silhouettes and a stationary Safari reel gesture guard.
+Latest update: living sea (irregular spawner, screen-filling lanes, special items, synthesized sound) — see the section below; earlier: denser 32-instance schools, deep mystery silhouettes and a stationary Safari reel gesture guard.
 Latest QA: see docs/QA.md for this update's final checks and real-device gaps.
 28 unit checks + normal/Pages builds; full regression 46 passed / 2 desktop touch skips,
 then final disabled-reel routing coverage 10 passed / 2 desktop touch skips. Prefixed production smoke passed.
+
+## Living Sea Update (2026-10-04, Claude Code) — uncommitted, not deployed
+
+User request (Thai): more/better creature, item, boat and rod art in a slightly more realistic style; fish should
+not arrive on a uniform beat like now; scene/casting/reel sounds; lane spacing that fills the screen; check other gaps.
+Decisions the user made: images come from **ChatGPT** (transparent PNG); **redraw all** creatures semi-realistically;
+special items **with effects + bonus stage**; **sea ambience + soft music** with its own toggle.
+
+- `src/spawner.js` (pure, seeded in tests): per-lane exponential waits that only count once the entrance is clear,
+  calm/normal/rush waves, school sizes/speeds per group, lane direction flips only while empty, speed cap so groups
+  never overtake, cooldowns for specials and a shared rare cooldown for jackpots. Odds always come from the full
+  catalog; a creature without artwork leaves its slot empty (so pre-art production is not a parade of chests).
+- `src/layout.js`: lanes from WATERLINE+78 to the top of the cast/reel controls (`controller.dockTop()`), creature scale
+  follows lane spacing, hook floor/walls follow the visible sea. Background is scaled uniformly, waterline and sand aligned,
+  mirrored sideways when needed; the painting with the fewest repeats is chosen per screen.
+- `src/species.js`: 34 entries in 7 lanes (seabed = lane 6). The 12 original IDs keep their `legacy` atlas rectangles
+  until the redrawn sprites exist. Kinds: animal / item / junk; effects: double (bottle), time (watch, arcade only),
+  map (4 pieces → 20 s treasure rain). Jackpots: golden lobster king, crown. Mystery silhouettes: animals in lanes ≥ 4.
+- `src/model.js`: `setBounds`, rod-tip origin (240,74) with rest 90, per-species taps (no depth bonus), bonus clock pauses
+  arcade time and halves taps, rain catches don't count towards GOAL, completion waits for the rain to end. Map pieces
+  persist in progress (`maps`), as does `music`.
+- `src/audio.js`: all synthesised; buses sfx/ambient/music; scheduler every 50 ms (swells, bubbles, gulls, music, line
+  ratchet, struggle splashes). Unlock on pointerup/touchend/click/keydown, `navigator.audioSession='playback'`,
+  rebuild after hidden page or stalled clock (same approach as little-exam-adventure). Dialogs duck sea and music.
+- `src/scene.js`: creatures created/destroyed by the spawner (`uid`, `born` in QA snapshot), motions per species,
+  silhouettes + glints, splash/coin effects, bonus glow, code-drawn bending rod with turning reel, steel hook + sinker,
+  boat image path (needs manifest `holder` + `waterline`) with baked submerged tint. Zero-size canvas guard.
+- `src/main.js`: music button, map/x2/bonus HUD, toasts, zoned book, arcade 10-second ticks, QA `release()`,
+  `setMaps(n)`, `scene()`, `?seed=N`. **Fix:** Phaser kept the old canvas size after iPad rotation (its resize check
+  stored the new parent size without refreshing) — `measure()` now forces `scale.refresh()` when canvas and container differ.
+- Art pipeline: prompts in `docs/ART-PROMPTS.md` (7 images), `python tools/sprites.py` cuts `art/incoming/` into
+  `public/assets/sprites/*.webp` + backgrounds and rewrites `src/art-manifest.js`. Verified with synthetic sheets
+  (transparent and flat-colour keyed, de-spill) and a synthetic boat/backgrounds run in the real game, then reverted.
+- Production (no `?qa`) shows only creatures with artwork (the 12 legacy ones today); DEV `?qa=1` draws emoji for the rest.
+
+Next when the user delivers images: run the tool, inspect `art/preview/`, set boat `holder`/`waterline` and background
+`waterline`/`seabed` by eye, check every creature in-game (sizes/facing), then drop `legacy` + old atlases once all 12 are redrawn.
 
 ## Agreed Interaction
 
@@ -71,11 +108,11 @@ No code, voices, progress or artwork was imported from sibling repositories.
 ## Useful Next Work
 
 - Parent/child playtest: hook speed, visible hitboxes, fish spacing, tap counts and reachability of deep catches.
-- Original boat art matching the generated sea/creatures; ship/hook are currently code-drawn.
+- Process the user's ChatGPT sheets (docs/ART-PROMPTS.md) and tune sizes/anchors in-game.
 - More coves, rare appearances, gentle missions and boat decorations.
 - Recorded Thai prompts with phrase review and device tests, if the user requests it.
 - Optional session resume after reload and an offline/PWA install path.
-- Two-player and special bonus stages only after the single-player feel is approved.
+- Two-player only after the single-player feel is approved. Treasure-rain balance (map frequency) needs a playtest.
 
 Publishing uses .github/workflows/pages.yml and npm run build:pages. Do not manually upload node_modules or tests as the website.
 Use npm run test:pages -- <site-url> for a production smoke check, including colored/moving canvas and no exposed QA interface.

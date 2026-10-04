@@ -29,3 +29,16 @@ test('trip completion is idempotent and mode-specific', () => {
   assert.equal(recordTrip(p, r), true); assert.equal(recordTrip(p, r), false);
   assert.equal(p.trips, 1); assert.equal(p.best.arcade, 80); assert.equal(p.best.relaxed, 0);
 });
+test('music preference and map pieces persist and are sanitized', () => {
+  const s = memory();
+  s.setItem(STORAGE_KEY, JSON.stringify({ version: 1, collection: { goldfish: 3 }, music: false, maps: 3 }));
+  const p = loadProgress(s);
+  assert.equal(p.music, false); assert.equal(p.maps, 3); assert.equal(p.sound, true); assert.equal(p.collection.goldfish, 3);
+  assert.equal(p.collection.crab, 0, 'new creatures start at zero for old saves');
+  for (const maps of [-1, 2.5, 'x', 9]) {
+    s.setItem(STORAGE_KEY, JSON.stringify({ version: 1, maps }));
+    const loaded = loadProgress(s).maps;
+    assert.ok(Number.isSafeInteger(loaded) && loaded >= 0 && loaded < 4);
+  }
+  assert.equal(freshProgress().music, true); assert.equal(freshProgress().maps, 0);
+});

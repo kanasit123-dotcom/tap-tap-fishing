@@ -1,21 +1,35 @@
-import { createIcons, Anchor, BookOpen, Volume2, VolumeX, Pause, Play, Fish, Trophy, Timer, X, RotateCcw, ArrowRight, Check } from 'lucide';
+import { createIcons, Anchor, BookOpen, Volume2, VolumeX, Pause, Play, Fish, Trophy, Timer, X, RotateCcw, ArrowRight, Check, Music, Map as MapIcon, Sparkles } from 'lucide';
 import { createGame } from './scene.js';
-import { FishingRound, GOAL } from './model.js';
-import { SPECIES, SPECIES_BY_ID, ATLASES } from './species.js';
+import { FishingRound, GOAL, MAP_PIECES } from './model.js';
+import { SPECIES_BY_ID, ATLASES, ZONES, speciesWithArt } from './species.js';
 import { loadProgress, saveProgress, recordCatch, recordTrip } from './progress.js';
 import { FishingAudio } from './audio.js';
 import { bindTapControl } from './input.js';
 import './style.css';
 
-const icons = { Anchor, BookOpen, Volume2, VolumeX, Pause, Play, Fish, Trophy, Timer, X, RotateCcw, ArrowRight, Check };
+const icons = { Anchor, BookOpen, Volume2, VolumeX, Pause, Play, Fish, Trophy, Timer, X, RotateCcw, ArrowRight, Check, Music, Map: MapIcon, Sparkles };
 const icon = (name) => `<i data-lucide="${name}" aria-hidden="true"></i>`;
 const updateIcons = () => createIcons({ icons, attrs: { 'stroke-width': 2.3 } });
 const $ = (selector) => document.querySelector(selector);
+const params = new URLSearchParams(location.search);
+const QA = import.meta.env.DEV && params.has('qa');
+const assetUrl = (file) => `${import.meta.env.BASE_URL}assets/${file}`;
+
 const art = (s) => {
-  const atlas = ATLASES[s.atlas];
-  const [x, y, w, h] = s.rect;
-  return `<svg class="species-art" role="img" aria-label="${s.name}" viewBox="0 0 ${w} ${h}"><defs><clipPath id="sprite-${s.id}" clipPathUnits="userSpaceOnUse"><rect width="${w}" height="${h}" /></clipPath></defs><image x="${-x}" y="${-y}" href="${import.meta.env.BASE_URL}assets/${atlas.file}" width="${atlas.width}" height="${atlas.height}" clip-path="url(#sprite-${s.id})" /></svg>`;
+  if (s.art?.kind === 'sprite') return `<img class="species-art" src="${assetUrl(s.art.file)}" alt="${s.name}" draggable="false">`;
+  if (s.art?.kind === 'atlas') {
+    const atlas = ATLASES[s.art.key];
+    const [x, y, w, h] = s.art.rect;
+    return `<svg class="species-art" role="img" aria-label="${s.name}" viewBox="0 0 ${w} ${h}"><defs><clipPath id="sprite-${s.id}" clipPathUnits="userSpaceOnUse"><rect width="${w}" height="${h}" /></clipPath></defs><image x="${-x}" y="${-y}" href="${assetUrl(atlas.file)}" width="${atlas.width}" height="${atlas.height}" clip-path="url(#sprite-${s.id})" /></svg>`;
+  }
+  return `<span class="species-art emoji" role="img" aria-label="${s.name}">${s.emoji}</span>`;
 };
+
+// Seeded random numbers for repeatable QA runs (?qa=1&seed=7).
+function seeded(seed) {
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
 
 $('#app').innerHTML = `
   <header class="topbar">
@@ -25,6 +39,7 @@ $('#app').innerHTML = `
     </div>
     <nav aria-label="เครื่องมือเกม">
       <button id="collection" class="icon-button" aria-label="สมุดสะสม" data-tip="สมุดสะสม">${icon('book-open')}</button>
+      <button id="music" class="icon-button" aria-label="ปิดเพลง" data-tip="เพลง" aria-pressed="true">${icon('music')}</button>
       <button id="sound" class="icon-button" aria-label="ปิดเสียง" data-tip="เสียง" aria-pressed="true">${icon('volume-2')}</button>
       <button id="pause" class="icon-button" aria-label="พักเกม" data-tip="พักเกม">${icon('pause')}</button>
     </nav>
@@ -33,11 +48,15 @@ $('#app').innerHTML = `
     <div id="sea" role="img" aria-label="เรือตกปลาและสัตว์ทะเลว่ายหลายชั้น"></div>
     <div class="loading" role="status">กำลังออกเรือ…</div>
     <section class="hud" aria-label="ผลการเล่น">
-      <div class="score"><span class="score-icon">${icon('trophy')}</span><div><small>คะแนน</small><strong id="score">0</strong></div></div>
-      <div class="catch-count">${icon('fish')}<strong id="caught-count">0 / ${GOAL}</strong></div>
-      <div id="timer" class="timer" hidden>${icon('timer')}<strong>1:30</strong></div>
+      <div class="score"><span class="score-icon">${icon('trophy')}</span><div><small>คะแนน</small><strong id="score">0</strong></div><span id="double" class="double-badge" hidden>x2</span></div>
+      <div class="hud-right">
+        <div id="timer" class="timer" hidden>${icon('timer')}<strong>1:30</strong></div>
+        <div class="catch-count">${icon('fish')}<strong id="caught-count">0 / ${GOAL}</strong></div>
+        <div class="maps" aria-label="แผนที่สมบัติ">${icon('map')}<strong id="maps">0/${MAP_PIECES}</strong></div>
+      </div>
     </section>
-    <div class="phase-label"><span id="phase-text" role="status" aria-live="polite">ออกทะเลกัน!</span><span id="caught-name"></span></div>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <div class="phase-label"><div id="bonus" class="bonus-banner" role="status" hidden>${icon('sparkles')}<span>ฝนสมบัติ!</span><strong id="bonus-time">20</strong></div><span id="phase-text" role="status" aria-live="polite">ออกทะเลกัน!</span><span id="caught-name"></span></div>
     <div class="dock">
       <button id="cast" class="cast-button" disabled>${icon('anchor')}<span>หย่อนเบ็ด</span></button>
       <div class="reel-wrap">
@@ -58,11 +77,14 @@ class FishingApp {
     try { this.storage = window.localStorage; }
     catch { this.storage = { getItem: () => null, setItem: () => { throw new Error('Storage unavailable'); } }; }
     this.progress = loadProgress(this.storage);
-    this.audio = new FishingAudio(this.progress.sound);
+    this.species = speciesWithArt(QA);
+    this.rng = QA && params.has('seed') ? seeded(Number(params.get('seed'))) : Math.random;
+    this.audio = new FishingAudio(this.progress.sound, { music: this.progress.music });
     this.round = this.makeRound('relaxed');
     this.scene = null;
     this.wheelAngle = 0;
     this.lastHUD = '';
+    this.lastSecond = null;
     this.resumeOnClose = false;
     this.hookMessageCount = 0;
     this.syncSound();
@@ -70,18 +92,40 @@ class FishingApp {
     this.game = createGame(this);
     this.resizeObserver = new ResizeObserver(() => this.measure());
     this.resizeObserver.observe($('.stage'));
-    document.addEventListener('visibilitychange', () => { if (document.hidden) this.pause(); });
+    // iOS only unlocks Web Audio from certain gestures; listen to all of them.
+    for (const type of ['pointerup', 'touchend', 'click', 'keydown']) document.addEventListener(type, () => this.audio.unlock(), { capture: true, passive: true });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { this.pause(); this.audio.suspend(); } });
     window.addEventListener('blur', () => this.pause());
-    window.addEventListener('pagehide', () => this.audio.stop());
+    window.addEventListener('pagehide', () => this.audio.suspend());
   }
 
+  now() { return performance.now(); }
+
   makeRound(mode) {
-    return new FishingRound(mode, (species) => {
-      recordCatch(this.progress, species.id);
-      this.persist();
-      this.audio.stop(); this.audio.play('land');
-      this.scene?.celebrate(species);
-    });
+    return new FishingRound(mode, (species, round) => this.landed(species, round), { maps: this.progress.maps });
+  }
+
+  landed(species, round) {
+    const landing = round.landing;
+    recordCatch(this.progress, species.id);
+    this.progress.maps = round.maps;
+    this.persist();
+    this.audio.stop();
+    this.audio.play(species.jackpot ? 'jackpot' : species.kind === 'item' ? 'treasure' : species.kind === 'junk' ? 'junk' : 'land');
+    if (species.effect === 'double') { this.audio.play('double'); this.toast('ครั้งต่อไปได้คะแนน x2!'); }
+    if (species.effect === 'time' && round.mode === 'arcade') { this.audio.play('time'); this.toast('เวลา +10 วินาที!'); }
+    if (species.effect === 'map') {
+      this.audio.play('map');
+      this.toast(landing.bonusStarted ? 'แผนที่ครบ 4 ชิ้น!' : `ได้แผนที่ ${round.maps}/${MAP_PIECES} ชิ้น`);
+    }
+    if (landing.multiplier > 1) this.toast(`คะแนน x2 ได้ ${landing.points} คะแนน!`);
+    if (species.kind === 'junk') this.toast('ได้รองเท้าเก่ามา ลองใหม่นะ!');
+    if (species.jackpot) this.toast(`แจ็กพอต! ${species.name}`);
+    if (landing.bonusStarted) {
+      this.audio.play('bonus');
+      this.audio.say('แผนที่ครบแล้ว ฝนสมบัติมาแล้ว');
+    }
+    this.scene?.celebrate(species, landing);
   }
 
   ready(scene) {
@@ -89,12 +133,14 @@ class FishingApp {
     $('.loading').hidden = !this.failed;
     $('#sea canvas').setAttribute('aria-hidden', 'true');
     this.measure(); this.renderHUD();
-    scene.scale.on('resize', () => this.measure());
-    if (import.meta.env.DEV && new URLSearchParams(location.search).has('qa')) {
+    if (QA) {
       window.__FISHING_QA__ = {
         snapshot: () => this.scene.snapshot(),
         arrange: (id) => this.scene.arrangeForTest(id),
+        release: () => this.scene.releaseTest(),
         expire: () => { this.round.remaining = 0.01; },
+        setMaps: (n) => { this.round.maps = n; },
+        scene: () => this.scene,
       };
     }
   }
@@ -102,6 +148,13 @@ class FishingApp {
   assetError() {
     $('.loading').textContent = 'โหลดภาพไม่สำเร็จ กรุณาเปิดเกมใหม่';
     this.failed = true;
+  }
+
+  // Top of the cast/reel controls, in CSS px from the top of the sea.
+  dockTop() {
+    const stage = $('.stage').getBoundingClientRect();
+    const top = Math.min($('#cast').getBoundingClientRect().top, $('#reel').getBoundingClientRect().top);
+    return top - stage.top;
   }
 
   measure() {
@@ -112,6 +165,15 @@ class FishingApp {
       $('.stage').style.setProperty('--scene-width', `${Math.min(stage.width, stage.height * 480 / 760)}px`);
       $('.stage').style.setProperty('--scene-gap', '0px');
       $('.stage').style.setProperty('--scene-top', '0px');
+      // Phaser can record a rotated container's new size without resizing the canvas (iPad rotation):
+      // refresh it whenever the canvas and its container disagree.
+      const sea = $('#sea');
+      const size = this.game.scale.gameSize;
+      if (Math.abs(size.width - sea.clientWidth) > 1 || Math.abs(size.height - sea.clientHeight) > 1) {
+        this.game.scale.getParentBounds();
+        this.game.scale.refresh();
+      }
+      this.scene?.relayout();
     });
   }
 
@@ -125,11 +187,16 @@ class FishingApp {
     $('#sound').onclick = () => {
       this.progress.sound = this.audio.toggle(); this.persist(); this.syncSound();
     };
+    $('#music').onclick = () => {
+      this.audio.unlock();
+      this.progress.music = this.audio.toggleMusic(); this.persist(); this.syncSound();
+    };
     for (const mode of ['relaxed', 'arcade']) $(`#${mode}`).onclick = () => this.changeMode(mode);
     $('.stage').addEventListener('contextmenu', (event) => event.preventDefault());
     $('#modal').addEventListener('close', () => {
       if (this.resumeOnClose && this.round.phase !== 'complete') this.round.pause(false);
       this.resumeOnClose = false;
+      this.audio.duck(false);
       this.lastHUD = ''; this.renderHUD();
     });
   }
@@ -138,6 +205,9 @@ class FishingApp {
     $('#sound').innerHTML = icon(this.audio.enabled ? 'volume-2' : 'volume-x');
     $('#sound').setAttribute('aria-label', this.audio.enabled ? 'ปิดเสียง' : 'เปิดเสียง');
     $('#sound').setAttribute('aria-pressed', String(this.audio.enabled));
+    $('#music').setAttribute('aria-label', this.audio.musicOn ? 'ปิดเพลง' : 'เปิดเพลง');
+    $('#music').setAttribute('aria-pressed', String(this.audio.musicOn));
+    $('#music').classList.toggle('off', !this.audio.musicOn || !this.audio.enabled);
     updateIcons();
   }
 
@@ -155,7 +225,7 @@ class FishingApp {
     $('#reel').classList.remove('tapped');
     void $('#reel').offsetWidth;
     $('#reel').classList.add('tapped');
-    this.audio.play('tap');
+    this.audio.play('tap', { progress: this.round.taps / this.round.requiredTaps });
     if (navigator.vibrate) navigator.vibrate(8);
     this.renderHUD();
   }
@@ -166,19 +236,37 @@ class FishingApp {
     this.renderHUD();
   }
 
+  onMiss() { this.audio.play('miss'); }
+
+  toast(text) {
+    const toast = $('#toast');
+    toast.textContent = text;
+    toast.hidden = false;
+    toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => { toast.hidden = true; }, 2200);
+  }
+
   renderHUD() {
     if (!this.scene || this.failed) return;
     const r = this.round;
     const mystery = r.phase === 'reeling' && this.scene.caught?.getData('reveal') < 0.85;
-    const signature = `${r.phase}/${r.paused}/${r.score}/${r.catches.length}/${r.catchId}/${r.taps}/${Math.ceil(r.remaining)}/${mystery}`;
+    const seconds = Math.ceil(r.remaining);
+    const bonus = Math.ceil(r.bonus);
+    const signature = `${r.phase}/${r.paused}/${r.score}/${r.tripCatches}/${r.catchId}/${r.taps}/${seconds}/${mystery}/${r.maps}/${r.doubleNext}/${bonus}`;
     if (signature === this.lastHUD) return;
     this.lastHUD = signature;
     $('#score').textContent = r.score;
-    $('#caught-count').textContent = `${r.catches.length} / ${GOAL}`;
+    $('#caught-count').textContent = `${Math.min(r.tripCatches, GOAL)} / ${GOAL}`;
+    $('#maps').textContent = `${r.maps}/${MAP_PIECES}`;
+    $('#double').hidden = !r.doubleNext;
+    $('#bonus').hidden = bonus <= 0;
+    $('#bonus-time').textContent = bonus;
     $('#timer').hidden = r.mode !== 'arcade';
-    const seconds = Math.ceil(r.remaining);
     $('#timer strong').textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
     $('#timer').classList.toggle('urgent', seconds <= 15);
+    if (r.mode === 'arcade' && seconds <= 10 && seconds > 0 && !r.paused && bonus <= 0 && this.lastSecond !== seconds && r.phase !== 'complete') this.audio.play('tick');
+    this.lastSecond = seconds;
     const labels = { aim: 'ออกทะเลกัน!', casting: 'เบ็ดกำลังลง…', reeling: 'ติดเบ็ดแล้ว!', returning: 'ลองอีกครั้งได้เลย', celebrate: 'เยี่ยมเลย!', complete: 'กลับถึงฝั่งแล้ว' };
     $('#phase-text').textContent = labels[r.phase];
     $('#caught-name').textContent = r.catchId ? (mystery ? 'สัตว์ลึกลับ' : SPECIES_BY_ID[r.catchId].name) : '';
@@ -222,7 +310,7 @@ class FishingApp {
 
   showDialog(html) {
     if (!$('#modal').open) this.resumeOnClose = !this.round.paused && this.round.phase !== 'complete';
-    this.round.pause(true); this.audio.stop();
+    this.round.pause(true); this.audio.stop(); this.audio.duck(true);
     $('#modal-content').innerHTML = html;
     updateIcons();
     if (!$('#modal').open) $('#modal').showModal();
@@ -230,8 +318,13 @@ class FishingApp {
   }
 
   openCollection() {
-    const found = SPECIES.filter((s) => this.progress.collection[s.id]).length;
-    this.showDialog(`<div class="dialog-heading"><div><small>สัตว์ทะเลและสมบัติ</small><h2 id="dialog-title">สมุดสะสม <span>${found} / ${SPECIES.length}</span></h2></div><button id="close-book" class="icon-button" aria-label="ปิดสมุดสะสม">${icon('x')}</button></div><div class="collection-grid">${SPECIES.map((s) => `<article class="collection-item ${this.progress.collection[s.id] ? '' : 'undiscovered'}">${art(s)}<h3>${s.name}</h3><span>${this.progress.collection[s.id] ? `${this.progress.collection[s.id]} ครั้ง` : 'ยังไม่พบ'}</span></article>`).join('')}</div>`);
+    const found = this.species.filter((s) => this.progress.collection[s.id]).length;
+    const sections = ZONES.map((zone) => {
+      const list = this.species.filter(zone.match);
+      if (!list.length) return '';
+      return `<h3 class="zone-title">${zone.name}</h3><div class="collection-grid">${list.map((s) => `<article class="collection-item ${this.progress.collection[s.id] ? '' : 'undiscovered'}">${art(s)}<h4>${s.name}</h4><span>${this.progress.collection[s.id] ? `${this.progress.collection[s.id]} ครั้ง` : 'ยังไม่พบ'}</span></article>`).join('')}</div>`;
+    }).join('');
+    this.showDialog(`<div class="dialog-heading"><div><small>สัตว์ทะเลและสมบัติ</small><h2 id="dialog-title">สมุดสะสม <span>${found} / ${this.species.length}</span></h2></div><button id="close-book" class="icon-button" aria-label="ปิดสมุดสะสม">${icon('x')}</button></div>${sections}`);
     $('#close-book').onclick = () => $('#modal').close();
   }
 
