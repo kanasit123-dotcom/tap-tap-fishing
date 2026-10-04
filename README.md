@@ -22,7 +22,7 @@ The Pages workflow publishes pushes to remote `main`; the local working branch i
 
 ```sh
 npm run check
-npx playwright install chromium
+npx playwright install chromium webkit
 npm run test:e2e
 npm run build
 npm run preview -- --port 5194
@@ -31,8 +31,10 @@ npm run preview -- --port 5194
 ## Version 0.1.0
 
 - Starts directly in the playable sea, no landing page or sign-in.
-- Six aligned depth rows, twelve collectible creatures/treasures, different swim speeds and tap counts.
+- Six aligned depth rows with 32 swimming instances (8/6/5/5/4/4), twelve collectible species/treasures.
 - Fish in each row swim in the same direction with stable spacing; deeper creatures are generally larger.
+- Two deepest rows appear as black silhouettes; colors gradually return as a hooked catch rises.
+- A deep catch's name remains hidden until its artwork is mostly revealed; respawns return to silhouettes.
 - New seal, shark, anglerfish and giant squid; original pufferfish and other collection IDs are preserved.
 - Swinging hook locks its direction when cast; Phaser Arcade Physics detects catches.
 - Every accepted reel tap turns the wheel and shortens the line. Holding does not auto-reel.
@@ -41,7 +43,9 @@ npm run preview -- --port 5194
 - A relaxed trip finishes after eight catches; scores, completion rewards and repeat trips.
 - Local collection, mode-specific best scores and sound preference are saved independently.
 - Pause/resume, collection book, restart, sound toggle and mode-switch confirmation.
-- Pointer, touch and keyboard button activation; no text selection, context menu or double-tap zoom in the sea.
+- Pointer, touch and keyboard activation. A stationary reel wrapper cancels native touch/gesture defaults,
+  even after landing disables the button; each touch counts once and holding never auto-reels.
+- Zoom is not globally disabled. Real iPad Safari gesture confirmation is still needed.
 - Original generated raster art, code-drawn boat/hook, synthesized sound effects.
 - Optional Thai spoken encouragement uses a Thai voice on the device, when available.
 
@@ -80,6 +84,7 @@ the wheel animation, status and sound effects still work. A service worker/offli
 | `src/model.js` | Round phases, hook aim, casting, tap progress, scoring and clock |
 | `src/scene.js` | Phaser rendering, Arcade Physics overlap, swimming, effects and responsive camera |
 | `src/main.js` | Accessible DOM controls, dialogs and application integration |
+| `src/input.js` | Single-touch activation, Safari gesture guards, compatibility-event suppression, keyboard/mouse input |
 | `src/species.js` | Species, source rectangles, atlas metadata, rows, swim spacing, scores and tap counts |
 | `src/progress.js` | Separate validated local storage and idempotent completed-trip recording |
 | `src/audio.js` | Gesture-unlocked Web Audio effects and optional Thai device speech |
@@ -93,6 +98,12 @@ Artwork provenance and generation prompts: [docs/ARTWORK.md](docs/ARTWORK.md).
 
 [UNIS Treasure Cove operation manual](https://www.mossdistributing.com/userdocs/documents/MS0369_TREASURECOVE.PDF),
 gameplay section: swing, cast, hook and reel. Our touch controls, rewards, data and art are original.
+[PrimeTime Amusements IAAPA 2018 demonstration](https://www.youtube.com/watch?v=wOiXknKSgqw):
+inspected gameplay frames near 0:23 and 1:03 for aligned schools and increasing creature size.
+The new mystery silhouettes are the user's requested addition, not a claim that this clip proves that mechanic.
+[WebKit issue 218015](https://bugs.webkit.org/show_bug.cgi?id=218015) documents an older iOS case where
+touch-action alone did not stop double-tap zoom on positioned elements; this is relevant context,
+not a diagnosis of the user's exact iPad/browser version.
 [Phaser Arcade Physics](https://docs.phaser.io/phaser/concepts/physics/arcade) and
 [Phaser unified pointer input](https://docs.phaser.io/phaser/concepts/input).
 

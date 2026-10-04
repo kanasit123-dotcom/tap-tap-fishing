@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { SPECIES, LANES, SWIM_LOOP } from '../../src/species.js';
+import { SPECIES, SCHOOLS, ROW_POPULATIONS, LANES, SWIM_LOOP } from '../../src/species.js';
 
 async function boot(page) {
   const errors = [];
@@ -109,13 +109,86 @@ test('pause freezes hook and arcade clock; expiry honors a catch already in prog
 test('touch taps do not zoom, select text, or double-count; sounds unlock from a gesture', async ({ page }, info) => {
   test.skip(info.project.name === 'desktop', 'Touch devices only');
   const errors = await boot(page); await fish(page, 'clownfish');
-  expect((await snapshot(page)).audio.state).toBe('running');
+  const hasAudio = await page.evaluate(() => Boolean(window.AudioContext || window.webkitAudioContext));
+  // The Windows WebKit port has no Web Audio API; still exercise every touch assertion.
+  expect((await snapshot(page)).audio.state).toBe(hasAudio ? 'running' : 'locked');
   const initial = await snapshot(page); const rect = await page.locator('#reel').boundingBox();
   for (let i = 0; i < 3; i++) { await page.touchscreen.tap(rect.x + rect.width / 2, rect.y + rect.height / 2); await page.waitForTimeout(110); }
   expect((await snapshot(page)).taps).toBe(initial.taps + 3);
   expect(await page.evaluate(() => visualViewport.scale)).toBe(1);
   expect(await page.evaluate(() => getSelection().toString())).toBe('');
   expect(await page.locator('#reel').evaluate((button) => getComputedStyle(button).touchAction)).toBe('none');
+  expect(errors).toEqual([]);
+});
+
+test('rapid touches on the stationary reel cancel native gestures through the final landing tap', async ({ page }, info) => {
+  test.skip(info.project.name === 'desktop', 'Touch devices only');
+  const errors = await boot(page); await fish(page, 'clownfish');
+  await page.evaluate(() => {
+    window.reelTouchEvents = [];
+    for (const type of ['touchstart', 'touchend']) document.addEventListener(type, (event) => {
+      if (event.target.closest('.reel-wrap')) window.reelTouchEvents.push({ type, prevented: event.defaultPrevented });
+    }, { passive: true });
+  });
+  const box = await page.locator('#reel').boundingBox();
+  const n = (await snapshot(page)).requiredTaps;
+  for (let i = 0; i < n; i++) {
+    await page.touchscreen.tap(box.x + box.width * (i % 2 ? 0.8 : 0.5), box.y + box.height / 2);
+    await page.waitForTimeout(95);
+    expect((await page.locator('#reel').boundingBox()).width).toBe(box.width);
+  }
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'aim');
+  expect(await page.locator('#reel').evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
+  for (let i = 0; i < 3; i++) await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  const events = await page.evaluate(() => window.reelTouchEvents);
+  expect(events.length).toBeGreaterThanOrEqual((n + 3) * 2);
+  expect(events.every((event) => event.prevented)).toBe(true);
+  expect((await snapshot(page)).catches).toHaveLength(1);
+  expect(await page.evaluate(() => visualViewport.scale)).toBe(1);
+  expect(await page.evaluate(() => getSelection().toString())).toBe('');
+  expect(await page.locator('#reel .wheel').evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
+  expect(await page.locator('meta[name="viewport"]').getAttribute('content')).not.toMatch(/user-scalable\s*=\s*no|maximum-scale\s*=\s*1/);
+  expect(errors).toEqual([]);
+});
+
+test('deep catch starts black and unnamed, then progressively reveals actual artwork while reeling', async ({ page }, info) => {
+  const errors = await boot(page); await fish(page, 'shark');
+  const blackFraction = () => page.evaluate(() => {
+    const state = window.__FISHING_QA__.snapshot();
+    const fish = state.fishes.find((f) => f.id === 'shark' && !f.active && f.alpha === 1);
+    const canvas = document.querySelector('#sea canvas');
+    const width = Math.round(fish.width * state.view.zoom);
+    const height = Math.round(fish.height * state.view.zoom);
+    const x = Math.round((fish.x - fish.width / 2 - state.view.x) * state.view.zoom);
+    const y = Math.round((fish.y - fish.height / 2 - state.view.y) * state.view.zoom);
+    const data = canvas.getContext('2d').getImageData(x, y, width, height).data;
+    let black = 0;
+    for (let i = 0; i < data.length; i += 4) if (Math.max(data[i], data[i + 1], data[i + 2]) < 12) black++;
+    return black / (width * height);
+  });
+  await page.waitForTimeout(120);
+  await expect(page.locator('#caught-name')).toHaveText('สัตว์ลึกลับ');
+  expect((await snapshot(page)).fishes.find((f) => f.id === 'shark').reveal).toBe(0);
+  const initialBlack = await blackFraction(); expect(initialBlack).toBeGreaterThan(0.15);
+  await page.screenshot({ path: info.outputPath('mystery-catch.png') });
+  const n = (await snapshot(page)).requiredTaps;
+  const half = Math.floor(n * 0.55);
+  for (let i = 0; i < half; i++) { await page.locator('#reel').click(); await page.waitForTimeout(95); }
+  await page.waitForTimeout(180);
+  const partial = (await snapshot(page)).fishes.find((f) => f.id === 'shark');
+  expect(partial.reveal).toBeGreaterThan(0.2); expect(partial.reveal).toBeLessThan(1);
+  expect(partial.shadowAlpha).toBeGreaterThan(0); expect(partial.shadowAlpha).toBeLessThan(1);
+  expect(await blackFraction()).toBeLessThan(initialBlack / 2);
+  await page.screenshot({ path: info.outputPath('revealing-catch.png') });
+  for (let i = half; i < n - 1; i++) { await page.locator('#reel').click(); await page.waitForTimeout(95); }
+  await page.waitForTimeout(180);
+  await expect(page.locator('#caught-name')).toHaveText('ฉลาม');
+  await page.screenshot({ path: info.outputPath('revealed-catch.png') });
+  await page.locator('#reel').click();
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'aim');
+  const respawned = (await snapshot(page)).fishes.find((f) => f.id === 'shark');
+  expect(respawned.reveal).toBe(0); expect(respawned.shadowAlpha).toBe(1); expect(respawned.active).toBe(true);
+  expect((await snapshot(page)).score).toBe(34);
   expect(errors).toEqual([]);
 });
 
@@ -177,21 +250,28 @@ test('compact portrait and landscape controls fit without collisions', async ({ 
 
 test('six aligned rows stay opaque, spaced apart and moving after a screen wrap', async ({ page }, info) => {
   const errors = await boot(page); const before = await snapshot(page);
-  expect(before.fishes).toHaveLength(12);
-  const turtleX = before.fishes.find((f) => f.id === 'turtle').x;
-  await page.waitForFunction((x) => window.__FISHING_QA__.snapshot().fishes.find((f) => f.id === 'turtle').x < x, turtleX, { timeout: 20_000 });
+  expect(before.fishes).toHaveLength(SCHOOLS.length);
+  const untilWrap = (f) => (f.velocity > 0 ? SWIM_LOOP.right - f.x : f.x - SWIM_LOOP.left) / Math.abs(f.velocity);
+  const wrapping = [...before.fishes].sort((a, b) => untilWrap(a) - untilWrap(b))[0];
+  await page.waitForFunction((before) => {
+    const fish = window.__FISHING_QA__.snapshot().fishes.find((f) => f.lane === before.lane && f.slot === before.slot);
+    return Math.abs(fish.x - before.x) > 350;
+  }, wrapping, { timeout: 20_000 });
   const after = await snapshot(page);
   for (const f of after.fishes) {
     expect(f.y).toBe(LANES[f.lane]); expect(f.alpha).toBe(1); expect(f.velocity).not.toBe(0);
     const row = after.fishes.filter((other) => other.lane === f.lane);
-    expect(row).toHaveLength(2);
-    const gap = Math.abs(row[0].x - row[1].x);
+    expect(row).toHaveLength(ROW_POPULATIONS[f.lane]);
+    const neighbor = row.find((other) => other.slot === (f.slot + 1) % row.length);
+    const gap = Math.abs(f.x - neighbor.x);
     const spacing = Math.min(gap, SWIM_LOOP.width - gap);
     // Body.reset at the wrap boundary can differ by one physics step (< 1 world pixel).
-    expect(Math.abs(spacing - SWIM_LOOP.width / 2)).toBeLessThanOrEqual(1);
-    expect(spacing - (row[0].width + row[1].width) / 2).toBeGreaterThan(100);
+    expect(Math.abs(spacing - SWIM_LOOP.width / row.length)).toBeLessThanOrEqual(1);
+    expect(spacing - (f.width + neighbor.width) / 2).toBeGreaterThan(20);
+    expect(f.reveal).toBe(f.lane >= 4 ? 0 : 1);
+    expect(f.shadowAlpha).toBe(f.lane >= 4 ? 1 : 0);
   }
-  expect(after.fishes.find((f) => f.id === 'turtle').x).toBeLessThan(before.fishes.find((f) => f.id === 'turtle').x);
+  expect(Math.abs(after.fishes.find((f) => f.lane === wrapping.lane && f.slot === wrapping.slot).x - wrapping.x)).toBeGreaterThan(350);
   await page.screenshot({ path: info.outputPath('depth-rows.png') });
   await page.locator('#collection').click();
   await expect(page.locator('.collection-item')).toHaveCount(12);
@@ -219,12 +299,38 @@ test('six aligned rows stay opaque, spaced apart and moving after a screen wrap'
   expect(errors).toEqual([]);
 });
 
+test('catching from the full school restores the vacated slot without overlaps or duplicate rewards', async ({ page }) => {
+  test.setTimeout(60_000); const errors = await boot(page);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await page.locator('#cast').click();
+    await page.waitForFunction(() => ['reeling', 'aim'].includes(window.__FISHING_QA__.snapshot().phase));
+    if ((await snapshot(page)).phase === 'reeling') break;
+  }
+  const hooked = await snapshot(page); expect(hooked.phase).toBe('reeling');
+  const target = hooked.fishes.find((f) => !f.active);
+  expect(hooked.fishes.filter((f) => f.active)).toHaveLength(31);
+  await reel(page);
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'aim');
+  const landed = await snapshot(page);
+  expect(landed.catches).toHaveLength(1);
+  expect(landed.fishes.filter((f) => f.active)).toHaveLength(32);
+  const row = landed.fishes.filter((f) => f.lane === target.lane);
+  for (const f of row) {
+    const next = row.find((other) => other.slot === (f.slot + 1) % row.length);
+    const gap = Math.abs(next.x - f.x);
+    const spacing = Math.min(gap, SWIM_LOOP.width - gap);
+    expect(Math.abs(spacing - SWIM_LOOP.width / row.length)).toBeLessThanOrEqual(1);
+    expect(spacing - (f.width + next.width) / 2).toBeGreaterThan(20);
+  }
+  expect(errors).toEqual([]);
+});
+
 test('new deep animals collide with the real hook, reel, respawn and persist in the book', async ({ page }, info) => {
   test.setTimeout(80_000); const errors = await boot(page);
   const added = SPECIES.filter((s) => s.atlas === 'deep');
   let total = 0;
   for (const s of added) {
-    await fish(page, s.id); await expect(page.locator('#caught-name')).toHaveText(s.name);
+    await fish(page, s.id); await expect(page.locator('#caught-name')).toHaveText(s.lane >= 4 ? 'สัตว์ลึกลับ' : s.name);
     await page.screenshot({ path: info.outputPath(`caught-${s.id}.png`) });
     await reel(page); total += s.points;
     await expect(page.locator('#score')).toHaveText(String(total));

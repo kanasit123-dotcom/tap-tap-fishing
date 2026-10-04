@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { SPECIES, LANES, ATLASES, SWIM_LOOP, spawnX, directionFor, wrapX } from '../src/species.js';
+import { SPECIES, SCHOOLS, ROW_POPULATIONS, LANES, ATLASES, SWIM_LOOP, spawnX, directionFor, wrapX, revealForRise } from '../src/species.js';
 import { WORLD } from '../src/model.js';
 
 test('generated PNG assets have the documented dimensions, transparency and hashes', () => {
@@ -41,7 +41,14 @@ test('depth rows leave clear vertical gaps and swim with fixed horizontal spacin
     const row = SPECIES.filter((s) => s.lane === lane);
     assert.equal(row.length, 2);
     assert.equal(row[0].speed, row[1].speed); assert.equal(directionFor(row[0]), directionFor(row[1]));
-    assert.equal(Math.abs(spawnX(row[1]) - spawnX(row[0])), SWIM_LOOP.width / 2);
+    const school = SCHOOLS.filter((s) => s.species.lane === lane);
+    assert.equal(school.length, ROW_POPULATIONS[lane]);
+    for (const { species, slot } of school) {
+      const next = school[(slot + 1) % school.length];
+      const spacing = wrapX(spawnX(next.species, next.slot) - spawnX(species, slot) + SWIM_LOOP.left) - SWIM_LOOP.left;
+      assert.ok(Math.abs(spacing - SWIM_LOOP.width / school.length) < 0.00001);
+      assert.ok(spacing - (species.width + next.species.width) / 2 > 20, 'leave gaps for deeper casts');
+    }
     if (lane < LANES.length - 1) {
       const next = SPECIES.filter((s) => s.lane === lane + 1);
       assert.ok(LANES[lane + 1] - LANES[lane] - Math.max(...row.map((s) => s.height)) / 2 - Math.max(...next.map((s) => s.height)) / 2 >= 3);
@@ -50,6 +57,16 @@ test('depth rows leave clear vertical gaps and swim with fixed horizontal spacin
   const top = SPECIES.filter((s) => s.lane <= 1);
   const deep = SPECIES.filter((s) => s.lane >= 4);
   assert.ok(Math.min(...deep.map((s) => s.width)) > Math.max(...top.map((s) => s.width)));
+  assert.equal(SCHOOLS.length, 32);
+});
+
+test('deep silhouettes reveal gradually by physical rise, not by waiting or naming the catch', () => {
+  assert.equal(revealForRise(4, 460, 460), 0);
+  assert.equal(revealForRise(5, 530, 530), 0);
+  assert.ok(revealForRise(4, 312, 460) > 0 && revealForRise(4, 312, 460) < 1);
+  assert.equal(revealForRise(4, 164, 460), 1);
+  assert.equal(revealForRise(5, 164, 530), 1);
+  assert.equal(revealForRise(3, 413, 413), 1);
 });
 
 test('swim wrapping preserves overshoot and row spacing in either direction', () => {

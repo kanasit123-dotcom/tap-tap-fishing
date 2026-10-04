@@ -4,6 +4,7 @@ import { FishingRound, GOAL } from './model.js';
 import { SPECIES, SPECIES_BY_ID, ATLASES } from './species.js';
 import { loadProgress, saveProgress, recordCatch, recordTrip } from './progress.js';
 import { FishingAudio } from './audio.js';
+import { bindTapControl } from './input.js';
 import './style.css';
 
 const icons = { Anchor, BookOpen, Volume2, VolumeX, Pause, Play, Fish, Trophy, Timer, X, RotateCcw, ArrowRight, Check };
@@ -117,16 +118,8 @@ class FishingApp {
   persist() { $('#save-warning').hidden = saveProgress(this.storage, this.progress); }
 
   bindControls() {
-    const activate = (button, fn) => {
-      button.addEventListener('pointerdown', (event) => {
-        if (event.button !== 0 || button.disabled) return;
-        event.preventDefault(); fn();
-      });
-      button.addEventListener('click', (event) => { if (event.detail === 0 && !button.disabled) fn(); });
-      button.addEventListener('keydown', (event) => { if (event.repeat && (event.key === ' ' || event.key === 'Enter')) event.preventDefault(); });
-    };
-    activate($('#cast'), () => this.round.phase === 'complete' ? this.startRound(this.round.mode) : this.cast());
-    activate($('#reel'), () => this.reel());
+    bindTapControl($('#cast'), () => this.round.phase === 'complete' ? this.startRound(this.round.mode) : this.cast());
+    bindTapControl($('#reel'), () => this.reel(), $('.reel-wrap'));
     $('#pause').onclick = () => this.pause();
     $('#collection').onclick = () => { this.audio.unlock(); this.openCollection(); };
     $('#sound').onclick = () => {
@@ -176,7 +169,8 @@ class FishingApp {
   renderHUD() {
     if (!this.scene || this.failed) return;
     const r = this.round;
-    const signature = `${r.phase}/${r.paused}/${r.score}/${r.catches.length}/${r.catchId}/${r.taps}/${Math.ceil(r.remaining)}`;
+    const mystery = r.phase === 'reeling' && this.scene.caught?.getData('reveal') < 0.85;
+    const signature = `${r.phase}/${r.paused}/${r.score}/${r.catches.length}/${r.catchId}/${r.taps}/${Math.ceil(r.remaining)}/${mystery}`;
     if (signature === this.lastHUD) return;
     this.lastHUD = signature;
     $('#score').textContent = r.score;
@@ -187,7 +181,7 @@ class FishingApp {
     $('#timer').classList.toggle('urgent', seconds <= 15);
     const labels = { aim: 'ออกทะเลกัน!', casting: 'เบ็ดกำลังลง…', reeling: 'ติดเบ็ดแล้ว!', returning: 'ลองอีกครั้งได้เลย', celebrate: 'เยี่ยมเลย!', complete: 'กลับถึงฝั่งแล้ว' };
     $('#phase-text').textContent = labels[r.phase];
-    $('#caught-name').textContent = r.catchId ? SPECIES_BY_ID[r.catchId].name : '';
+    $('#caught-name').textContent = r.catchId ? (mystery ? 'สัตว์ลึกลับ' : SPECIES_BY_ID[r.catchId].name) : '';
     $('#cast').disabled = r.paused || !['aim', 'complete'].includes(r.phase);
     $('#cast span').textContent = r.phase === 'complete' ? 'ออกเรืออีกครั้ง' : 'หย่อนเบ็ด';
     $('#reel').disabled = r.paused || r.phase !== 'reeling';

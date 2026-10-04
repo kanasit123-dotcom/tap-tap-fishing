@@ -4,6 +4,7 @@ export const ATLASES = {
 };
 export const LANES = [230, 291, 352, 413, 474, 535];
 export const SWIM_LOOP = { left: -110, right: 590, width: 700 };
+export const ROW_POPULATIONS = [8, 6, 5, 5, 4, 4];
 
 // Source rectangles isolate entire cutouts, including tails outside the old grid.
 const catalog = [
@@ -30,7 +31,17 @@ export const directionFor = (species) => species.lane % 2 ? -1 : 1;
 export function wrapX(x) {
   return ((x - SWIM_LOOP.left) % SWIM_LOOP.width + SWIM_LOOP.width) % SWIM_LOOP.width + SWIM_LOOP.left;
 }
-export function spawnX(species) {
+export function spawnX(species, slot) {
   const row = SPECIES.filter((s) => s.lane === species.lane);
-  return wrapX(70 + species.lane * 37 + row.indexOf(species) * SWIM_LOOP.width / row.length);
+  return wrapX(70 + species.lane * 37 + (slot ?? row.indexOf(species)) * SWIM_LOOP.width / ROW_POPULATIONS[species.lane]);
+}
+export const SCHOOLS = ROW_POPULATIONS.flatMap((count, lane) => {
+  const row = SPECIES.filter((s) => s.lane === lane);
+  return Array.from({ length: count }, (_, slot) => ({ species: row[slot % row.length], slot }));
+});
+
+export function revealForRise(lane, hookY, caughtY) {
+  if (lane < 4) return 1;
+  const rise = (caughtY - hookY) / Math.max(1, caughtY - 164);
+  return Math.max(0, Math.min(1, (rise - 0.2) / 0.65));
 }

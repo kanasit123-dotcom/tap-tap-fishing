@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SPECIES, LANES, ATLASES, SWIM_LOOP, spawnX, wrapX, directionFor } from './species.js';
+import { SPECIES, SCHOOLS, ROW_POPULATIONS, LANES, ATLASES, SWIM_LOOP, spawnX, wrapX, directionFor, revealForRise } from './species.js';
 import { WORLD } from './model.js';
 
 export class CoveScene extends Phaser.Scene {
@@ -19,13 +19,18 @@ export class CoveScene extends Phaser.Scene {
     this.makeHookTexture();
     this.rope = this.add.graphics().setDepth(12);
     this.fishes = this.physics.add.group();
-    SPECIES.forEach((species, i) => {
+    SPECIES.forEach((species) => {
       this.textures.get(species.atlas).add(species.id, 0, ...species.rect);
-      const fish = this.fishes.create(spawnX(species), LANES[species.lane], species.atlas, species.id);
+      if (species.lane >= 4) this.makeSilhouette(species);
+    });
+    SCHOOLS.forEach(({ species, slot }) => {
+      const fish = this.fishes.create(spawnX(species, slot), LANES[species.lane], species.atlas, species.id);
       fish.setDisplaySize(species.width, species.height).setDepth(5 + species.lane * 0.1);
-      fish.setData('species', species).setData('index', i);
+      fish.setData('species', species).setData('slot', slot);
+      if (species.lane >= 4) fish.setData('shadow', this.add.image(fish.x, fish.y, `shadow-${species.id}`));
       fish.body.setSize(species.rect[2] * 0.7, species.rect[3] * 0.65, true).setAllowGravity(false);
       this.swim(fish, directionFor(species));
+      this.syncShadow(fish);
     });
     this.boat = this.drawBoat();
     this.hook = this.physics.add.image(240, 186, 'hook').setDisplaySize(28, 28).setDepth(15);
@@ -35,6 +40,7 @@ export class CoveScene extends Phaser.Scene {
       if (!this.controller.round.catch(species.id)) return;
       fish.body.enable = false;
       fish.setDepth(14).setAngle(-12);
+      fish.setData('caughtY', this.controller.round.hook.y);
       this.caught = fish;
       this.controller.onHook(species);
     }, () => !this.controller.round.paused && this.controller.round.phase === 'casting');
@@ -68,6 +74,27 @@ export class CoveScene extends Phaser.Scene {
     g.generateTexture('hook', 64, 64); g.destroy();
   }
 
+  makeSilhouette(species) {
+    // Canvas renderer does not support sprite tint. Preserve the cutout's alpha mask.
+    const [x, y, width, height] = species.rect;
+    const texture = this.textures.createCanvas(`shadow-${species.id}`, width, height);
+    const context = texture.context;
+    context.drawImage(this.textures.get(species.atlas).getSourceImage(), x, y, width, height, 0, 0, width, height);
+    context.globalCompositeOperation = 'source-in';
+    context.fillStyle = '#000000';
+    context.fillRect(0, 0, width, height);
+    context.globalCompositeOperation = 'source-over';
+    texture.refresh();
+  }
+
+  syncShadow(fish) {
+    const shadow = fish.getData('shadow');
+    if (!shadow) return;
+    shadow.setPosition(fish.x, fish.y).setDisplaySize(fish.displayWidth, fish.displayHeight)
+      .setAngle(fish.angle).setFlipX(fish.flipX).setDepth(fish.depth + 0.01)
+      .setAlpha(fish.alpha * (1 - fish.getData('reveal')));
+  }
+
   drawBoat() {
     const g = this.add.graphics().setDepth(16);
     g.fillStyle(0x087b89, 0.22); g.fillEllipse(240, 131, 175, 14);
@@ -90,6 +117,7 @@ export class CoveScene extends Phaser.Scene {
   swim(fish, direction) {
     const species = fish.getData('species');
     fish.body.enable = true;
+    fish.setData('reveal', species.lane >= 4 ? 0 : 1);
     fish.setAngle(0).setFlipX(direction < 0).setDepth(5 + species.lane * 0.1);
     fish.setVelocity(direction * species.speed, 0);
   }
@@ -102,8 +130,9 @@ export class CoveScene extends Phaser.Scene {
       this.tweens.killTweensOf(fish);
       fish.setAlpha(1).setDisplaySize(species.width, species.height);
       fish.body.enable = true;
-      fish.body.reset(spawnX(species), LANES[species.lane]);
+      fish.body.reset(spawnX(species, fish.getData('slot')), LANES[species.lane]);
       this.swim(fish, directionFor(species));
+      this.syncShadow(fish);
     });
     this.physics.resume();
     this.tweens.resumeAll();
@@ -113,11 +142,13 @@ export class CoveScene extends Phaser.Scene {
     const fish = this.caught;
     this.caught = null;
     if (fish) {
+      fish.setData('reveal', 1);
       this.tweens.add({ targets: fish, x: 198, y: 98, alpha: 0, duration: 650, ease: 'Back.easeIn', onComplete: () => {
         fish.setAlpha(1).setAngle(0);
         fish.body.enable = true;
-        const neighbor = this.fishes.getChildren().find((other) => other !== fish && other.getData('species').lane === species.lane);
-        const x = neighbor ? wrapX(neighbor.x + SWIM_LOOP.width / 2) : spawnX(species);
+        const neighbor = this.fishes.getChildren().find((other) => other !== fish && other.body.enable && other.getData('species').lane === species.lane);
+        const spacing = SWIM_LOOP.width / ROW_POPULATIONS[species.lane];
+        const x = neighbor ? wrapX(neighbor.x + (fish.getData('slot') - neighbor.getData('slot')) * spacing) : spawnX(species, fish.getData('slot'));
         fish.body.reset(x, LANES[species.lane]);
         this.swim(fish, directionFor(species));
       } });
@@ -148,13 +179,16 @@ export class CoveScene extends Phaser.Scene {
     this.hook.setAngle(-round.angle * 180 / Math.PI);
     this.rope.clear().lineStyle(4, 0x0b647b, 0.5).lineBetween(240, 132, h.x, h.y);
     this.rope.lineStyle(2, 0xfff4c6, 1).lineBetween(240, 132, h.x, h.y);
-    if (this.caught && round.phase === 'reeling') this.caught.setPosition(h.x + 5, h.y + 15);
+    if (this.caught && round.phase === 'reeling') {
+      this.caught.setPosition(h.x + 5, h.y + 15);
+      this.caught.setData('reveal', revealForRise(this.caught.getData('species').lane, h.y, this.caught.getData('caughtY')));
+    }
     this.fishes.getChildren().forEach((fish) => {
-      if (!fish.body.enable) return;
-      if (fish.x > SWIM_LOOP.right || fish.x < SWIM_LOOP.left) {
+      if (fish.body.enable && (fish.x > SWIM_LOOP.right || fish.x < SWIM_LOOP.left)) {
         fish.body.reset(wrapX(fish.x), fish.y);
         this.swim(fish, directionFor(fish.getData('species')));
       }
+      this.syncShadow(fish);
     });
     this.bubbles.forEach((bubble, i) => {
       bubble.y -= Math.min(delta / 1000, 0.1) * (9 + i % 5);
@@ -167,8 +201,10 @@ export class CoveScene extends Phaser.Scene {
   snapshot() {
     const round = this.controller.round;
     return { ready: true, phase: round.phase, paused: round.paused, angle: round.angle, hook: round.hook, length: round.length, targetLength: round.targetLength, taps: round.taps, requiredTaps: round.requiredTaps, score: round.score, catches: [...round.catches], remaining: round.remaining,
+      view: { x: this.cameras.main.worldView.x, y: this.cameras.main.worldView.y, zoom: this.cameras.main.zoom },
       audio: { state: this.controller.audio.context?.state ?? 'locked', enabled: this.controller.audio.enabled, level: this.controller.audio.level() },
       fishes: this.fishes.getChildren().map((f) => ({ id: f.getData('species').id, lane: f.getData('species').lane,
+        slot: f.getData('slot'), reveal: f.getData('reveal'), shadowAlpha: f.getData('shadow')?.alpha ?? 0,
         x: f.x, y: f.y, width: f.displayWidth, height: f.displayHeight, alpha: f.alpha, velocity: f.body.velocity.x, active: f.body.enable })) };
   }
 
@@ -177,12 +213,15 @@ export class CoveScene extends Phaser.Scene {
     this.controller.round.elapsed = 0;
     this.controller.round.angle = 0;
     this.testAim = true;
+    const target = this.fishes.getChildren().find((fish) => fish.getData('species').id === id);
     this.fishes.getChildren().forEach((fish) => {
       this.tweens.killTweensOf(fish);
       fish.body.setVelocity(0, 0);
-      fish.body.enable = fish.getData('species').id === id;
+      fish.body.enable = fish === target;
+      fish.setData('reveal', fish.getData('species').lane >= 4 ? 0 : 1);
       fish.body.reset(fish.body.enable ? 240 : -200, fish.body.enable ? LANES[fish.getData('species').lane] : 600);
       fish.setAlpha(fish.body.enable ? 1 : 0);
+      this.syncShadow(fish);
     });
   }
 }

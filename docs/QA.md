@@ -2,6 +2,36 @@
 
 Date: 2026-10-04
 
+## Latest: Dense Schools, Mystery Catches And Reel Gesture Guard
+
+- User reported real-device zoom despite the earlier Chromium touch-emulation pass. That result did not prove iOS behavior.
+- Only this fishing repository changed. Audio, round rules, storage module/key and sibling games remain unchanged.
+- Separate 12 collectible species from 32 swimming instances: row populations 8/6/5/5/4/4, with fixed non-overlapping slots.
+- Restore a landed instance to its vacated slot rather than the old opposite-neighbor placement.
+- Rows 4/5 use black alpha-masked Canvas overlays. Color returns according to physical ascent, not elapsed waiting.
+- Deep species names remain hidden until mostly revealed. Reset/respawn returns deep creatures to black.
+- Stationary reel wrapper cancels non-passive touchstart/move/end/cancel and Safari gesture events,
+  even when the reel button becomes disabled. Child artwork cannot intercept input; the button hitbox no longer scales.
+- One touch activates once, compatibility events are suppressed, and holding does not reel. Header/dialog zoom is not globally disabled.
+- npm run check: 28 unit tests passed and production build succeeded; the existing Phaser bundle-size warning remains.
+- First focused Chromium tablet pass: 3 passed (gesture cancellation through landing, actual canvas black-to-color pixels, dense rows).
+- First Windows WebKit attempt: 4 passed, 3 failed. One expected AudioContext but both browser constructors are absent here;
+  two exhausted automation timeouts in slow software rendering (full row wrap and the four-species workflow).
+- Touch tests now still run every input assertion without assuming Web Audio exists in an unsupported engine.
+  Row tests observe the fish nearest a wrap instead of waiting for one particular turtle; WebKit input/render checks have a larger timeout.
+- Full regression: 46 passed / 2 desktop touch skips in one run, covering Chromium desktop/tablet/phone and 6 selected WebKit cases.
+- Final hardening routes disabled-reel touches directly to the stationary wrapper (pointer-events: none on the disabled button).
+  Rechecked touch bursts, through-landing default cancellation and keyboard input: 10 passed / 2 desktop touch skips across all 4 projects.
+- Rebuilt the final Pages bundle and reran its prefixed production preview: passed, twelve book entries,
+  colored/moving canvas, no QA interface and no page/request errors. Temporary preview on 5194 stopped; dev server on 5193 remains.
+- Inspected desktop/mobile/tablet/WebKit row screenshots and mystery/partial/full-reveal captures; controls stay clear of the deepest row.
+- Evidence: test-results/dense-targeted/, test-results/webkit-reel/ (initial diagnostic run), test-results/dense-release/ (final run).
+  Last disabled-button input coverage: test-results/disabled-reel-final/.
+- Inspected actual frames near 0:23 and 1:03 of the [IAAPA demonstration](https://www.youtube.com/watch?v=wOiXknKSgqw),
+  for horizontal schools and larger creatures lower down. No artwork/audio was copied. Mystery reveal follows the user's request.
+- [WebKit issue 218015](https://bugs.webkit.org/show_bug.cgi?id=218015) is historical context for touch-action insufficiency,
+  not confirmation of the exact cause on the user's device. Real iPad Safari rapid-tap/hold, speaker and Thai voice approval remain pending.
+
 ## GitHub Pages Publication
 
 - User explicitly approved a public repository and publishing the game.
@@ -21,7 +51,7 @@ Date: 2026-10-04
 - Saves are browser-local and separated by origin; localhost progress does not automatically transfer to the live site.
 - Real iPad Safari speaker/Thai-voice validation remains pending. Public deployment does not imply hardware testing.
 
-## Latest: Six Rows And New Artwork
+## Previous: Six Rows And New Artwork
 
 - Updated only tap-tap-fishing. No sibling repositories, audio module, round model or persistence module were edited.
 - Final npm run check: 22 unit tests passed and production build succeeded (existing Phaser bundle-size warning remains).
@@ -81,7 +111,7 @@ The records below describe the initial eight-species release, not the current ca
 
 ## Limits
 
-- Chromium desktop and touch-emulated tablet/phone only. Real iPad/iPhone Safari not yet tested.
+- Chromium desktop/touch emulation plus selected Windows WebKit input/render checks. Real iPad/iPhone Safari not yet tested.
 - Web Audio signal tests prove synthesis, not speaker output or hardware audio unlocking.
 - Optional Thai speech depends on installed voices; no recorded voice or pronunciation approval.
 - No offline install, two-player, upgrades or multiple levels yet.

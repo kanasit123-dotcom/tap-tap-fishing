@@ -11,11 +11,10 @@ Published and verified online: first Actions deployment succeeded and the live H
 The deployment smoke checked colored/moving canvas, all twelve book entries, casting, no exposed QA interface and no request/page errors.
 Check docs/QA.md and the latest Actions run before assuming future pushes are live.
 Dev server running locally on port 5193.
-Latest update: six ordered depth rows and four new creatures, implemented locally without changing sibling games.
-Latest QA: 22 unit tests + build; browser full run 29 passed / 1 desktop touch skip,
-then all 3 row checks passed after correcting a subpixel tolerance in that assertion.
-Production smoke passed with twelve collection entries and no exposed QA interface.
-See docs/QA.md for the exact intermediate failures, combined coverage and real-device gaps.
+Latest update: denser 32-instance schools, deep mystery silhouettes and a stationary Safari reel gesture guard.
+Latest QA: see docs/QA.md for this update's final checks and real-device gaps.
+28 unit checks + normal/Pages builds; full regression 46 passed / 2 desktop touch skips,
+then final disabled-reel routing coverage 10 passed / 2 desktop touch skips. Prefixed production smoke passed.
 
 ## Agreed Interaction
 
@@ -37,15 +36,21 @@ No code, voices, progress or artwork was imported from sibling repositories.
 
 - Original eight collection IDs, point values, storage key and goal of eight catches per trip stay unchanged.
 - Added seal, shark, anglerfish and giant squid. The pufferfish was already present and remains in the middle rows.
-- Two creatures per row, common speed/direction within a row, 700-world-pixel loop and half-loop spacing.
-- Wrapped fish explicitly regain velocity after Phaser Body.reset; landed fish respawn opposite their row neighbor.
+- Separate collectible species from swimming instances: SCHOOLS contains 32 fish, with 8/6/5/5/4/4 per row.
+- Common speed/direction within a row, 700-world-pixel loop and fixed slot spacing.
+- Wrapped fish regain velocity after Phaser Body.reset; landed fish restore their vacated slot relative to an active row neighbor.
 - Source rectangles in species.js replace the old fixed frame grid to avoid neighboring fragments and transparent padding.
 - Preserve each creature's aspect ratio and vertical row clearance when changing sizes.
 - Book/reward SVGs display actual bitmap cutouts, with explicit clipPath rectangles. A viewBox alone is not sufficient.
 - New asset: public/assets/deep-creatures.png; actual output is 1254x1254, not the requested 1024x1024.
-- Animals in play remain full-color and alpha 1. Faint grayscale appears only for undiscovered book entries.
-- User's comment about animal shadows is ambiguous: an async question asks whether this is a mystery effect request or a rendering problem.
-  No random silhouette mechanic has been added without that clarification.
+- User clarified that the deepest animals should be mysteries. Rows 4/5 are black silhouettes, with gradual color reveal during ascent.
+- Canvas does not support sprite tint: source-in alpha-masked Canvas textures overlay the existing original artwork.
+- Keep shadow position/size/flip/depth/alpha synchronized through pause, landing, reset and respawn.
+- Deep catch names are hidden until mostly revealed. Collection artwork and stable species IDs remain unchanged.
+- src/input.js uses non-passive touch/gesture cancellation on the stationary reel wrapper, including disabled/landing taps.
+  Touch activates on touchstart only; touch pointerdown and synthetic mouse/click events must not double-count.
+- Reel pulse feedback must not scale/move the real hit area. Decorative children must have pointer-events: none.
+- Do not disable viewport zoom globally or extend native gesture cancellation into dialogs/header.
 - These are stylized arcade difficulty rows, not a scientifically accurate habitat/depth diagram.
 
 ## Before Continuing
@@ -60,6 +65,8 @@ No code, voices, progress or artwork was imported from sibling repositories.
    It also holds a vertical aim until the real cast button is used, so browser input latency cannot change the arranged aim.
 6. Live round position is intentionally in memory; collection persists after a landed catch, completed bests after trip completion.
 7. Verify on real iPad Safari. Chromium tablet/touch emulation and Web Audio signal tests do not prove hardware sound or Thai pronunciation.
+   Windows Playwright WebKit here exposes neither AudioContext nor webkitAudioContext, so it cannot validate audio.
+   Its selected input/render cases are additional engine coverage, not actual iOS/Safari validation.
 
 ## Useful Next Work
 
