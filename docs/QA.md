@@ -2,6 +2,25 @@
 
 Date: 2026-10-04
 
+## GitHub Pages Publication
+
+- User explicitly approved a public repository and publishing the game.
+- Public repository: https://github.com/kanasit123-dotcom/tap-tap-fishing
+- Live site: https://kanasit123-dotcom.github.io/tap-tap-fishing/
+- First deployment commit: f8c184a. Actions run succeeded: https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37203396858
+- Added a separate build:pages script with /tap-tap-fishing/ asset base; the local dev URL and gameplay code are unchanged by deployment configuration.
+- Rechecked 22 unit tests and built successfully; the Actions runner also passed the unit checks and production build.
+- Local prefixed production preview and live HTTPS site both passed npm run test:pages -- <url>?qa=1.
+- Live browser smoke: HTTP 200, canvas has varied colors and moves, all twelve collection/artwork entries load, cast button works,
+  QA interface is absent even with ?qa=1, and there are no page errors or HTTP error responses.
+- Inspected the screenshot captured from the actual live site. Evidence: test-results/pages-sea.png and test-results/pages-book.png.
+- Only dist is uploaded as the website. Source/artwork are intentionally public; credentials, node_modules and local test output are excluded.
+- No matching access-token/private-key patterns were found in the publishable files before pushing.
+- Remote publication branch is main. Local branch remains codex/fishing-prototype, tracking origin/main; use git push origin HEAD:main.
+- Local preview process was stopped; the existing dev server on 5193 stays running.
+- Saves are browser-local and separated by origin; localhost progress does not automatically transfer to the live site.
+- Real iPad Safari speaker/Thai-voice validation remains pending. Public deployment does not imply hardware testing.
+
 ## Latest: Six Rows And New Artwork
 
 - Updated only tap-tap-fishing. No sibling repositories, audio module, round model or persistence module were edited.
@@ -65,7 +84,7 @@ The records below describe the initial eight-species release, not the current ca
 - Chromium desktop and touch-emulated tablet/phone only. Real iPad/iPhone Safari not yet tested.
 - Web Audio signal tests prove synthesis, not speaker output or hardware audio unlocking.
 - Optional Thai speech depends on installed voices; no recorded voice or pronunciation approval.
-- No offline install, two-player, upgrades, multiple levels or public deployment yet.
+- No offline install, two-player, upgrades or multiple levels yet.
 - Production bundle includes Phaser and is over Vite's 500 kB warning threshold; build succeeds.
 - Refresh starts a new trip. Persistent collection and best completed-trip scores are preserved.
 
@@ -76,7 +95,7 @@ Final full-run evidence: `test-results/release/`; last sound/reward evidence: `t
 ## Repository And Server
 
 Local Git repository initialized separately on `codex/fishing-prototype`; the first implementation snapshot is recorded locally at delivery.
-No GitHub remote or deployment was created. User visibility choice (Public/Private) is still pending.
+Public GitHub origin and Pages deployment are now configured with explicit user approval; see the publication record above.
 Development server: http://127.0.0.1:5193/ (started hidden, no unrelated server terminated).
 The temporary production smoke preview on 5194 is stopped after verification.
 Original `game-lilly` was read-only and its `git status --short` remains empty.

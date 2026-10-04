@@ -7,7 +7,9 @@ Initial working branch: `codex/fishing-prototype`.
 Delivery status: playable version 0.1.0. The user approved creating a public repository and publishing GitHub Pages.
 Public origin: https://github.com/kanasit123-dotcom/tap-tap-fishing
 Pages address: https://kanasit123-dotcom.github.io/tap-tap-fishing/
-Initial publication is being verified; check docs/QA.md and the Actions run before claiming it is live.
+Published and verified online: first Actions deployment succeeded and the live HTTPS browser smoke test passed.
+The deployment smoke checked colored/moving canvas, all twelve book entries, casting, no exposed QA interface and no request/page errors.
+Check docs/QA.md and the latest Actions run before assuming future pushes are live.
 Dev server running locally on port 5193.
 Latest update: six ordered depth rows and four new creatures, implemented locally without changing sibling games.
 Latest QA: 22 unit tests + build; browser full run 29 passed / 1 desktop touch skip,
