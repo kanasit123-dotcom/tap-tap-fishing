@@ -16,7 +16,11 @@ Latest QA: see docs/QA.md for this update's final checks and real-device gaps.
 28 unit checks + normal/Pages builds; full regression 46 passed / 2 desktop touch skips,
 then final disabled-reel routing coverage 10 passed / 2 desktop touch skips. Prefixed production smoke passed.
 
-## Living Sea Update (2026-10-04, Claude Code) — uncommitted, not deployed
+## Living Sea Update (2026-10-04, Claude Code) — v0.2.0, deployed 2026-10-05
+
+Deployed at the user's request: commit ab5e4cc, Actions run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37239154580 (success);
+live smoke `npm run test:pages -- https://kanasit123-dotcom.github.io/tap-tap-fishing/?qa=1` passed (12 entries, no emoji, moving canvas, no errors).
+The live site still uses the legacy cartoon art for the 12 original creatures; the 22 new entries appear once the ChatGPT sheets are processed.
 
 User request (Thai): more/better creature, item, boat and rod art in a slightly more realistic style; fish should
 not arrive on a uniform beat like now; scene/casting/reel sounds; lane spacing that fills the screen; check other gaps.

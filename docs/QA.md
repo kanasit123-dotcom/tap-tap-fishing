@@ -2,7 +2,12 @@
 
 Date: 2026-10-04
 
-## Latest: Living Sea, Special Items And Synthesised Sound (Claude Code, uncommitted)
+## Latest: Living Sea, Special Items And Synthesised Sound (v0.2.0, deployed 2026-10-05)
+
+- Published as commit ab5e4cc; Pages Actions run 37239154580 succeeded (unit tests + build on the runner).
+  Live smoke on https://kanasit123-dotcom.github.io/tap-tap-fishing/?qa=1 passed: HTTP 200, 12 book entries with artwork,
+  no emoji placeholders, music button, colored/moving canvas, QA interface absent, no page/request errors.
+  Screenshot inspected: test-results/pages-sea.png (new boat/rod, lanes down to the controls).
 
 - Only this repository changed. Storage key `tap-tap-fishing-v1` and the 12 original collection IDs are unchanged;
   old saves load with the new entries at zero, plus `music` (default on) and `maps` (0-3).
