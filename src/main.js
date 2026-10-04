@@ -1,7 +1,7 @@
 import { createIcons, Anchor, BookOpen, Volume2, VolumeX, Pause, Play, Fish, Trophy, Timer, X, RotateCcw, ArrowRight, Check } from 'lucide';
 import { createGame } from './scene.js';
 import { FishingRound, GOAL } from './model.js';
-import { SPECIES, SPECIES_BY_ID } from './species.js';
+import { SPECIES, SPECIES_BY_ID, ATLASES } from './species.js';
 import { loadProgress, saveProgress, recordCatch, recordTrip } from './progress.js';
 import { FishingAudio } from './audio.js';
 import './style.css';
@@ -10,7 +10,11 @@ const icons = { Anchor, BookOpen, Volume2, VolumeX, Pause, Play, Fish, Trophy, T
 const icon = (name) => `<i data-lucide="${name}" aria-hidden="true"></i>`;
 const updateIcons = () => createIcons({ icons, attrs: { 'stroke-width': 2.3 } });
 const $ = (selector) => document.querySelector(selector);
-const art = (s) => `<span class="species-art" role="img" aria-label="${s.name}" style="background-position:${s.frame % 4 * 100 / 3}% ${Math.floor(s.frame / 4) * 100}%"></span>`;
+const art = (s) => {
+  const atlas = ATLASES[s.atlas];
+  const [x, y, w, h] = s.rect;
+  return `<svg class="species-art" role="img" aria-label="${s.name}" viewBox="0 0 ${w} ${h}"><defs><clipPath id="sprite-${s.id}" clipPathUnits="userSpaceOnUse"><rect width="${w}" height="${h}" /></clipPath></defs><image x="${-x}" y="${-y}" href="${import.meta.env.BASE_URL}assets/${atlas.file}" width="${atlas.width}" height="${atlas.height}" clip-path="url(#sprite-${s.id})" /></svg>`;
+};
 
 $('#app').innerHTML = `
   <header class="topbar">
@@ -233,7 +237,7 @@ class FishingApp {
 
   openCollection() {
     const found = SPECIES.filter((s) => this.progress.collection[s.id]).length;
-    this.showDialog(`<div class="dialog-heading"><div><small>สัตว์ทะเลและสมบัติ</small><h2 id="dialog-title">สมุดสะสม <span>${found} / 8</span></h2></div><button id="close-book" class="icon-button" aria-label="ปิดสมุดสะสม">${icon('x')}</button></div><div class="collection-grid">${SPECIES.map((s) => `<article class="collection-item ${this.progress.collection[s.id] ? '' : 'undiscovered'}">${art(s)}<h3>${s.name}</h3><span>${this.progress.collection[s.id] ? `${this.progress.collection[s.id]} ครั้ง` : 'ยังไม่พบ'}</span></article>`).join('')}</div>`);
+    this.showDialog(`<div class="dialog-heading"><div><small>สัตว์ทะเลและสมบัติ</small><h2 id="dialog-title">สมุดสะสม <span>${found} / ${SPECIES.length}</span></h2></div><button id="close-book" class="icon-button" aria-label="ปิดสมุดสะสม">${icon('x')}</button></div><div class="collection-grid">${SPECIES.map((s) => `<article class="collection-item ${this.progress.collection[s.id] ? '' : 'undiscovered'}">${art(s)}<h3>${s.name}</h3><span>${this.progress.collection[s.id] ? `${this.progress.collection[s.id]} ครั้ง` : 'ยังไม่พบ'}</span></article>`).join('')}</div>`);
     $('#close-book').onclick = () => $('#modal').close();
   }
 

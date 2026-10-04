@@ -2,6 +2,33 @@
 
 Date: 2026-10-04
 
+## Latest: Six Rows And New Artwork
+
+- Updated only tap-tap-fishing. No sibling repositories, audio module, round model or persistence module were edited.
+- Final npm run check: 22 unit tests passed and production build succeeded (existing Phaser bundle-size warning remains).
+- Full browser run after game fixes: 29 passed, 1 desktop touch skip, 3 failures in the new row-spacing assertion.
+  All three reported 349.5 versus 350 world pixels exactly at a wrap boundary; this is one physics integration step, not a visible collision.
+  The assertion now allows at most 1 world pixel and separately requires over 100 pixels of clear horizontal gap.
+- Focused rerun of the complete row test on desktop/tablet/phone: 3 passed.
+  Together, the full run and focused rerun verify all 32 applicable browser cases; this was not a single all-green full run.
+- Earlier targeted attempt caught a QA fixture race: the aiming line could swing during slow automated input.
+  The DEV-only arranging fixture now holds a vertical aim until the real cast button is pressed; it does not simulate catching or scoring.
+- Tested all four added creatures through actual Phaser collision, repeated reel taps, scoring, respawn, reload and collection persistence on all three browser projects.
+- Canvas alpha/color sampling verifies the scene is nonblank; crop pixel checks verify each animal has opaque colored pixels and transparent corners.
+- Inspected full-width, compact portrait/landscape, expanded book and newly collected animal screenshots.
+- Corrected a visual issue found in the book: bitmap SVG viewBox letterboxing exposed neighboring atlas fragments.
+  Explicit clipPath rectangles now isolate all twelve entries and reward images.
+- Swimming rows retain direction/speed after wrapping; caught creatures return opposite their same-row neighbor.
+- Deepest row shifted up to keep it clear of compact-screen controls. Creatures retain their natural aspect ratios.
+- Production smoke: 12 book entries, artwork loads, cast works, QA interface absent, no page/request errors.
+- Temporary preview on port 5194 was stopped; the original dev server on 5193 remains running.
+- Evidence: test-results/depth-final/ (full), test-results/depth-rows-verified/ (focused), test-results/production-depth.png (production).
+- Real iPad Safari, physical speaker output and Thai pronunciation still require human/device testing.
+- No silhouette gameplay mechanic was added while the user's shadow comment awaits clarification. Idle animals have alpha 1;
+  undiscovered book entries deliberately remain faint grayscale.
+
+The records below describe the initial eight-species release, not the current catalog count.
+
 ## Automated Checks
 
 - Final `npm run check`: 20 asset/audio/model/storage unit tests passed and production build succeeded.

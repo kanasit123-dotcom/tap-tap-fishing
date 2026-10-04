@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SPECIES, LANES } from './species.js';
+import { SPECIES, LANES, ATLASES, SWIM_LOOP, spawnX, wrapX, directionFor } from './species.js';
 import { WORLD } from './model.js';
 
 export class CoveScene extends Phaser.Scene {
@@ -7,7 +7,7 @@ export class CoveScene extends Phaser.Scene {
 
   preload() {
     this.load.image('cove', `${import.meta.env.BASE_URL}assets/cove.png`);
-    this.load.spritesheet('creatures', `${import.meta.env.BASE_URL}assets/sea-creatures.png`, { frameWidth: 384, frameHeight: 512 });
+    for (const [key, atlas] of Object.entries(ATLASES)) this.load.image(key, `${import.meta.env.BASE_URL}assets/${atlas.file}`);
     this.load.on('loaderror', () => this.controller.assetError());
   }
 
@@ -19,13 +19,13 @@ export class CoveScene extends Phaser.Scene {
     this.makeHookTexture();
     this.rope = this.add.graphics().setDepth(12);
     this.fishes = this.physics.add.group();
-    const start = [90, 340, 145, 390, 105, 365, 200, 305];
     SPECIES.forEach((species, i) => {
-      const fish = this.fishes.create(start[i], LANES[species.lane], 'creatures', species.frame);
-      fish.setDisplaySize(species.width, species.width * 4 / 3).setDepth(5 + species.lane * 0.1);
+      this.textures.get(species.atlas).add(species.id, 0, ...species.rect);
+      const fish = this.fishes.create(spawnX(species), LANES[species.lane], species.atlas, species.id);
+      fish.setDisplaySize(species.width, species.height).setDepth(5 + species.lane * 0.1);
       fish.setData('species', species).setData('index', i);
-      fish.body.setSize(245, 235, true).setAllowGravity(false);
-      this.swim(fish, i % 2 ? -1 : 1);
+      fish.body.setSize(species.rect[2] * 0.7, species.rect[3] * 0.65, true).setAllowGravity(false);
+      this.swim(fish, directionFor(species));
     });
     this.boat = this.drawBoat();
     this.hook = this.physics.add.image(240, 186, 'hook').setDisplaySize(28, 28).setDepth(15);
@@ -96,12 +96,14 @@ export class CoveScene extends Phaser.Scene {
 
   resetRound() {
     this.caught = null;
-    this.fishes.getChildren().forEach((fish, i) => {
+    this.testAim = false;
+    this.fishes.getChildren().forEach((fish) => {
+      const species = fish.getData('species');
       this.tweens.killTweensOf(fish);
-      fish.setAlpha(1).setDisplaySize(fish.getData('species').width, fish.getData('species').width * 4 / 3);
+      fish.setAlpha(1).setDisplaySize(species.width, species.height);
       fish.body.enable = true;
-      fish.body.reset(65 + (i * 83) % 350, LANES[fish.getData('species').lane]);
-      this.swim(fish, i % 2 ? -1 : 1);
+      fish.body.reset(spawnX(species), LANES[species.lane]);
+      this.swim(fish, directionFor(species));
     });
     this.physics.resume();
     this.tweens.resumeAll();
@@ -114,8 +116,10 @@ export class CoveScene extends Phaser.Scene {
       this.tweens.add({ targets: fish, x: 198, y: 98, alpha: 0, duration: 650, ease: 'Back.easeIn', onComplete: () => {
         fish.setAlpha(1).setAngle(0);
         fish.body.enable = true;
-        fish.body.reset(fish.getData('index') % 2 ? 495 : -15, LANES[species.lane]);
-        this.swim(fish, fish.getData('index') % 2 ? -1 : 1);
+        const neighbor = this.fishes.getChildren().find((other) => other !== fish && other.getData('species').lane === species.lane);
+        const x = neighbor ? wrapX(neighbor.x + SWIM_LOOP.width / 2) : spawnX(species);
+        fish.body.reset(x, LANES[species.lane]);
+        this.swim(fish, directionFor(species));
       } });
     }
     const label = this.add.text(240, 170, `+${species.points}`, { fontFamily: 'Tahoma, sans-serif', fontSize: '32px', fontStyle: 'bold', color: '#ffea8e', stroke: '#176174', strokeThickness: 5 }).setOrigin(0.5).setDepth(21);
@@ -133,6 +137,11 @@ export class CoveScene extends Phaser.Scene {
     if (this.physics.world.isPaused) { this.physics.resume(); this.tweens.resumeAll(); }
     const before = round.phase;
     round.tick(delta / 1000);
+    // Position-only QA fixture: keep a vertical aim until the real button casts.
+    if (import.meta.env.DEV && this.testAim) {
+      if (round.phase === 'aim') round.angle = 0;
+      else this.testAim = false;
+    }
     if (before === 'casting' && round.phase === 'returning') this.controller.audio.play('miss');
     const h = round.hook;
     this.hook.body.reset(h.x, h.y);
@@ -142,8 +151,10 @@ export class CoveScene extends Phaser.Scene {
     if (this.caught && round.phase === 'reeling') this.caught.setPosition(h.x + 5, h.y + 15);
     this.fishes.getChildren().forEach((fish) => {
       if (!fish.body.enable) return;
-      if (fish.x > 550) fish.body.reset(-55, fish.y);
-      if (fish.x < -70) fish.body.reset(535, fish.y);
+      if (fish.x > SWIM_LOOP.right || fish.x < SWIM_LOOP.left) {
+        fish.body.reset(wrapX(fish.x), fish.y);
+        this.swim(fish, directionFor(fish.getData('species')));
+      }
     });
     this.bubbles.forEach((bubble, i) => {
       bubble.y -= Math.min(delta / 1000, 0.1) * (9 + i % 5);
@@ -157,13 +168,15 @@ export class CoveScene extends Phaser.Scene {
     const round = this.controller.round;
     return { ready: true, phase: round.phase, paused: round.paused, angle: round.angle, hook: round.hook, length: round.length, targetLength: round.targetLength, taps: round.taps, requiredTaps: round.requiredTaps, score: round.score, catches: [...round.catches], remaining: round.remaining,
       audio: { state: this.controller.audio.context?.state ?? 'locked', enabled: this.controller.audio.enabled, level: this.controller.audio.level() },
-      fishes: this.fishes.getChildren().map((f) => ({ id: f.getData('species').id, x: f.x, y: f.y, active: f.body.enable })) };
+      fishes: this.fishes.getChildren().map((f) => ({ id: f.getData('species').id, lane: f.getData('species').lane,
+        x: f.x, y: f.y, width: f.displayWidth, height: f.displayHeight, alpha: f.alpha, velocity: f.body.velocity.x, active: f.body.enable })) };
   }
 
   arrangeForTest(id = 'goldfish') {
     if (this.controller.round.phase !== 'aim') throw new Error('Arrange only before a cast');
     this.controller.round.elapsed = 0;
     this.controller.round.angle = 0;
+    this.testAim = true;
     this.fishes.getChildren().forEach((fish) => {
       this.tweens.killTweensOf(fish);
       fish.body.setVelocity(0, 0);

@@ -15,7 +15,9 @@ npm run dev -- --port 5193
 
 Local URL: http://127.0.0.1:5193/
 
-Local Git repository is initialized on `codex/fishing-prototype`. GitHub remote visibility is pending;
+Public repository: https://github.com/kanasit123-dotcom/tap-tap-fishing
+GitHub Pages address: https://kanasit123-dotcom.github.io/tap-tap-fishing/
+The Pages workflow publishes pushes to remote `main`; the local working branch is `codex/fishing-prototype`.
 `private: true` in package.json prevents npm publishing, not GitHub visibility.
 
 ```sh
@@ -29,7 +31,9 @@ npm run preview -- --port 5194
 ## Version 0.1.0
 
 - Starts directly in the playable sea, no landing page or sign-in.
-- Five depth lanes, eight collectible creatures/treasures, different swim speeds and tap counts.
+- Six aligned depth rows, twelve collectible creatures/treasures, different swim speeds and tap counts.
+- Fish in each row swim in the same direction with stable spacing; deeper creatures are generally larger.
+- New seal, shark, anglerfish and giant squid; original pufferfish and other collection IDs are preserved.
 - Swinging hook locks its direction when cast; Phaser Arcade Physics detects catches.
 - Every accepted reel tap turns the wheel and shortens the line. Holding does not auto-reel.
 - Relaxed mode has no clock, slipping fish or penalty for pausing the tapping.
@@ -40,6 +44,23 @@ npm run preview -- --port 5194
 - Pointer, touch and keyboard button activation; no text selection, context menu or double-tap zoom in the sea.
 - Original generated raster art, code-drawn boat/hook, synthesized sound effects.
 - Optional Thai spoken encouragement uses a Thai voice on the device, when available.
+
+## Publish
+
+The user approved the public repository and GitHub Pages deployment.
+`.github/workflows/pages.yml` installs locked dependencies, runs unit tests, builds and deploys only `dist/`.
+Source, tests and artwork are public; node_modules, local logs and test screenshots are excluded from Git.
+No account credentials or deployment secrets are stored in the repository.
+
+```sh
+npm run build:pages
+npm run test:pages -- https://kanasit123-dotcom.github.io/tap-tap-fishing/?qa=1
+git push origin HEAD:main
+```
+
+The dedicated Pages build sets `/tap-tap-fishing/` as the asset base without changing the local dev URL.
+Check the Actions deployment result before assuming a push is live. Changing the repository name requires updating the Pages base.
+Online and localhost progress are separate because browsers store saves per origin; saves are not synced across devices.
 
 ## Boundaries
 
@@ -59,10 +80,10 @@ the wheel animation, status and sound effects still work. A service worker/offli
 | `src/model.js` | Round phases, hook aim, casting, tap progress, scoring and clock |
 | `src/scene.js` | Phaser rendering, Arcade Physics overlap, swimming, effects and responsive camera |
 | `src/main.js` | Accessible DOM controls, dialogs and application integration |
-| `src/species.js` | Editable species, lanes, scores, speeds and base tap counts |
+| `src/species.js` | Species, source rectangles, atlas metadata, rows, swim spacing, scores and tap counts |
 | `src/progress.js` | Separate validated local storage and idempotent completed-trip recording |
 | `src/audio.js` | Gesture-unlocked Web Audio effects and optional Thai device speech |
-| `public/assets/` | Original background and transparent sprite atlas |
+| `public/assets/` | Original background and two transparent creature atlases |
 | `tests/` | Model/storage unit tests and real-browser workflow/input/render tests |
 
 Read [AI-HANDOFF.md](AI-HANDOFF.md) and [docs/QA.md](docs/QA.md) before continuing.
@@ -77,5 +98,5 @@ gameplay section: swing, cast, hook and reel. Our touch controls, rewards, data 
 
 ## Not Included Yet
 
-Multiple environments, boat upgrades, two-player play, a deeper bonus stage, recorded Thai voice,
-real-device Safari approval and public deployment. Do not imply these are finished.
+Multiple environments, boat upgrades, two-player play, a deeper bonus stage, recorded Thai voice
+and real-device Safari approval. Do not imply these are finished.

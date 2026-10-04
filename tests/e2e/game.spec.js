@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { SPECIES, LANES, SWIM_LOOP } from '../../src/species.js';
 
 async function boot(page) {
   const errors = [];
@@ -171,5 +172,69 @@ test('compact portrait and landscape controls fit without collisions', async ({ 
     expect(Math.max(cast.y + cast.height, reel.y + reel.height)).toBeLessThanOrEqual(height);
     await page.screenshot({ path: info.outputPath(`fit-${width}x${height}.png`) });
   }
+  expect(errors).toEqual([]);
+});
+
+test('six aligned rows stay opaque, spaced apart and moving after a screen wrap', async ({ page }, info) => {
+  const errors = await boot(page); const before = await snapshot(page);
+  expect(before.fishes).toHaveLength(12);
+  const turtleX = before.fishes.find((f) => f.id === 'turtle').x;
+  await page.waitForFunction((x) => window.__FISHING_QA__.snapshot().fishes.find((f) => f.id === 'turtle').x < x, turtleX, { timeout: 20_000 });
+  const after = await snapshot(page);
+  for (const f of after.fishes) {
+    expect(f.y).toBe(LANES[f.lane]); expect(f.alpha).toBe(1); expect(f.velocity).not.toBe(0);
+    const row = after.fishes.filter((other) => other.lane === f.lane);
+    expect(row).toHaveLength(2);
+    const gap = Math.abs(row[0].x - row[1].x);
+    const spacing = Math.min(gap, SWIM_LOOP.width - gap);
+    // Body.reset at the wrap boundary can differ by one physics step (< 1 world pixel).
+    expect(Math.abs(spacing - SWIM_LOOP.width / 2)).toBeLessThanOrEqual(1);
+    expect(spacing - (row[0].width + row[1].width) / 2).toBeGreaterThan(100);
+  }
+  expect(after.fishes.find((f) => f.id === 'turtle').x).toBeLessThan(before.fishes.find((f) => f.id === 'turtle').x);
+  await page.screenshot({ path: info.outputPath('depth-rows.png') });
+  await page.locator('#collection').click();
+  await expect(page.locator('.collection-item')).toHaveCount(12);
+  await expect(page.locator('#dialog-title')).toContainText('0 / 12');
+  for (const s of SPECIES) {
+    const art = page.locator(`.species-art[aria-label="${s.name}"]`);
+    await expect(art.locator('image')).toHaveAttribute('clip-path', `url(#sprite-${s.id})`);
+    await expect(art.locator('clipPath rect')).toHaveAttribute('width', String(s.rect[2]));
+  }
+  const crops = await page.evaluate(async (catalog) => {
+    const results = [];
+    for (const s of catalog) {
+      const img = new Image(); img.src = `/assets/${s.atlas === 'deep' ? 'deep-creatures.png' : 'sea-creatures.png'}`;
+      await img.decode();
+      const canvas = document.createElement('canvas'); const [x, y, w, h] = s.rect;
+      canvas.width = w; canvas.height = h; const ctx = canvas.getContext('2d'); ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
+      const data = ctx.getImageData(0, 0, w, h).data;
+      let opaque = 0; for (let i = 3; i < data.length; i += 4) if (data[i] >= 128) opaque++;
+      results.push({ id: s.id, filled: opaque / (w * h), corner: ctx.getImageData(0, 0, 1, 1).data[3] });
+    }
+    return results;
+  }, SPECIES);
+  for (const crop of crops) { expect(crop.filled, crop.id).toBeGreaterThan(0.2); expect(crop.corner, crop.id).toBeLessThan(16); }
+  await page.screenshot({ path: info.outputPath('expanded-book.png') });
+  expect(errors).toEqual([]);
+});
+
+test('new deep animals collide with the real hook, reel, respawn and persist in the book', async ({ page }, info) => {
+  test.setTimeout(80_000); const errors = await boot(page);
+  const added = SPECIES.filter((s) => s.atlas === 'deep');
+  let total = 0;
+  for (const s of added) {
+    await fish(page, s.id); await expect(page.locator('#caught-name')).toHaveText(s.name);
+    await page.screenshot({ path: info.outputPath(`caught-${s.id}.png`) });
+    await reel(page); total += s.points;
+    await expect(page.locator('#score')).toHaveText(String(total));
+    await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'aim');
+    const landed = (await snapshot(page)).fishes.find((f) => f.id === s.id);
+    expect(landed.active).toBe(true); expect(landed.alpha).toBe(1); expect(landed.velocity).not.toBe(0);
+  }
+  await page.reload(); await page.waitForFunction(() => window.__FISHING_QA__?.snapshot().ready);
+  await page.locator('#collection').click();
+  for (const s of added) await expect(page.locator('.collection-item').filter({ hasText: s.name })).toContainText('1 ครั้ง');
+  await page.screenshot({ path: info.outputPath('new-animals-collected.png') });
   expect(errors).toEqual([]);
 });

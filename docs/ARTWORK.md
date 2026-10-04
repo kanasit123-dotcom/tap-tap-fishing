@@ -1,6 +1,6 @@
 # Artwork Provenance
 
-Both PNGs were generated with the built-in image generation tool on 2026-10-04 and copied into this repository.
+The shipped PNGs were generated with the built-in image generation tool on 2026-10-04 and copied into this repository.
 No UNIS game files, screenshots or copyrighted cabinet artwork were imported.
 The boat, hook, bubbles and celebration particles are rendered with Phaser code.
 Tool mode: built-in, not CLI. The source generations remain under the Codex generated_images directory.
@@ -9,10 +9,41 @@ Tool mode: built-in, not CLI. The source generations remain under the Codex gene
 | --- | --- | --- |
 | `public/assets/cove.png` | 1024x1536 | `047f24530850ff1e1ffbe16bc27ddbc4af8fa6ae7244a68572bebc15baf37887` |
 | `public/assets/sea-creatures.png` | 1536x1024 | `6cebe4cdfb69e97bb1a63dbbe55bb42768622268a856bf9ee2f2bcfd3ea2c4bb` |
+| `public/assets/deep-creatures.png` | 1254x1254 | `1079fd75608d1ec8afb0a2ec41f2397579221550db7644d2d9d757e803b39c58` |
 
-Atlas: 4 columns x 2 rows; cells are 384x512. Frame order is defined in `src/species.js`.
+Original atlas composition: 4 columns x 2 rows. The new atlas has 2 columns x 2 rows.
+Use the inspected source rectangles in `src/species.js`, not assumed grid cells: the original turtle/tentacles can exceed their nominal cells.
+Phaser registers named frames from these rectangles; the book and rewards clip the same raster regions explicitly.
 Transparency inspected: real RGBA, transparent cell gaps, no background removal or pixel editing.
 Artwork was visually inspected inside the game, not only as an isolated sheet.
+
+New atlas order: seal, shark, anglerfish, giant squid. All four remain vivid, opaque and friendly.
+The actual generated size was 1254x1254; metadata and tests use that size, without resizing the bitmap.
+Existing sea-creatures.png was not overwritten. Its nonzero RGB in transparent gaps is not a visible background: alpha is zero there.
+Depth tiers are stylized arcade layout/difficulty, not a lesson in animal habitats.
+
+## Additional Creature Atlas Prompts
+
+Tool mode: built-in image generation, then built-in layout edit; transparent_background=true for both.
+Reference for the first generation: public/assets/sea-creatures.png, inspected before use.
+Draft source: `C:/Users/KANASIT/.codex/generated_images/01a0a932-e659-70c3-ae95-cda7602b4d8b/exec-22201422-977d-4e29-b9bb-ea434b584a7a.png`.
+Final source: `C:/Users/KANASIT/.codex/generated_images/01a0a932-e659-70c3-ae95-cda7602b4d8b/exec-19b58ae9-8d80-4d83-8c57-2878b45ce0a4.png`.
+Shipped copy: `public/assets/deep-creatures.png`. The draft had poor cell separation and is not shipped.
+
+### Generation
+
+```text
+Use case: stylized-concept. Asset type: transparent sprite atlas for an original children's fishing game. Generate a NEW square 1024 x 1024 atlas, precisely 2 columns x 2 rows of equal 512 x 512 cells. Image 1 is STYLE REFERENCE ONLY: match its polished, vibrant, softly sculpted 3D cartoon sea animals, glossy eyes and friendly smiles; do NOT reproduce its background glows. Top left: a friendly silver-grey seal swimming horizontally facing RIGHT, small flippers, whiskers, entire body and tail visible. Top right: a friendly large blue-grey shark facing RIGHT in horizontal side profile, rounded dorsal fin, broad body, smiling closed mouth, no scary teeth. Bottom left: a cute deep-sea anglerfish facing RIGHT, round teal and violet body, curved fishing-lure antenna with a small bright yellow bulb, friendly big eye and small smile, NO glow outside the bulb, NO scary teeth. Bottom right: a friendly giant squid swimming horizontally facing RIGHT, coral-red streamlined mantle on the LEFT, head and short flowing cluster of curled tentacles on the RIGHT, recognizable squid not octopus, whole body visible. Exactly ONE animal in each cell, all isolated on actual transparent background, perfectly centered in its cell with at least 50 pixels clear margin on all sides. Keep each animal horizontally composed, including anglerfish; clear recognizable silhouettes, vivid opaque solid colors, crisp clean cutout edges. NO cast shadows, NO ambient glow halos, NO gradients behind animals, NO underwater scene, NO labels, NO text, NO grid lines, NO logo. Do not include any artwork in the transparent gaps. Output must be genuinely RGBA transparent.
+```
+
+### Layout Repair
+
+The draft above was inspected and used as the edit target. Final output was inspected for alpha, margins and source bounds, then tested in gameplay and the book.
+
+```text
+Edit this sprite atlas ONLY to repair the layout. Preserve exactly these four animal identities, vivid solid colors, friendly expressions, side profile facing right, and original polished sculpted 3D cartoon style. Recompose as a SQUARE image containing exactly 2 columns x 2 rows of equal square cells. Seal in top left, shark top right, anglerfish bottom left, squid bottom right. CRITICAL: shrink each whole animal including all whiskers, fins, antenna and tentacles to at most 65% of its cell WIDTH and 65% of its cell HEIGHT. Center each entire silhouette exactly on the center of its square cell. Leave a generous border of at least 17.5% of the cell size empty on EVERY side of EVERY animal. Animals must not touch the center seams or image edges. No animal or part of another animal in its neighbor's cell. True transparent background, preserve transparency, no black background, no grid lines, no text, NO drop shadows or glow halos. Keep the bulb as an opaque yellow bulb with no halo. This is a production atlas requiring huge transparent margins, NOT a tightly packed illustration.
+```
+
 
 ## Background Prompt
 

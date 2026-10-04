@@ -75,14 +75,14 @@ dialog p { font-size: 15px; color: #537577; }
 .dialog-heading h2 span { font-size: 16px; color: #599d8b; }
 .collection-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
 .collection-item { border: 1px solid #cde1d6; border-radius: 8px; background: #ecf7ed; padding: 8px 4px; min-width: 0; }
-.species-art { display: block; width: 100%; aspect-ratio: 3 / 4; background-image: url('/assets/sea-creatures.png'); background-size: 400% 200%; background-repeat: no-repeat; }
+.species-art { display: block; width: 100%; height: 86px; overflow: hidden; }
 .collection-item h3 { font-size: 13px; line-height: 1.4; margin: 2px 0; font-weight: 700; overflow-wrap: anywhere; }
 .collection-item > span:last-child { font-size: 11px; color: #4c8276; }
 .undiscovered .species-art { filter: grayscale(1); opacity: 0.3; }
 .reward-score { color: #bd6919; font-size: 56px; line-height: 1.2; font-weight: 800; }
 .reward-score span { display: block; font-size: 15px; color: #7b8b66; }
 .catch-strip { display: flex; justify-content: center; flex-wrap: wrap; }
-.catch-strip .species-art { width: 65px; }
+.catch-strip .species-art { width: 65px; height: 70px; }
 @media (min-width: 1000px) { .topbar { padding-left: 40px; padding-right: 40px; } }
 @media (max-width: 600px) {
   .topbar { min-height: 105px; padding: max(8px, env(safe-area-inset-top)) 12px 8px; gap: 8px; flex-wrap: wrap; }
@@ -111,6 +111,7 @@ dialog p { font-size: 15px; color: #537577; }
   dialog h2 { font-size: 23px; }
   .collection-grid { gap: 6px; }
   .collection-item h3 { font-size: 12px; }
+  .collection-item .species-art { height: 68px; }
 }
 @media (max-height: 540px) {
   .topbar { min-height: 56px; padding: 5px 12px; flex-wrap: nowrap; }
