@@ -398,12 +398,14 @@ test('every creature collides with the real hook, lands and persists in the zone
   }
   await page.reload(); await page.waitForFunction(() => window.__FISHING_QA__?.snapshot().ready);
   await page.locator('#collection').click();
-  await expect(page.locator('.zone-title')).toHaveCount(ZONES.length);
+  // One heading per book section plus the boat-looks panel.
+  await expect(page.locator('.zone-title')).toHaveCount(ZONES.length + 1);
   await expect(page.locator('.collection-item')).toHaveCount(SPECIES.length);
   // Every book picture is a real, decoded sprite (no broken images, no emoji placeholders).
   await page.waitForFunction(() => [...document.querySelectorAll('img.species-art')].every((img) => img.complete && img.naturalWidth > 0), null, { timeout: 15_000 });
-  expect(await page.locator('img.species-art').count()).toBe(SPECIES.length);
-  expect(await page.locator('.species-art.emoji').count()).toBe(0);
+  // Creatures still waiting for their sheet (the bosses until prompt K) show the DEV emoji placeholder.
+  expect(await page.locator('img.species-art').count()).toBe(SPECIES.filter((s) => s.art).length);
+  expect(await page.locator('.species-art.emoji').count()).toBe(SPECIES.filter((s) => !s.art).length);
   await expect(page.locator('#dialog-title')).toContainText(`${sample.length} / ${SPECIES.length}`);
   for (const s of sample) await expect(page.locator('.collection-item').filter({ has: page.locator(`h4:text-is("${s.name}")`) })).toContainText('1 ครั้ง');
   await page.screenshot({ path: info.outputPath('book.png'), fullPage: true });
@@ -496,5 +498,114 @@ test('four map pieces on an even turn start the pirate battle: aim, fire, hit, t
   expect(done.pirate).toBe(null); expect(done.remaining).toBeGreaterThan(clock - 3);
   await expect(page.locator('#toast')).toContainText('สมบัติจากเรือโจรสลัด');
   await expect(page.locator('#cast')).toContainText('หย่อนเบ็ด');
+  expect(errors).toEqual([]);
+});
+
+test('trip end: the lucky wheel spins once and pays out; wheel powers start the next trip', async ({ page }, info) => {
+  test.setTimeout(150_000); const errors = await boot(page);
+  for (let i = 0; i < 8; i++) { await fish(page); await reel(page); await landed(page); }
+  await expect(page.locator('#dialog-title')).toHaveText('นักสำรวจอ่าวสมบัติ!');
+  await expect(page.locator('#lucky-wheel .seg')).toHaveCount(8);
+  const before = (await snapshot(page)).score;
+  await page.locator('#spin').click();
+  await expect(page.locator('#prize')).not.toHaveText('', { timeout: 6000 });
+  await expect(page.locator('#spin')).toBeDisabled();
+  await page.screenshot({ path: info.outputPath('wheel.png') });
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('tap-tap-fishing-v1')));
+  const after = (await snapshot(page)).score;
+  const prize = await page.locator('#prize').textContent();
+  if (/คะแนน/.test(prize)) { expect(after).toBeGreaterThan(before); expect(saved.best.relaxed).toBe(after); }
+  else if (/รอบหน้า/.test(prize)) expect(Object.keys(saved.startPowers)).toHaveLength(1);
+  else expect(saved.maps).toBe(1);
+  // A power won on the wheel is ready when the next trip starts, then cleared from the save.
+  await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('tap-tap-fishing-v1')); p.startPowers = { net: true }; localStorage.setItem('tap-tap-fishing-v1', JSON.stringify(p)); });
+  await page.reload(); await page.waitForFunction(() => window.__FISHING_QA__?.snapshot().ready);
+  expect((await snapshot(page)).powers.net).toBe(1);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tap-tap-fishing-v1')).startPowers)).toEqual({});
+  expect((await snapshot(page)).timeOfDay).toBe('sunset');
+  expect(errors).toEqual([]);
+});
+
+test('boat looks unlock from the book, apply in the scene, and the sea changes with the time of day', async ({ page }, info) => {
+  test.setTimeout(90_000); const errors = await boot(page);
+  await page.locator('#collection').click();
+  await expect(page.locator('.look[data-look="bamboo"]')).toBeDisabled();
+  await page.locator('#close-book').click();
+  const shallow = SPECIES.filter((s) => s.kind === 'animal' && !s.boss && s.lane <= 1).map((s) => s.id);
+  const middle = SPECIES.filter((s) => s.kind === 'animal' && !s.boss && (s.lane === 2 || s.lane === 3)).map((s) => s.id);
+  await page.evaluate((ids) => window.__FISHING_QA__.setCollection(ids), [...shallow, ...middle]);
+  await page.locator('#collection').click();
+  await page.locator('.look[data-look="bamboo"]').click();
+  await page.locator('.look[data-look="pennants"]').click();
+  await expect(page.locator('.look[data-look="pennants"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.look[data-look="gold"]')).toBeDisabled();
+  await page.screenshot({ path: info.outputPath('looks-panel.png') });
+  await page.locator('#close-book').click();
+  expect((await snapshot(page)).looks).toMatchObject({ rod: 'bamboo', boat: 'pennants' });
+  await page.evaluate(() => window.__FISHING_QA__.setTimeOfDay('night'));
+  await page.waitForTimeout(300);
+  const night = await snapshot(page); expect(night.timeOfDay).toBe('night');
+  await page.screenshot({ path: info.outputPath('night-pennants.png') });
+  await page.evaluate(() => { window.__FISHING_QA__.setLooks({ boat: 'lanterns' }); window.__FISHING_QA__.setTimeOfDay('sunset'); });
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: info.outputPath('sunset-lanterns.png') });
+  await page.reload(); await page.waitForFunction(() => window.__FISHING_QA__?.snapshot().ready);
+  expect((await snapshot(page)).looks).toMatchObject({ rod: 'bamboo', boat: 'lanterns' });
+  expect(errors).toEqual([]);
+});
+
+test('a boss swims in with a warning, takes many taps and lands in the giants section of the book', async ({ page }, info) => {
+  test.setTimeout(120_000); const errors = await boot(page);
+  await page.evaluate(() => window.__FISHING_QA__.spawnBoss('boss-whale'));
+  await expect(page.locator('#toast')).toContainText('ปลายักษ์');
+  await page.waitForTimeout(1200);
+  const boss = (await snapshot(page)).fishes.find((f) => f.id === 'boss-whale');
+  expect(boss).toBeTruthy(); expect(boss.lane).toBe(3);
+  const normal = (await snapshot(page)).fishes.find((f) => f.lane === 3 && f.id !== 'boss-whale');
+  // A giant is long and slender: compare its length and its area with the ordinary lane animals.
+  if (normal) { expect(boss.width).toBeGreaterThan(normal.width * 1.8); expect(boss.width * boss.height).toBeGreaterThan(normal.width * normal.height * 1.5); }
+  await page.screenshot({ path: info.outputPath('boss-warning.png') });
+  await fish(page, 'boss-whale');
+  expect((await snapshot(page)).requiredTaps).toBe(30);
+  await reel(page); await landed(page);
+  expect((await snapshot(page)).catches).toContain('boss-whale');
+  await page.locator('#collection').click();
+  await expect(page.locator('.zone-title').filter({ hasText: 'ยักษ์ใหญ่' })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('the reel can also be cranked: turning around the wheel pulls the line, holding still does not', async ({ page }, info) => {
+  test.setTimeout(90_000); const errors = await boot(page);
+  await fish(page, 'shark');
+  const box = await page.locator('#reel').boundingBox();
+  const cx = box.x + box.width / 2; const cy = box.y + box.height / 2; const r = box.width * 0.36;
+  const point = (deg) => [cx + Math.cos(deg * Math.PI / 180) * r, cy + Math.sin(deg * Math.PI / 180) * r];
+  const angleBefore = await page.locator('#reel').evaluate((el) => parseFloat(el.style.getPropertyValue('--wheel-angle')) || 0);
+  if (info.project.name === 'desktop') {
+    await page.mouse.move(...point(0)); await page.mouse.down();
+    await page.waitForTimeout(400);
+    expect((await snapshot(page)).taps).toBe(1);
+    for (let a = 12; a <= 720; a += 12) { await page.mouse.move(...point(a)); await page.waitForTimeout(16); }
+    await page.mouse.up();
+  } else {
+    // Touch: dispatch a real one-finger circle on the stationary reel wrapper.
+    const client = await page.context().newCDPSession(page);
+    const send = (type, deg) => { const [x, y] = point(deg); return client.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] }); };
+    await send('touchStart', 0);
+    for (let a = 12; a <= 720; a += 12) { await send('touchMove', a); await page.waitForTimeout(16); }
+    await send('touchEnd', 720);
+  }
+  const s = await snapshot(page);
+  // One pull for the first touch, plus one per 120 degrees: 1 + 6.
+  expect(s.taps).toBe(7);
+  const angleAfter = await page.locator('#reel').evaluate((el) => parseFloat(el.style.getPropertyValue('--wheel-angle')) || 0);
+  expect(angleAfter - angleBefore).toBeGreaterThan(600);
+  expect(await page.evaluate(() => visualViewport.scale)).toBe(1);
+  await page.screenshot({ path: info.outputPath('crank.png') });
+  // Taps still finish the catch.
+  const rest = s.requiredTaps - s.taps;
+  for (let i = 0; i < rest; i++) { await page.locator('#reel').click(); await page.waitForTimeout(95); }
+  await landed(page);
+  expect((await snapshot(page)).catches).toContain('shark');
   expect(errors).toEqual([]);
 });

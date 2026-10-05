@@ -1,7 +1,10 @@
 # Project Instructions
 
 - This is the separate `tap-tap-fishing` repository. Do not modify sibling game repositories.
-- Keep gameplay touch-first: single tap to cast, repeated individual taps on the reel. No hold-to-reel.
+- Keep gameplay touch-first: single tap to cast; reel by repeated taps OR by turning a finger around the reel like a crank
+  (user decision 2026-10-05; 120 degrees of steady turning = one pull). Holding still never reels: no hold-to-reel.
+- Run long browser suites with `npm run test:e2e:snapshot` (frozen copy on port 5195) so source edits during a run
+  cannot reload the page under test.
 - Relaxed play must remain untimed and forgiving; do not randomly drop a fish after correct input.
 - Preserve saved collection and the dedicated `tap-tap-fishing-v1` storage key.
 - Use Phaser for rendering and collision detection. Keep testable round rules in `src/model.js`.

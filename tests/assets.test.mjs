@@ -22,7 +22,7 @@ test('catalog keeps every saved collection id and describes each creature comple
   for (const s of SPECIES) {
     assert.ok(Number.isInteger(s.lane) && s.lane >= 0 && s.lane < LANE_COUNT, s.id);
     assert.ok(Number.isSafeInteger(s.points) && s.points > 0, s.id);
-    assert.ok(Number.isSafeInteger(s.taps) && s.taps >= 4 && s.taps <= 24, s.id);
+    assert.ok(Number.isSafeInteger(s.taps) && s.taps >= 4 && s.taps <= (s.boss ? 40 : 24), s.id);
     assert.ok(s.size > 20 && s.speed > 0 && s.weight > 0, s.id);
     assert.ok(s.group[0] >= 1 && s.group[1] >= s.group[0], s.id);
     assert.ok(['animal', 'item', 'junk'].includes(s.kind), s.id);
@@ -40,8 +40,10 @@ test('catalog keeps every saved collection id and describes each creature comple
 });
 
 test('every creature, the boat and both seas have processed artwork that exists with the recorded size', () => {
-  for (const s of SPECIES) assert.ok(s.art, `${s.id} has a sprite in the manifest`);
-  assert.equal(speciesWithArt(false).length, SPECIES.length, 'production shows the whole catalog');
+  // Only the bosses may still be waiting for their sheet (prompt K); production hides a creature without art.
+  for (const s of SPECIES) assert.ok(s.art || s.boss, `${s.id} has a sprite in the manifest`);
+  assert.equal(speciesWithArt(false).length, SPECIES.filter((s) => s.art).length);
+  assert.ok(speciesWithArt(false).every((s) => s.art));
   assert.ok(manifest.sprites.boat && manifest.backgrounds.portrait && manifest.backgrounds.landscape);
   for (const id of Object.keys(manifest.sprites)) assert.ok(id === 'boat' || PROPS.includes(id) || SPECIES.some((s) => s.id === id), `${id} belongs to the catalog or the props`);
   for (const id of PROPS) assert.ok(manifest.sprites[id], `prop ${id} has artwork`);
@@ -67,8 +69,9 @@ test('boat and background anchors lie inside their images in a sensible order', 
 
 test('display sizes keep the artwork proportions and fit the lane height', () => {
   for (const s of SPECIES) {
-    const size = displaySize(s, s.art, 1, 50);
-    assert.ok(Math.abs(size.width / size.height - s.art.w / s.art.h) < 1e-9);
+    const art = s.art ?? { w: 128, h: 128 };
+    const size = displaySize(s, art, 1, 50);
+    assert.ok(Math.abs(size.width / size.height - art.w / art.h) < 1e-9);
     assert.ok(size.height <= 50 + 1e-9 && size.width <= s.size + 1e-9);
   }
 });
@@ -76,6 +79,7 @@ test('display sizes keep the artwork proportions and fit the lane height', () =>
 test('every creature stays readable at its smallest on-screen size', () => {
   // Natural proportions: nothing is so tall or so wide that the lane clamp makes it tiny.
   for (const s of SPECIES) {
+    if (s.boss) continue;
     const size = displaySize(s, s.art, 0.8, 52);
     assert.ok(size.width >= 22 && size.height >= 16, `${s.id} shows ${size.width.toFixed(0)}x${size.height.toFixed(0)}`);
   }

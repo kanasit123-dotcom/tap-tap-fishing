@@ -11,3 +11,4 @@ art/preview/
 art/incoming/*.png
 art/incoming/*.jpg
 art/incoming/*.webp
+.e2e-snapshot/

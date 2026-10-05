@@ -222,6 +222,7 @@ export class FishingAudio {
       }
       loops.nextBubble = now + rand(1.5, 5);
     }
+    if (now >= loops.nextGull && this.night) loops.nextGull = now + rand(15, 34);
     if (now >= loops.nextGull) {
       const cries = 1 + Math.floor(Math.random() * 3);
       for (let i = 0; i < cries; i++) this.gull(now + 0.1 + i * rand(0.38, 0.55));
@@ -299,6 +300,8 @@ export class FishingAudio {
   setBonus(on) { this.bonus = on; }
 
   setFever(on) { this.fever = on; }
+
+  setNight(on) { this.night = on; }
 
   // Quieter sea and no music while a dialog is open.
   duck(on) {
@@ -447,6 +450,10 @@ const EFFECTS = {
   pirate() {
     [[62, 0], [66, 0.18], [69, 0.36], [74, 0.6]].forEach(([note, at]) => this.marimba(note, { at, vol: 0.12, dur: 0.5 }));
     this.tone({ freq: 147, type: 'sawtooth', dur: 0.9, vol: 0.05, lowpass: 700, at: 0.6 });
+  },
+  boss() {
+    for (const [at, f] of [[0, 98], [0.55, 98], [1.1, 131]]) this.tone({ freq: f, type: 'sawtooth', at, dur: 0.5, vol: 0.09, lowpass: 600 });
+    this.noise({ dur: 1.4, vol: 0.06, type: 'lowpass', freq: 300, end: 120 });
   },
   powerup() { this.arpeggio([76, 83, 88, 95], 0, 0.05, 0.09); this.shimmer(8, 0.15); },
   coins({ count = 6 } = {}) {

@@ -16,6 +16,8 @@
 | G | `background-landscape.png` | 1536×1024 แนวนอน | ฉากทะเลสำหรับจอแนวนอน (ไม่บังคับ) |
 | H | `sheet-e-extra.png` | 1536×1024 แนวนอน | สัตว์ทะเลเพิ่ม 12 ชนิด (ใช้งานแล้ว) |
 | I | `sheet-f-pirate.png` | 1536×1024 แนวนอน | เรือโจรสลัด 3 ลำ ปืนใหญ่ ไอเทมช่วยจับ (ใช้งานแล้ว) |
+| J | `background-sunset-*.png`, `background-night-*.png` | 4 รูป แนวตั้ง+แนวนอน | ฉากยามเย็นและกลางคืน (ใช้งานแล้ว) |
+| K | `sheet-g-boss.png` | 1536×1024 แนวนอน | ปลายักษ์ 3 ตัว (ใช้งานแล้ว) |
 
 ## วิธีทำ
 
@@ -214,6 +216,52 @@ LAYOUT: exactly 12 separate subjects in a grid of 3 rows x 4 columns, in this re
 แผนการใช้ (AI ทำตอนได้รูป): เรือโจรสลัด 3 ขนาดแล่นบนผิวน้ำในมินิเกม (ลำใหญ่ต้องยิงหลายนัด), ปืนใหญ่ติดหัวเรือเรา, ลูกปืน, หีบลอยและถังไม้หล่นจากเรือที่ถูกยิง,
 ไอเทมช่วยจับลอยมาในแถวกลาง: แห = ทอดครั้งถัดไปจับได้ทุกตัวที่แหผ่าน (สูงสุด 3), รอกเร็ว = 3 ครั้งถัดไปแตะรอกครึ่งเดียวและเบ็ดลงเร็วขึ้น,
 ตะขอทอง = ตะขอใหญ่ขึ้น 20 วินาที, กล้องส่องทางไกล = เห็นสีจริงของสัตว์ทะเลลึก 20 วินาที, เหรียญ = ใช้ทำ effect เหรียญบินเข้าคะแนน
+
+## J — ฉากยามเย็น และกลางคืน (4 รูป, 2026-10-05)
+
+> แต่ละรอบที่เล่น เกมจะสลับ กลางวัน → ยามเย็น → กลางคืน
+> **วิธีที่ได้ผลดีที่สุด:** แนบรูปพื้นหลังเดิมไปด้วย แล้วสั่งให้ "วาดใหม่ภาพเดิม" เส้นผิวน้ำกับขอบทรายจะอยู่ตำแหน่งเดิม ผมใช้ค่าวัดเดิมได้เลย
+> รูปพื้นหลังเดิมอยู่ที่ `tap-tap-fishing\art\incoming\background-portrait.png` และ `background-landscape.png`
+
+| ไฟล์ที่ต้องเซฟ | แนบรูป | prompt |
+|---|---|---|
+| `background-sunset-portrait.png` | `background-portrait.png` | J1 |
+| `background-sunset-landscape.png` | `background-landscape.png` | J1 |
+| `background-night-portrait.png` | `background-portrait.png` | J2 |
+| `background-night-landscape.png` | `background-landscape.png` | J2 |
+
+### J1 ยามเย็น
+
+```text
+Repaint the attached image as the same scene at golden sunset. Keep EXACTLY the same composition, size and aspect ratio: the waterline stays at the same height, the sandy seabed top edge stays at the same height, the reefs stay on the left and right edges, the islands stay where they are, the centre stays open water.
+Change only the lighting and colours: warm orange-pink sky with a low golden sun near the horizon behind the right island, glowing clouds, golden reflections on the water surface, the underwater light becomes warmer teal with soft golden rays, the deep water a little darker blue, the sand warmer. Same semi-realistic painted style. No fish, no animals, no boat, no people, no text, no frame.
+```
+
+### J2 กลางคืน
+
+```text
+Repaint the attached image as the same scene at a calm moonlit night. Keep EXACTLY the same composition, size and aspect ratio: the waterline stays at the same height, the sandy seabed top edge stays at the same height, the reefs stay on the left and right edges, the islands stay where they are as dark silhouettes, the centre stays open water.
+Change only the lighting and colours: deep navy sky with stars and a bright full moon, silver moonlight shimmering on the water surface, the underwater scene in deep blue with soft silvery moon rays, a few corals glowing faintly cyan and pink (bioluminescent), the sand in cool moonlit grey-blue. It must stay readable and friendly for children, NOT pitch black: fish drawn on top must still stand out. Same semi-realistic painted style. No fish, no animals, no boat, no people, no text, no frame.
+```
+
+## K — `sheet-g-boss.png` ปลายักษ์ (บอส) 3 ตัว
+
+> ปลายักษ์จะโผล่มาทุก 2-3 นาที มีเสียงเตือน ว่ายช้าผ่านกลางจอ ต้องแตะรอกเยอะ แต่ได้คะแนนสูงมาก และเข้าสมุดสะสมหมวดใหม่ "ยักษ์ใหญ่"
+> ทำในแชตเดิมที่ทำแผ่น A-I แล้วพิมพ์เพิ่มท้าย prompt ว่า `Match the exact art style of the earlier creature sheets.`
+
+```text
+Create a 1536x1024 landscape PNG with a TRANSPARENT background (real alpha, no checkerboard pattern drawn in).
+
+ART STYLE: semi-realistic painted illustration for a premium mobile fishing game, the same style as the earlier creature sheets. Natural anatomy, real proportions, rich detail, soft light from above with a gentle rim light. NOT cartoon. Majestic but gentle and friendly for children: mouths closed, no teeth, calm eyes.
+
+LAYOUT: exactly 3 separate giant sea animals stacked in 3 rows (one per row, each row a full-width band), in this order from top to bottom. Each animal is centred in its band, about 85% of the image width, with empty transparent space above and below. Nothing touches another animal or the image edge. Every animal in strict side view facing RIGHT (head toward the right edge), swimming horizontally, whole body visible including the full tail. No water, no bubbles, no shadows, no glow, no text, no labels, no grid lines, no frame.
+
+1) a huge blue whale: long blue-grey body with pale mottling, small dorsal fin near the tail, long flippers, gentle eye, mouth closed
+2) a giant friendly kraken: a huge deep-red octopus with a big rounded head on the right and eight very long curling arms trailing to the left, one large calm eye, no teeth
+3) a giant golden king marlin: shimmering gold and amber body with a tall sail-like dorsal fin and a long pointed bill to the right
+```
+
+ชื่อชิ้นตอนตัด (ตามลำดับ): `boss-whale boss-kraken boss-marlin`
 
 ---
 

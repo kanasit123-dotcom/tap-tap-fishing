@@ -5,6 +5,7 @@ import { SPECIES_BY_ID, ZONES, speciesWithArt } from './species.js';
 import { loadProgress, saveProgress, recordCatch, recordTrip } from './progress.js';
 import { FishingAudio } from './audio.js';
 import { bindTapControl } from './input.js';
+import { WHEEL, spinWheel, applyPrize, LOOKS, isUnlocked, zoneProgress, timeOfDay, TIME_NAMES } from './extras.js';
 import './style.css';
 
 const icons = { Anchor, BookOpen, Volume2, VolumeX, Pause, Play, Fish, Trophy, Timer, X, RotateCcw, ArrowRight, Check, Music, Map: MapIcon, Sparkles };
@@ -99,7 +100,12 @@ class FishingApp {
   now() { return performance.now(); }
 
   makeRound(mode) {
-    return new FishingRound(mode, (species, round) => this.landed(species, round), { maps: this.progress.maps, bonusTurn: this.progress.bonusTurn });
+    // Powers won on the lucky wheel are used up by the trip they start.
+    const startPowers = this.progress.startPowers ?? {};
+    this.progress.startPowers = {};
+    if (Object.keys(startPowers).length) this.persist?.();
+    this.startPowers = startPowers;
+    return new FishingRound(mode, (species, round) => this.landed(species, round), { maps: this.progress.maps, bonusTurn: this.progress.bonusTurn, startPowers });
   }
 
   landed(species, round) {
@@ -137,13 +143,19 @@ class FishingApp {
     this.scene = scene;
     $('.loading').hidden = !this.failed;
     $('#sea canvas').setAttribute('aria-hidden', 'true');
+    scene.setTimeOfDay(timeOfDay(this.progress.trips));
     this.measure(); this.renderHUD();
+    this.announceTrip();
     if (QA) {
       window.__FISHING_QA__ = {
         snapshot: () => this.scene.snapshot(),
         arrange: (id, extras) => this.scene.arrangeForTest(id, extras),
         setBonusTurn: (n) => { this.round.bonusTurn = n; },
         setPower: (name, value) => { this.round[name] = value; },
+        setTimeOfDay: (time) => this.scene.setTimeOfDay(time),
+        setLooks: (looks) => { this.progress.looks = { ...this.progress.looks, ...looks }; this.persist(); },
+        spawnBoss: (id) => this.scene.spawnBossForTest(id),
+        setCollection: (ids) => { for (const id of ids) this.progress.collection[id] = Math.max(1, this.progress.collection[id] ?? 0); this.persist(); },
         freezeShips: () => this.scene.pirate.freeze(),
         aimAt: (x) => { this.scene.pirate.testAimX = x; },
         release: () => this.scene.releaseTest(),
@@ -206,7 +218,7 @@ class FishingApp {
 
   bindControls() {
     bindTapControl($('#cast'), () => this.round.phase === 'complete' ? this.startRound(this.round.mode) : this.cast());
-    bindTapControl($('#reel'), () => this.reel(), $('.reel-wrap'));
+    bindTapControl($('#reel'), (source) => this.reel(source), $('.reel-wrap'), { onRotate: (degrees) => this.turnWheel(degrees) });
     $('#pause').onclick = () => this.pause();
     $('#collection').onclick = () => { this.audio.unlock(); this.openCollection(); };
     $('#sound').onclick = () => {
@@ -254,6 +266,23 @@ class FishingApp {
     this.renderHUD();
   }
 
+  // Start-of-trip message: time of day and powers won on the wheel.
+  announceTrip() {
+    const time = timeOfDay(this.progress.trips);
+    const names = { net: 'แห', turbo: 'รอกเร็ว', goldhook: 'ตะขอทอง' };
+    const powers = Object.keys(this.startPowers ?? {}).map((k) => names[k]);
+    const parts = [];
+    if (time !== 'day') parts.push(`ออกเรือ${TIME_NAMES[time]}`);
+    if (powers.length) parts.push(`มี${powers.join(' ')}ติดเรือมาด้วย!`);
+    if (parts.length) setTimeout(() => this.toast(parts.join(' · ')), 400);
+  }
+
+  onBossWarning() {
+    this.audio.play('boss');
+    this.toast('ปลายักษ์กำลังมา! แตะรอกเยอะหน่อยนะ');
+    this.audio.say('ปลายักษ์กำลังมา');
+  }
+
   onPirateStart() {
     this.audio.play('pirate');
     this.audio.say('เรือโจรสลัดมาแล้ว แตะเพื่อยิงปืนใหญ่');
@@ -275,10 +304,20 @@ class FishingApp {
     this.renderHUD();
   }
 
-  reel() {
+  // The wheel follows a cranking finger; a tap gives it a quick 55 degree spin.
+  turnWheel(degrees) {
+    if (this.round.phase !== 'reeling') return;
+    this.wheelAngle += degrees;
+    $('#reel').classList.add('cranking');
+    $('#reel').style.setProperty('--wheel-angle', `${this.wheelAngle}deg`);
+    clearTimeout(this.crankTimer);
+    this.crankTimer = setTimeout(() => $('#reel').classList.remove('cranking'), 150);
+  }
+
+  reel(source = 'tap') {
     this.audio.unlock();
     if (!this.round.reel(performance.now())) return;
-    this.wheelAngle += 55;
+    if (source !== 'crank') this.wheelAngle += 55;
     $('#reel').style.setProperty('--wheel-angle', `${this.wheelAngle}deg`);
     $('#reel').classList.remove('tapped');
     void $('#reel').offsetWidth;
@@ -290,7 +329,8 @@ class FishingApp {
 
   onHook() {
     this.audio.play('hook');
-    if (this.hookMessageCount++ < 2) this.audio.say('ติดเบ็ดแล้ว แตะรอกซ้ำ ๆ เพื่อดึงขึ้นมา');
+    if (this.hookMessageCount < 2) this.toast('แตะรอกรัวๆ หรือลากนิ้ววนรอบรอกเหมือนหมุนรอกจริง');
+    if (this.hookMessageCount++ < 2) this.audio.say('ติดเบ็ดแล้ว แตะรอก หรือหมุนรอก เพื่อดึงขึ้นมา');
     this.renderHUD();
   }
 
@@ -397,7 +437,9 @@ class FishingApp {
     if ($('#modal').open) $('#modal').close();
     this.audio.stop();
     this.round = this.makeRound(mode);
+    this.scene?.setTimeOfDay(timeOfDay(this.progress.trips));
     this.scene?.resetRound();
+    this.announceTrip();
     this.wheelAngle = 0;
     $('#reel').style.setProperty('--wheel-angle', '0deg');
     for (const m of ['relaxed', 'arcade']) $(`#${m}`).setAttribute('aria-pressed', String(m === mode));
@@ -437,16 +479,82 @@ class FishingApp {
       if (!list.length) return '';
       return `<h3 class="zone-title">${zone.name}</h3><div class="collection-grid">${list.map((s) => `<article class="collection-item ${this.progress.collection[s.id] ? '' : 'undiscovered'}">${art(s)}<h4>${s.name}</h4><span>${this.progress.collection[s.id] ? `${this.progress.collection[s.id]} ครั้ง` : 'ยังไม่พบ'}</span></article>`).join('')}</div>`;
     }).join('');
-    this.showDialog(`<div class="dialog-heading"><div><small>สัตว์ทะเลและสมบัติ</small><h2 id="dialog-title">สมุดสะสม <span>${found} / ${this.species.length}</span></h2></div><button id="close-book" class="icon-button" aria-label="ปิดสมุดสะสม">${icon('x')}</button></div>${sections}`);
+    this.showDialog(`<div class="dialog-heading"><div><small>สัตว์ทะเลและสมบัติ</small><h2 id="dialog-title">สมุดสะสม <span>${found} / ${this.species.length}</span></h2></div><button id="close-book" class="icon-button" aria-label="ปิดสมุดสะสม">${icon('x')}</button></div>${this.looksHtml()}${sections}`);
     $('#close-book').onclick = () => $('#modal').close();
+    for (const button of document.querySelectorAll('.look:not([disabled])')) {
+      button.onclick = () => {
+        this.progress.looks = { ...this.progress.looks, [button.dataset.part]: button.dataset.look };
+        this.persist();
+        this.audio.play('powerup');
+        this.openCollection();
+      };
+    }
+  }
+
+  // Unlockable boat looks: finish a book section to unlock its look.
+  looksHtml() {
+    const parts = { rod: 'คันเบ็ด', hook: 'ตะขอ', boat: 'แต่งเรือ' };
+    const rows = Object.entries(LOOKS).map(([part, options]) => `<div class="look-row"><span class="look-part">${parts[part]}</span>${options.map((look) => {
+      const unlocked = isUnlocked(look, ZONES, this.species, this.progress.collection);
+      const active = this.progress.looks?.[part] === look.id;
+      const zone = ZONES.find((z) => z.id === look.zone);
+      const prog = zone ? zoneProgress(zone, this.species, this.progress.collection) : null;
+      return `<button class="look ${active ? 'active' : ''}" data-part="${part}" data-look="${look.id}" aria-pressed="${active}" ${unlocked ? '' : 'disabled'}>${unlocked ? '' : '🔒 '}${look.name}${unlocked ? '' : `<small>จับ${zone.name}ให้ครบ ${prog.found}/${prog.total}</small>`}</button>`;
+    }).join('')}</div>`).join('');
+    return `<section class="looks"><h3 class="zone-title">ตกแต่งเรือ</h3>${rows}</section>`;
   }
 
   openReward() {
     const r = this.round;
     const unique = [...new Set(r.catches)].map((id) => SPECIES_BY_ID[id]);
-    this.showDialog(`<div class="dialog-emblem gold">${icon('trophy')}</div><h2 id="dialog-title">นักสำรวจอ่าวสมบัติ!</h2><div class="reward-score">${r.score}<span>คะแนน</span></div><p>นำขึ้นเรือ ${r.catches.length} รายการ · สถิติสูงสุด ${this.progress.best[r.mode]} คะแนน</p><div class="catch-strip">${unique.map((s) => art(s)).join('')}</div><div class="dialog-actions"><button id="again" class="primary">${icon('anchor')}ออกเรืออีกครั้ง</button><button id="reward-book" class="secondary">${icon('book-open')}สมุดสะสม</button></div>`);
+    this.showDialog(`<div class="dialog-emblem gold">${icon('trophy')}</div><h2 id="dialog-title">นักสำรวจอ่าวสมบัติ!</h2><div class="reward-score">${r.score}<span>คะแนน</span></div><p>นำขึ้นเรือ ${r.catches.length} รายการ · สถิติสูงสุด ${this.progress.best[r.mode]} คะแนน</p><div class="catch-strip">${unique.map((s) => art(s)).join('')}</div>${this.wheelHtml()}<div class="dialog-actions"><button id="again" class="primary">${icon('anchor')}ออกเรืออีกครั้ง</button><button id="reward-book" class="secondary">${icon('book-open')}สมุดสะสม</button></div>`);
     $('#again').onclick = () => this.startRound(r.mode);
     $('#reward-book').onclick = () => this.openCollection();
+    $('#spin').onclick = () => this.spin();
+  }
+
+  wheelHtml() {
+    const step = 360 / WHEEL.length;
+    const colors = ['#ffd34d', '#4fb3e8', '#ff8a5c', '#7fd48a', '#e8433a', '#9b7be0', '#ffb347', '#3fc1b0'];
+    const gradient = WHEEL.map((_, i) => `${colors[i % colors.length]} ${i * step}deg ${(i + 1) * step}deg`).join(', ');
+    const labels = WHEEL.map((prize, i) => `<span class="seg" style="--a:${i * step + step / 2}deg">${prize.art ? `<img src="${assetUrl(`sprites/${prize.art}.webp`)}" alt="">` : ''}<b>${prize.label}</b></span>`).join('');
+    return `<div class="lucky"><div class="lucky-box"><div class="lucky-pointer"></div><div id="lucky-wheel" class="lucky-wheel" style="background: conic-gradient(${gradient})">${labels}<span class="lucky-hub"></span></div></div><button id="spin" class="primary spin">${icon('sparkles')}หมุนวงล้อนำโชค</button><p id="prize" class="prize" aria-live="polite"></p></div>`;
+  }
+
+  spin() {
+    const button = $('#spin');
+    if (!button || button.disabled) return;
+    button.disabled = true;
+    this.audio.unlock();
+    const index = spinWheel(this.rng);
+    const step = 360 / WHEEL.length;
+    const turn = 360 * 5 + (360 - (index * step + step / 2));
+    const wheel = $('#lucky-wheel');
+    const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    // Ticks that slow down with the wheel.
+    let delay = 60;
+    let elapsed = 0;
+    const tick = () => { if (elapsed > 2900 || calm) return; this.audio.play('tick'); elapsed += delay; delay *= 1.12; this.wheelTimer = setTimeout(tick, delay); };
+    tick();
+    const finish = () => {
+      clearTimeout(this.wheelTimer);
+      const prize = WHEEL[index];
+      const message = applyPrize(this.progress, this.round, prize);
+      this.persist();
+      this.audio.play(prize.points >= 100 ? 'jackpot' : 'treasure');
+      $('#prize').textContent = message;
+      $('.reward-score').firstChild.textContent = this.round.score;
+      button.innerHTML = `${icon('check')}หมุนแล้ว`;
+      updateIcons();
+      this.lastHUD = ''; this.renderHUD();
+    };
+    wheel.style.transition = calm ? 'none' : '';
+    requestAnimationFrame(() => { wheel.style.transform = `rotate(${turn}deg)`; });
+    if (calm) finish();
+    else {
+      wheel.addEventListener('transitionend', finish, { once: true });
+      this.wheelFallback = setTimeout(() => { if (!$('#prize')?.textContent && $('#lucky-wheel') === wheel) finish(); }, 4200);
+    }
   }
 }
 

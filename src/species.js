@@ -6,10 +6,11 @@ export const SEABED = 6;
 export const MYSTERY_FROM = 4;
 
 export const ZONES = [
-  { id: 'shallow', name: 'น้ำตื้น', match: (s) => s.kind === 'animal' && s.lane <= 1 },
-  { id: 'middle', name: 'กลางน้ำ', match: (s) => s.kind === 'animal' && (s.lane === 2 || s.lane === 3) },
-  { id: 'deep', name: 'ทะเลลึก', match: (s) => s.kind === 'animal' && (s.lane === 4 || s.lane === 5) },
-  { id: 'seabed', name: 'พื้นทะเล', match: (s) => s.kind === 'animal' && s.lane === SEABED },
+  { id: 'shallow', name: 'น้ำตื้น', match: (s) => s.kind === 'animal' && !s.boss && s.lane <= 1 },
+  { id: 'middle', name: 'กลางน้ำ', match: (s) => s.kind === 'animal' && !s.boss && (s.lane === 2 || s.lane === 3) },
+  { id: 'deep', name: 'ทะเลลึก', match: (s) => s.kind === 'animal' && !s.boss && (s.lane === 4 || s.lane === 5) },
+  { id: 'seabed', name: 'พื้นทะเล', match: (s) => s.kind === 'animal' && !s.boss && s.lane === SEABED },
+  { id: 'boss', name: 'ยักษ์ใหญ่', match: (s) => Boolean(s.boss) },
   { id: 'treasure', name: 'สมบัติและของแปลก', match: (s) => s.kind !== 'animal' },
 ];
 
@@ -68,6 +69,11 @@ const catalog = [
 
   { id: 'manta', name: 'กระเบนราหู', lane: 5, points: 50, taps: 20, size: 150, speed: 26, weight: 14, motion: 'glide', emoji: '🐟' },
   { id: 'whale-shark', name: 'ฉลามวาฬ', lane: 5, points: 90, taps: 22, size: 190, speed: 22, weight: 4, cooldown: 40, emoji: '🦈' },
+
+  // Bosses: never in the normal mix; the spawner sends one every two to three minutes.
+  { id: 'boss-whale', name: 'วาฬสีน้ำเงิน', lane: 3, points: 200, taps: 30, size: 300, speed: 15, weight: 1, boss: true, emoji: '🐋' },
+  { id: 'boss-kraken', name: 'คราเคน', lane: 3, points: 180, taps: 28, size: 260, speed: 13, weight: 1, boss: true, motion: 'pulse', emoji: '🐙' },
+  { id: 'boss-marlin', name: 'ราชาปลากระโทงทอง', lane: 3, points: 250, taps: 32, size: 280, speed: 22, weight: 1, boss: true, emoji: '🐟' },
 
   // Seabed: crawlers, the jackpot lobster and the odd old boot.
   { id: 'starfish', name: 'ปลาดาว', lane: 6, points: 10, taps: 7, size: 44, speed: 13, weight: 24, group: [1, 2], motion: 'spin', noFlip: true, emoji: '⭐' },

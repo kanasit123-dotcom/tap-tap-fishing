@@ -1,8 +1,9 @@
 import { SPECIES } from './species.js';
 import { MAP_PIECES } from './model.js';
+import { sanitizeLooks, defaultLooks } from './extras.js';
 
 export const STORAGE_KEY = 'tap-tap-fishing-v1';
-export const freshProgress = () => ({ version: 1, collection: {}, best: { relaxed: 0, arcade: 0 }, trips: 0, sound: true, music: true, maps: 0, bonusTurn: 0 });
+export const freshProgress = () => ({ version: 1, collection: {}, best: { relaxed: 0, arcade: 0 }, trips: 0, sound: true, music: true, maps: 0, bonusTurn: 0, startPowers: {}, looks: defaultLooks() });
 const count = (n) => Number.isSafeInteger(n) && n >= 0 ? n : 0;
 
 export function loadProgress(storage) {
@@ -16,6 +17,8 @@ export function loadProgress(storage) {
       trips: count(raw.trips), sound: raw.sound !== false, music: raw.music !== false,
       maps: count(raw.maps) % MAP_PIECES,
       bonusTurn: count(raw.bonusTurn) % 2,
+      startPowers: Object.fromEntries(['net', 'turbo', 'goldhook'].filter((k) => raw.startPowers?.[k] === true).map((k) => [k, true])),
+      looks: sanitizeLooks(raw.looks),
     };
   } catch { return freshProgress(); }
 }

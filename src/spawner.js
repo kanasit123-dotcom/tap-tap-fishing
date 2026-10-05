@@ -7,6 +7,9 @@ export const SWIM_PACE = 1.12;   // overall swimming speed (user: "a little fast
 export const LANE_GAPS = [4.25, 4.25, 3.8, 4.2, 5, 5.8, 5].map((gap) => gap / SWIM_PACE);
 export const MIN_GAP_PX = 36;
 export const RARE_COOLDOWN = 60;
+export const BOSS_FIRST = [70, 100];   // seconds until the first boss of a trip
+export const BOSS_EVERY = [120, 180];  // seconds between bosses
+export const BOSS_LANE = 3;
 export const STRAY_SHARE = 0.15;  // relative chance of a neighbouring lane's animal straying into a lane
 export const REPEAT_SHARE = 0.4;  // the species that arrived two groups ago is this much less likely to come next
 const WAVES = {
@@ -41,6 +44,7 @@ export class Spawner {
     this.lastRare = -Infinity;
     this.wait = LANE_GAPS.map((gap) => this.rng() * gap);
     this.wave = { kind: 'normal', until: this.between(...WAVES.normal.length), rushLane: -1 };
+    this.bossIn = this.between(...BOSS_FIRST);
   }
 
   between(min, max) { return min + this.rng() * (max - min); }
@@ -71,6 +75,7 @@ export class Spawner {
     // The species that just arrived never comes straight back in the same lane; the one before is less likely.
     const [last, before] = this.history[lane];
     const list = this.species
+      .filter((s) => !s.boss)
       .filter((s) => s.lane === lane || (s.kind === 'animal' && Math.abs(s.lane - lane) === 1 && zone(s.lane) === zone(lane) && zone(lane) !== 'seabed'))
       .filter((s) => !s.arcadeOnly || this.mode === 'arcade')
       .filter((s) => !s.cooldown || this.time - (this.lastSeen[s.id] ?? -Infinity) >= s.cooldown)
@@ -102,6 +107,8 @@ export class Spawner {
     this.time += dt;
     if (this.time >= this.wave.until) this.nextWave();
     const orders = [];
+    const boss = this.bossTick(dt, lanes);
+    if (boss) orders.push(boss);
     for (let lane = 0; lane < LANE_COUNT; lane++) {
       const state = lanes[lane] ?? emptyLane();
       const dir = this.dir[lane];
@@ -118,6 +125,31 @@ export class Spawner {
       this.wait[lane] = this.gap(lane);
     }
     return orders;
+  }
+
+  // A boss (with artwork) crosses the middle of the sea every two to three minutes, never during the treasure rain.
+  bossTick(dt, lanes) {
+    if (this.bonus) return null;
+    this.bossIn -= dt;
+    if (this.bossIn > 0) return null;
+    const bosses = this.species.filter((s) => s.boss && this.available.has(s.id));
+    if (!bosses.length) { this.bossIn = 60; return null; }
+    const dir = this.dir[BOSS_LANE];
+    if ((lanes[BOSS_LANE]?.sides?.[dir]?.tailGap ?? Infinity) < MIN_GAP_PX) return null;
+    const species = bosses.filter((s) => s.id !== this.lastBoss)[Math.floor(this.rng() * (bosses.length > 1 ? bosses.length - 1 : 1))] ?? bosses[0];
+    this.lastBoss = species.id;
+    this.bossIn = this.between(...BOSS_EVERY);
+    this.lastSeen[species.id] = this.time;
+    this.wait[BOSS_LANE] = Math.max(this.wait[BOSS_LANE], 3);
+    // Like any group, a boss never catches up with the creature that entered before it.
+    let speed = species.speed * SWIM_PACE;
+    const tail = lanes[BOSS_LANE]?.sides?.[dir];
+    if (tail && Number.isFinite(tail.tailGap) && tail.tailSpeed > 0) {
+      const room = Math.max(1, (lanes[BOSS_LANE].span ?? 600) - tail.tailGap);
+      speed = Math.min(speed, tail.tailSpeed * (1 + Math.max(0, tail.tailGap - MIN_GAP_PX) / room));
+    }
+    return { species, lane: BOSS_LANE, dir, speed, boss: true,
+      members: [{ offset: 0, dy: 0, phase: this.rng() * Math.PI * 2, wander: 0, wanderRate: 0.2, wanderPhase: 0, speedMul: 1 }] };
   }
 
   order(species, lane, dir, state) {

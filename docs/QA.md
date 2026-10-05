@@ -2,7 +2,31 @@
 
 Date: 2026-10-04
 
-## Latest: v0.5.0 — Power-Ups And Pirate Battle (2026-10-05)
+## Latest: Sunset/Night Art, Bosses, Crank Reeling, Snapshot Tests (2026-10-05, not yet deployed)
+
+- Prompts J/K delivered: sunset/night repaints keep the day lines (waterline/sand within 0.4%), bosses cut cleanly.
+  Screenshots inspected: night (moon, glowing corals, lanterns) and sunset (golden rays) with a whale/kraken crossing.
+- Crank reeling: unit tests (one pull per 120 deg either way, none for holding/wiggling/circling the hub, touch binding,
+  cast button not crankable) + e2e on Chromium desktop (mouse drag) and tablet/phone (CDP touch circle): 1 + 6 pulls for two
+  turns, wheel follows the finger, no page zoom, taps still finish the catch. WebKit cannot synthesize the circle here.
+- `npm test`: 72 passed. Full suite via `npm run test:e2e:snapshot` (`test-results/crank-full/`): 73 passed, 2 skipped, 0 failed.
+- Earlier full run with the J/K art (`jk-full2/`): 70 passed. A previous attempt (`jk-full/`) was corrupted by editing src during
+  the run — the reason for the new snapshot runner.
+
+## Previous: Lucky Wheel, Boat Looks, Day/Sunset/Night, Bosses (2026-10-05, not yet deployed)
+
+- Art for sunset/night (prompt J) and the bosses (prompt K) is still pending: the sea uses a tint over the day painting, and
+  bosses exist only as DEV emoji placeholders (production hides them; the spawner never sends a boss without art).
+- `npm test`: 69 passed (new: wheel odds/prizes/next-trip powers, looks unlocking and sanitising, time-of-day cycle,
+  boss timing — first >= 70 s, gaps >= 120 s, lane 3, alternating bosses, none in the rain or without art).
+- New e2e: lucky wheel spin and payout + start power applied on the next trip + sunset after one trip; looks panel unlock and
+  equip (bamboo rod, pennants, lanterns) + night/sunset scenes; boss warning, 30 taps, giants section in the book.
+- Full Playwright run (`test-results/extras-full/`): 67 passed, 2 skipped, 3 failed — the all-creature test on three projects,
+  caused by the test (the new "ตกแต่งเรือ" heading shares the zone-title class; boss entries are still emoji). Test updated;
+  reran: tablet + phone passed (`extras-rerun2/`), desktop passed (`extras-rerun3/`).
+- Screenshots inspected (phone): wheel after a spin, night tint with pennants, sunset tint with glowing lanterns, boss warning.
+
+## Previous: v0.5.0 — Power-Ups And Pirate Battle (2026-10-05) (deployed)
 
 - Deployed (user: "deploy ทีเดียวหลังทำเสร็จ"): commit e646e00, Pages Actions run 37304838992 succeeded; live bundle matches the
   local Pages build (index-jccIFepN.js); pirate/net/coin sprites 200; live smoke passed (50 entries, no errors).

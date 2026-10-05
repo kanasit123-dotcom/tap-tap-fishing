@@ -56,6 +56,28 @@ special items **with effects + bonus stage**; **sea ambience + soft music** with
   (`sheet-f-pirate.png`, already in docs/ART-PROMPTS.md and `SHEETS`); then boss fish, lucky wheel at trip end, unlockable boat/hook
   skins from book zones, day/sunset/night. Power-up and pirate design notes are under prompt I in ART-PROMPTS.md.
   When sheet I arrives, `tests/assets.test.mjs` must allow the non-catalog prop ids (pirate ships, cannon, coin...).
+- **Crank reeling + snapshot tests (2026-10-05, not deployed):** `createCrank` in src/input.js (120 deg per pull, dead zone
+  near the hub, a reversal restarts the count); `bindTapControl(..., { onRotate })` enables it only for the reel (touch on the
+  stationary wrapper, mouse drag with the button held); the wheel follows the finger (`turnWheel`), hint toast/speech mention
+  both ways. `npm run test:e2e:snapshot` = tools/e2e-snapshot.mjs copies index.html/src/public/tests to `.e2e-snapshot/` and runs
+  Playwright against `vite .e2e-snapshot` on 5195 (E2E_SNAPSHOT=1 in playwright.config.js). The crank e2e uses CDP touch, so it
+  runs on Chromium projects only. Boss sizes raised (300/260/280) and boss speed capped behind slower groups.
+- **Art J + K delivered (2026-10-05):** sunset/night repaints measured within 0.4% of the day lines (existing ANCHORS kept);
+  bosses cut 720 px wide. Tint fallback no longer used. Not deployed until the user says so.
+- **Roadmap finished in code (2026-10-05):**
+  - `src/extras.js` (pure): lucky wheel (`WHEEL`, `spinWheel`, `applyPrize`: points raise the finished trip and best; map piece
+    capped at 3; net/turbo/golden hook saved in `progress.startPowers` and used by the next `FishingRound`), boat looks (`LOOKS`:
+    rod classic/bamboo/gold, hook steel/golden, boat plain/pennants/lanterns; unlocked by completing a book section among
+    creatures that have artwork; saved in `progress.looks`), time of day (`timeOfDay(trips)`: day -> sunset -> night per trip).
+  - Wheel UI in the reward dialog (one spin, conic-gradient wheel, slowing ticks); looks panel at the top of the book.
+  - Scene: rod colours, cosmetic golden hook, pennant/lantern string from cabin roof to bow (lanterns glow more at sunset/night),
+    sunset/night paintings chosen by name prefix (`sunset-portrait`...) or, until they exist, a MULTIPLY tint over the day
+    painting; rays dimmer, no gulls at night.
+  - Bosses: `boss-whale` / `boss-kraken` / `boss-marlin` (book section "ยักษ์ใหญ่", taps 28-32, 180-250 pts). Spawner `bossTick`:
+    first after 70-100 s, then every 120-180 s, lane 3, never during the treasure rain, a different boss each time, only with art
+    (so production shows none until sheet K). Up to 2.3 lane-heights tall; warning = darkened sea, ▶▶ arrows, horn, toast.
+  - Prompts J (4 background repaints, attach the day picture) and K (`sheet-g-boss.png`) are in ART-PROMPTS.md and in tools/sprites.py.
+    After J arrives check the waterline/sand lines in art/preview; after K, the boss sizes in-game.
 - **v0.5.0 LIVE (2026-10-05):** commit e646e00, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37304838992 —
   Fever/effects, power-ups, pirate battle. Still to do from the agreed roadmap: boss fish event, lucky wheel at trip end,
   unlockable boat/hook looks from book zones, day/sunset/night (the last needs 2 more background images).
@@ -151,7 +173,7 @@ Next: playtest on a real iPad (sizes of the new art, hook hit boxes against the 
 ## Agreed Interaction
 
 Watch the swinging hook, tap to cast, catch a creature passing in a depth lane,
-then **tap tap tap on the reel**. The user chose repeated taps, not holding or a circular swipe.
+then **tap tap tap on the reel**. The user first chose repeated taps; on 2026-10-05 they asked for taps OR a circular crank on the reel (both work now; holding still does not).
 Large visual wheel feedback and visible catch movement matter more than complex difficulty systems.
 New neutral brand: อ่าวสมบัติ / Tap Tap Fishing. Do not reuse the Treasure Cove name as our title.
 

@@ -301,6 +301,21 @@ export default {
       "file": "sprites/coin.webp",
       "w": 155,
       "h": 154
+    },
+    "boss-whale": {
+      "file": "sprites/boss-whale.webp",
+      "w": 720,
+      "h": 159
+    },
+    "boss-kraken": {
+      "file": "sprites/boss-kraken.webp",
+      "w": 720,
+      "h": 184
+    },
+    "boss-marlin": {
+      "file": "sprites/boss-marlin.webp",
+      "w": 720,
+      "h": 194
     }
   },
   "backgrounds": {
@@ -315,6 +330,34 @@ export default {
       "waterline": 0.126,
       "seabed": 0.775,
       "file": "sea-portrait.webp",
+      "w": 1024,
+      "h": 1536
+    },
+    "night-landscape": {
+      "waterline": 0.182,
+      "seabed": 0.806,
+      "file": "sea-night-landscape.webp",
+      "w": 1536,
+      "h": 1024
+    },
+    "night-portrait": {
+      "waterline": 0.126,
+      "seabed": 0.775,
+      "file": "sea-night-portrait.webp",
+      "w": 1024,
+      "h": 1536
+    },
+    "sunset-landscape": {
+      "waterline": 0.182,
+      "seabed": 0.806,
+      "file": "sea-sunset-landscape.webp",
+      "w": 1536,
+      "h": 1024
+    },
+    "sunset-portrait": {
+      "waterline": 0.126,
+      "seabed": 0.775,
+      "file": "sea-sunset-portrait.webp",
       "w": 1024,
       "h": 1536
     }

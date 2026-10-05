@@ -47,6 +47,22 @@ nav { display: flex; gap: 8px; }
 
 .power { display: flex; align-items: center; gap: 2px; padding: 2px 6px 2px 3px; border-radius: 14px; background: #fff9e6ee; border: 2px solid #f3cf71; box-shadow: 0 2px 0 #ba922940; font-size: 13px; color: #7a4b12; font-variant-numeric: tabular-nums; }
 .power img { width: 24px; height: 24px; object-fit: contain; }
+.lucky { margin: 6px 0 2px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.lucky-box { position: relative; width: 190px; height: 190px; }
+.lucky-wheel { position: absolute; inset: 0; border-radius: 50%; border: 5px solid #fff6d6; box-shadow: 0 0 0 3px #b07a12, 0 6px 16px #3a250040; transition: transform 3.2s cubic-bezier(0.17, 0.67, 0.18, 1); }
+.lucky-wheel .seg { position: absolute; left: 50%; top: 50%; width: 52px; margin-left: -26px; margin-top: -86px; height: 74px; transform-origin: 26px 86px; transform: rotate(var(--a)); display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 13px; font-weight: 800; color: #3b2400; text-shadow: 0 1px 0 #fff8; pointer-events: none; }
+.lucky-wheel .seg img { width: 26px; height: 22px; object-fit: contain; }
+.lucky-hub { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6c0, #e2a321); border: 3px solid #b07a12; }
+.lucky-pointer { position: absolute; z-index: 2; left: 50%; top: -10px; margin-left: -12px; width: 0; height: 0; border-left: 12px solid transparent; border-right: 12px solid transparent; border-top: 22px solid #e8433a; filter: drop-shadow(0 2px 1px #0005); }
+.spin { min-height: 46px; }
+.prize { min-height: 22px; margin: 0; font-weight: 800; color: #b2321c; }
+.looks { text-align: left; margin-top: 6px; }
+.look-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0; }
+.look-part { width: 64px; font-size: 13px; font-weight: 800; color: #2b6f6c; }
+.look { min-height: 38px; padding: 5px 11px; border-radius: 19px; background: #eaf6f0; border: 2px solid #cde1d6; font-size: 13px; font-weight: 700; display: flex; flex-direction: column; align-items: center; line-height: 1.25; }
+.look.active { background: #16847e; color: #fff; border-color: #0f615e; }
+.look:disabled { opacity: 0.75; background: #f3f3ef; color: #7c8a86; }
+.look small { font-size: 10px; font-weight: 600; }
 .cast-button.fire { background: #b8452c; box-shadow: 0 6px 0 #7c2a19, 0 8px 16px #064c6940; }
 .cast-button.fire:disabled { background: #8a6d66; box-shadow: 0 6px 0 #5d4741; }
 @keyframes score-bump { 40% { transform: scale(1.14); } }
@@ -81,6 +97,7 @@ nav { display: flex; gap: 8px; }
 #reel:disabled { opacity: 0.78; pointer-events: none; }
 #reel.active { animation: reel-invite 1.3s ease-in-out infinite; }
 #reel.tapped { animation: reel-tap 0.18s ease-out; }
+#reel.cranking .wheel { transition: none; }
 @keyframes reel-invite { 50% { box-shadow: 0 7px 0 #0e515f, 0 0 0 9px #fff4b746; } }
 @keyframes reel-tap { 50% { box-shadow: 0 7px 0 #0e515f, 0 0 0 6px #ffce5b80; } }
 .save-warning { position: absolute; bottom: 0; left: 0; right: 0; color: #7c334a; background: #ffe3eb; text-align: center; font-size: 12px; }
@@ -177,4 +194,4 @@ dialog p { font-size: 15px; color: #537577; }
 @media (max-height: 540px) and (min-width: 650px) {
   .phase-label { left: 24px; width: 180px; max-width: 180px; bottom: 30px; }
 }
-@media (prefers-reduced-motion: reduce) { #reel.active, #reel.tapped, .fever-banner, .score.bump { animation: none; } .wheel { transition: none; } }
+@media (prefers-reduced-motion: reduce) { #reel.active, #reel.tapped, .fever-banner, .score.bump { animation: none; } .wheel, .lucky-wheel { transition: none; } }

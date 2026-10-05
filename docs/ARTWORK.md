@@ -22,6 +22,11 @@ reprocess. Only the processed output below is published.
 | `sheet-d-seabed.png` (12 seabed animals, treasures, special items) | 1536x1024 RGBA | `047fe49fff40e31bfd90db8102601ece8bde63ce8feb15b9ebdbe7eac805d55b` |
 | `sheet-e-extra.png` (12 extra species, prompt H, delivered later the same day) | 1536x1024 RGBA | `5e063c4f0a51a688dc07d7c638114ce75bcb820d03b5219e6ca4eb28a3d6b1be` |
 | `sheet-f-pirate.png` (pirate ships, cannon, loot, power-ups, coin; prompt I) | 1536x1024 RGBA | `03236a50b8a06ccdbf9e40c5200cb3792f61c79a3513453134fdd55b325af50c` |
+| `sheet-g-boss.png` (whale, kraken, golden marlin bosses; prompt K) | see file | `3eb6fe8830f9235cd2dd5138c83837f4db4ac8dd6f8ff87b01f7bd95b532e6cb` |
+| `background-sunset-portrait.png` (prompt J1) | see file | `eda08156aaac54c6702c06d40511e4ab41470d57e982c676d03288548a73a308` |
+| `background-sunset-landscape.png` (prompt J1) | see file | `cba10a53904e86b2e11806f320a4a7ff5662c19f4e2c8a98853ce3561d9fc16e` |
+| `background-night-portrait.png` (prompt J2) | see file | `e15d259d9b0cd45684886a1d53280848ab12b2d8af7631ac913765f11f93c6f9` |
+| `background-night-landscape.png` (prompt J2) | see file | `eceee326a0f25af9c56bd30a3dca717865eadc1fc68ad8046f026adf9f05127a` |
 | `boat.png` (fishing boat with fisherman, empty rod holder) | 1536x1024 RGBA | `88e396b55d58a34e632469f72b1ae1dae2ac35f92c5c988a4144ea4ebdb9b8f5` |
 | `background-portrait.png` | 1024x1536 RGB | `44b1bca2b55536c1a0e9491299198790874ef0410caae8e9822c143160692ba7` |
 | `background-landscape.png` | 1536x1024 RGB | `2966f78610381b33adc9c562d78c7ad56804e377527ce18bb9200992a012afd8` |

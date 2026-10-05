@@ -28,6 +28,11 @@ npm run build
 npm run preview -- --port 5194
 ```
 
+## Version 0.6.0
+
+Lucky wheel at the end of a trip, boat looks unlocked from the book, day/sunset/night trips, giant boss fish every 2-3
+minutes, and a reel you can tap or crank by turning a finger around it. 53 book entries.
+
 ## Version 0.5.0
 
 Combo/FEVER (3 in a row = x2 for 15 s), coins flying to the score, shake and sparkles for big catches, power-ups

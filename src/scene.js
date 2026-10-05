@@ -15,6 +15,10 @@ const BOAT_HOLDER_X = 204;
 const ROD_TIP = { x: WORLD.originX, y: WORLD.originY };
 const SURFACE_Y = WORLD.originY + WORLD.rest;
 const WARM_UP_SECONDS = 26;
+// Colour washes over the day painting when no sunset/night painting is available (multiplied, fish stay bright).
+const TINTS = { sunset: { color: 0xffa36b, alpha: 0.55 }, night: { color: 0x34508f, alpha: 0.75 } };
+// Rod colours for the unlockable looks: [main, highlight, grip].
+const RODS = { classic: [0x1b262d, 0x6f8896, 0xc59a63], bamboo: [0xb98a3e, 0xf1d28a, 0x7a5426], gold: [0xc9921c, 0xfff0a0, 0x6b3b12] };
 
 export class CoveScene extends Phaser.Scene {
   constructor(controller) {
@@ -39,6 +43,9 @@ export class CoveScene extends Phaser.Scene {
     this.textures.createCanvas('sky', 4, 256);
     this.sky = this.add.image(240, 0, 'sky').setOrigin(0.5, 0).setDepth(-4);
     this.bgTiles = [];
+    this.tint = this.add.rectangle(240, 380, 480, 760, 0xffffff, 0).setDepth(-2.5).setBlendMode(Phaser.BlendModes.MULTIPLY).setVisible(false);
+    this.decor = this.add.graphics().setDepth(16.15);
+    this.lanternGlow = this.add.graphics().setDepth(16.16).setBlendMode(Phaser.BlendModes.ADD);
     this.registerArt();
     this.makeHookTexture();
     this.makeGlintTexture();
@@ -286,6 +293,13 @@ export class CoveScene extends Phaser.Scene {
     for (const fish of this.fishes.getChildren()) if (!fish.getData('caught')) this.resize(fish);
   }
 
+  setTimeOfDay(time) {
+    if (this.timeOfDay === time) return;
+    this.timeOfDay = time;
+    this.controller.audio.setNight?.(time === 'night');
+    if (this.view) { this.layoutBackground(); this.layoutRays(); }
+  }
+
   // The boat picture is re-fitted to the zoom (sharp on every screen, no shimmer while it bobs).
   layoutBoat() {
     const art = manifest.sprites?.boat;
@@ -296,8 +310,14 @@ export class CoveScene extends Phaser.Scene {
   }
 
   layoutBackground() {
-    // Use the painting that needs the least cropping or stretching on this screen shape.
-    const options = Object.entries(manifest.backgrounds ?? {}).map(([name, bg]) => ({ ...bg, key: `bg-${name}` }));
+    // Paintings for the current time of day ('portrait', 'sunset-portrait', ...); without them, the day ones plus a tint.
+    const all = Object.entries(manifest.backgrounds ?? {}).map(([name, bg]) => ({ ...bg, key: `bg-${name}`, name }));
+    const prefix = this.timeOfDay && this.timeOfDay !== 'day' ? `${this.timeOfDay}-` : '';
+    const timed = all.filter((bg) => bg.name === `${prefix}portrait` || bg.name === `${prefix}landscape`);
+    const options = timed.length ? timed : all.filter((bg) => bg.name === 'portrait' || bg.name === 'landscape');
+    const tint = !timed.length && prefix ? TINTS[this.timeOfDay] : null;
+    this.tint.setVisible(Boolean(tint)).setPosition(240, this.view.height / 2).setSize(this.view.width + 4, this.view.height + 4);
+    if (tint) this.tint.setFillStyle(tint.color, tint.alpha);
     let bg = null;
     let place = null;
     for (const option of options) {
@@ -357,7 +377,8 @@ export class CoveScene extends Phaser.Scene {
   laneY(lane, height) { return lane === SEABED ? this.view.seabedLine - height / 2 : this.view.lanes[lane]; }
 
   sizeOf(species, lane = species.lane) {
-    const maxHeight = lane === SEABED ? this.view.spacing * 1.2 : this.view.laneHeight;
+    // Bosses are giants: they may fill more than one lane.
+    const maxHeight = species.boss ? this.view.spacing * 2.3 : lane === SEABED ? this.view.spacing * 1.2 : this.view.laneHeight;
     return displaySize(species, this.textureOf(species), this.view.scale, maxHeight);
   }
 
@@ -397,12 +418,27 @@ export class CoveScene extends Phaser.Scene {
 
   warmUp() {
     // Fast-forward so the sea is already lively, with uneven gaps, when the trip starts.
+    this.warmingUp = true;
     for (let t = 0; t < WARM_UP_SECONDS; t += 0.1) this.advanceSea(0.1);
+    this.warmingUp = false;
+  }
+
+  // The sea darkens for a moment and a horn sounds before a giant swims in.
+  bossWarning(species) {
+    const shade = this.add.rectangle(240, this.view.height / 2, this.view.width + 4, this.view.height + 4, 0x02121c, 0).setDepth(4);
+    this.tweens.add({ targets: shade, fillAlpha: 0.35, duration: 500, yoyo: true, hold: 900, onComplete: () => shade.destroy() });
+    const y = this.view.lanes[3];
+    const arrow = this.add.text(this.spawner.dir[3] > 0 ? this.view.left + 40 : this.view.right - 40, y, this.spawner.dir[3] > 0 ? '▶▶' : '◀◀',
+      { fontFamily: 'Tahoma, sans-serif', fontSize: '30px', fontStyle: 'bold', color: '#ffd34d', stroke: '#5a2a00', strokeThickness: 5 }).setOrigin(0.5).setDepth(20);
+    this.tweens.add({ targets: arrow, alpha: { from: 1, to: 0.2 }, duration: 300, yoyo: true, repeat: 3, onComplete: () => arrow.destroy() });
+    if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) this.cameras.main.shake(500, 0.003);
+    this.controller.onBossWarning?.(species);
   }
 
   spawnOrder(order) {
     const { species, lane, dir, speed, members } = order;
     const size = this.sizeOf(species, lane);
+    if (order.boss && !this.warmingUp) this.bossWarning(species);
     const edge = dir > 0 ? this.view.left - size.width / 2 - 6 : this.view.right + size.width / 2 + 6;
     for (const member of members) this.addCreature(species, lane, edge - dir * member.offset * this.view.scale, dir, speed, member, size);
   }
@@ -619,6 +655,43 @@ export class CoveScene extends Phaser.Scene {
     }
   }
 
+  // Unlockable boat looks: a string of pennants or lanterns from the cabin roof to the bow.
+  drawDecor(bob) {
+    const g = this.decor.clear();
+    const glow = this.lanternGlow.clear();
+    const look = this.controller.progress?.looks?.boat ?? 'plain';
+    const img = this.boatImage;
+    if (look === 'plain' || !img) return;
+    const at = (fx, fy) => ({ x: img.x + img.displayWidth * fx, y: img.y + img.displayHeight * fy + bob });
+    const from = at(0.21, 0.04);
+    const to = at(0.985, 0.45);
+    const point = (t) => ({ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t + Math.sin(t * Math.PI) * 7 });
+    g.lineStyle(0.8, 0x3d3226, 0.9).beginPath();
+    for (let i = 0; i <= 12; i++) { const p = point(i / 12); if (i) g.lineTo(p.x, p.y); else g.moveTo(p.x, p.y); }
+    g.strokePath();
+    if (look === 'pennants') {
+      const colors = [0xe8433a, 0xf5c542, 0x2f8fd8, 0x3bb36a, 0xf08ac0];
+      for (let i = 1; i < 10; i++) {
+        const p = point(i / 10);
+        const sway = Math.sin(this.time0 * 3 + i) * 1.2;
+        g.fillStyle(colors[i % colors.length], 1).fillTriangle(p.x - 3, p.y, p.x + 3, p.y, p.x + sway, p.y + 7);
+      }
+    }
+    if (look === 'lanterns') {
+      const night = this.timeOfDay === 'night' ? 1 : this.timeOfDay === 'sunset' ? 0.7 : 0.35;
+      for (const t of [0.22, 0.5, 0.78]) {
+        const p = point(t);
+        g.lineStyle(0.8, 0x3d3226, 1).lineBetween(p.x, p.y, p.x, p.y + 3);
+        g.fillStyle(0x7a2a12, 1).fillRect(p.x - 2.6, p.y + 3, 5.2, 1.4);
+        g.fillStyle(0xffc44d, 1).fillEllipse(p.x, p.y + 7, 6, 7);
+        g.fillStyle(0x7a2a12, 1).fillRect(p.x - 2.6, p.y + 10, 5.2, 1.2);
+        const flicker = 0.85 + Math.sin(this.time0 * 9 + t * 20) * 0.15;
+        glow.fillStyle(0xffb347, 0.18 * night * flicker).fillCircle(p.x, p.y + 7, 14);
+        glow.fillStyle(0xffe08a, 0.3 * night * flicker).fillCircle(p.x, p.y + 7, 6);
+      }
+    }
+  }
+
   // A simple mesh bag around everything the net is bringing up.
   drawNet() {
     const g = this.netMesh.clear();
@@ -696,7 +769,12 @@ export class CoveScene extends Phaser.Scene {
         this.goldHookImg.setDisplaySize(30, 30 * this.goldHookImg.height / this.goldHookImg.width);
       }
     }
-    const showGold = gold && !pirate && Boolean(this.goldHookImg);
+    const goldLook = this.controller.progress?.looks?.hook === 'golden';
+    if (goldLook && !this.goldHookImg && this.textures.exists('sp-gold-hook')) {
+      this.goldHookImg = this.add.image(0, 0, this.fitted('sp-gold-hook', 30)).setDepth(16.61);
+      this.goldHookImg.setDisplaySize(30, 30 * this.goldHookImg.height / this.goldHookImg.width);
+    }
+    const showGold = (gold || goldLook) && !pirate && Boolean(this.goldHookImg);
     this.goldHookImg?.setVisible(showGold).setPosition(h.x - 2, h.y + 2).setAngle(-round.angle * 180 / Math.PI);
     this.hook.setVisible(!pirate && !showGold);
     this.rod.setVisible(!pirate);
@@ -716,6 +794,7 @@ export class CoveScene extends Phaser.Scene {
       }
       this.drawNet();
     }
+    this.drawDecor(bob);
     this.animateWater(dt);
     if (this.bonusActive) this.bonusGlow.setAlpha(0.08 + Math.sin(this.time0 * 3) * 0.04);
     this.controller.renderHUD();
@@ -735,16 +814,19 @@ export class CoveScene extends Phaser.Scene {
       y: (1 - t) ** 2 * butt.y + 2 * (1 - t) * t * control.y + t * t * tip.y,
     });
     const steps = 14;
+    const look = this.controller.progress?.looks?.rod ?? 'classic';
+    const rod = RODS[look] ?? RODS.classic;
     for (let i = 0; i < steps; i++) {
       const a = at(i / steps), b = at((i + 1) / steps);
-      g.lineStyle(3.4 - i * 0.17, 0x1b262d, 1).lineBetween(a.x, a.y, b.x, b.y);
+      g.lineStyle(3.4 - i * 0.17, rod[0], 1).lineBetween(a.x, a.y, b.x, b.y);
+      if (look === 'bamboo' && i % 3 === 2) g.fillStyle(0x6b4a1e, 1).fillCircle(b.x, b.y, 2 - i * 0.07);
     }
     for (let i = 3; i < steps; i++) {
       const a = at(i / steps), b = at((i + 1) / steps);
-      g.lineStyle(0.8, 0x6f8896, 0.9).lineBetween(a.x - 0.6, a.y - 0.6, b.x - 0.6, b.y - 0.6);
+      g.lineStyle(0.8, rod[1], 0.9).lineBetween(a.x - 0.6, a.y - 0.6, b.x - 0.6, b.y - 0.6);
     }
     const grip0 = at(0), grip1 = at(0.2);
-    g.lineStyle(4.6, 0xc59a63, 1).lineBetween(grip0.x, grip0.y, grip1.x, grip1.y);
+    g.lineStyle(4.6, rod[2], 1).lineBetween(grip0.x, grip0.y, grip1.x, grip1.y);
     g.lineStyle(1, 0x8c6638, 0.8).lineBetween(grip0.x, grip0.y + 1.4, grip1.x, grip1.y + 1.4);
     for (const t of [0.45, 0.66, 0.86]) { const p = at(t); g.lineStyle(1, 0xd8e2e6, 1).strokeCircle(p.x, p.y + 2, 1.6); }
     // Spinning reel under the grip; its handle turns with every tap on the big reel button.
@@ -780,7 +862,8 @@ export class CoveScene extends Phaser.Scene {
       if (x === left) g.moveTo(x, y); else g.lineTo(x, y);
     }
     g.strokePath();
-    this.rays.forEach((ray) => { ray.setAngle(Math.sin(t * 0.25 + ray.getData('phase')) * 4).setAlpha(0.7 + Math.sin(t * 0.6 + ray.getData('phase')) * 0.3); });
+    const rayLight = this.timeOfDay === 'night' ? 0.35 : this.timeOfDay === 'sunset' ? 0.7 : 1;
+    this.rays.forEach((ray) => { ray.setAngle(Math.sin(t * 0.25 + ray.getData('phase')) * 4).setAlpha((0.7 + Math.sin(t * 0.6 + ray.getData('phase')) * 0.3) * rayLight); });
     this.plankton.forEach((p) => {
       const s = p.getData('seed');
       p.x = left + ((s * 97 + t * (4 + (s % 5))) % (width + 20)) - 10;
@@ -825,6 +908,7 @@ export class CoveScene extends Phaser.Scene {
       combo: round.combo, fever: round.fever, landing: round.landing ? { id: round.landing.species.id, points: round.landing.points, multiplier: round.landing.multiplier, extras: round.landing.extras.map((s) => s.id) } : null,
       powers: { net: round.netCharges, turbo: round.turbo, goldHook: round.goldHook, spyglass: round.spyglass, bigHook: this.bigHook }, extras: [...round.extraIds], netted: this.netted.length,
       pirate: round.pirate ? { ...round.pirate } : null, battle: this.pirate.state(round), bonusTurn: round.bonusTurn,
+      timeOfDay: this.timeOfDay ?? 'day', tint: this.tint.visible, looks: { ...this.controller.progress.looks },
       view: { x: this.cameras.main.worldView.x, y: this.cameras.main.worldView.y, zoom: this.cameras.main.zoom, ...this.view },
       audio: { state: this.controller.audio.context?.state ?? 'locked', enabled: this.controller.audio.enabled, music: this.controller.audio.musicOn, level: this.controller.audio.level() },
       fishes: this.fishes.getChildren().map((f) => {
@@ -857,6 +941,12 @@ export class CoveScene extends Phaser.Scene {
   }
 
   releaseTest() { this.qaHold = false; }
+
+  spawnBossForTest(id) {
+    const species = SPECIES_BY_ID[id];
+    this.spawnOrder({ species, lane: 3, dir: this.spawner.dir[3], speed: species.speed, boss: true,
+      members: [{ offset: 0, dy: 0, phase: 0, wander: 0, wanderRate: 0.2, wanderPhase: 0, speedMul: 1 }] });
+  }
 }
 
 export function createGame(controller) {

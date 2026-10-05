@@ -23,7 +23,7 @@ export const PIRATE_DEFEAT = { small: 25, medium: 50, large: 100 };
 export const PIRATE_HP = { small: 1, medium: 2, large: 3 };
 
 export class FishingRound {
-  constructor(mode = 'relaxed', onLand = () => {}, { maps = 0, bonusTurn = 0 } = {}) {
+  constructor(mode = 'relaxed', onLand = () => {}, { maps = 0, bonusTurn = 0, startPowers = {} } = {}) {
     this.mode = mode === 'arcade' ? 'arcade' : 'relaxed';
     this.onLand = onLand;
     this.phase = 'aim';
@@ -62,6 +62,9 @@ export class FishingRound {
     this.spyglass = 0;
     this.pirate = null;          // { shots, ball, streak, loot, hits } while the battle runs
     this.pirateQueued = false;
+    if (startPowers.net) this.netCharges = 1;
+    if (startPowers.turbo) this.turbo = TURBO_CATCHES;
+    if (startPowers.goldhook) this.goldHook = POWER_SECONDS;
   }
 
   get hook() {

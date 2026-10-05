@@ -39,12 +39,17 @@ SHEETS = {
     'sheet-d-seabed': ((3, 4), ['anglerfish', 'lobster-king', 'crab', 'starfish', 'chest', 'pearl', 'coins', 'crown', 'boot', 'bottle', 'watch', 'map'], 420),
     'sheet-e-extra': ((3, 4), ['mackerel', 'yellow-tang', 'moorish-idol', 'damselfish', 'cuttlefish', 'barracuda', 'batfish', 'dolphin', 'manta', 'whale-shark', 'hermit-crab', 'horseshoe-crab'], 480),
     'sheet-f-pirate': ((3, 4), ['pirate-small', 'pirate-medium', 'pirate-large', 'cannon', 'cannonball', 'float-chest', 'barrel', 'net', 'turbo-reel', 'gold-hook', 'spyglass', 'coin'], 600),
+    'sheet-g-boss': ((3, 1), ['boss-whale', 'boss-kraken', 'boss-marlin'], 720),
     'boat': ((1, 1), ['boat'], 900),
 }
 # พื้นหลัง: (ชื่อ, ความสูงสูงสุดของไฟล์ผลลัพธ์) — เส้นน้ำ/ขอบทราย (สัดส่วนความสูง) อยู่ใน ANCHORS
 BACKGROUNDS = {
     'background-portrait': ('portrait', 1536),
     'background-landscape': ('landscape', 1536),
+    'background-sunset-portrait': ('sunset-portrait', 1536),
+    'background-sunset-landscape': ('sunset-landscape', 1536),
+    'background-night-portrait': ('night-portrait', 1536),
+    'background-night-landscape': ('night-landscape', 1536),
 }
 # ค่าที่วัดจากรูปที่ ChatGPT วาด (2026-10-05) เปิดดูเส้นแดง/เหลืองใน art/preview/background-*.png เพื่อตรวจ
 #   background: waterline = เส้นผิวน้ำ, seabed = ขอบบนของพื้นทราย (สัดส่วนของความสูงรูป)
@@ -52,6 +57,11 @@ BACKGROUNDS = {
 ANCHORS = {
     'portrait': {'waterline': 0.126, 'seabed': 0.775},
     'landscape': {'waterline': 0.182, 'seabed': 0.806},
+    # Sunset/night are repaints of the day images with the same composition; re-measure if the preview lines are off.
+    'sunset-portrait': {'waterline': 0.126, 'seabed': 0.775},
+    'sunset-landscape': {'waterline': 0.182, 'seabed': 0.806},
+    'night-portrait': {'waterline': 0.126, 'seabed': 0.775},
+    'night-landscape': {'waterline': 0.182, 'seabed': 0.806},
     'boat': {'holder': (1350, 462), 'waterline': 706},
 }
 ALPHA_MIN = 40      # ทึบกว่านี้ถือเป็นเนื้อภาพตอนหาก้อน

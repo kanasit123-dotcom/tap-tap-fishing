@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Spawner, MIN_GAP_PX, RARE_COOLDOWN, SWIM_PACE, emptyLane } from '../src/spawner.js';
+import { Spawner, MIN_GAP_PX, RARE_COOLDOWN, SWIM_PACE, BOSS_FIRST, BOSS_EVERY, BOSS_LANE, emptyLane } from '../src/spawner.js';
 import { SPECIES, LANE_COUNT, SEABED } from '../src/species.js';
 
 function seeded(seed) {
@@ -78,7 +78,7 @@ test('every creature in a lane swims the same way all trip, and neighbouring lan
 test('each group swims at its own depth inside the band and wanders slowly; the seabed stays on the sand', () => {
   const { spawns } = simulate({ seconds: 600 });
   for (let lane = 0; lane < LANE_COUNT; lane++) {
-    const heads = spawns.filter((s) => s.order.lane === lane).map((s) => s.order.members[0]);
+    const heads = spawns.filter((s) => s.order.lane === lane && !s.order.boss).map((s) => s.order.members[0]);
     const depths = heads.map((m) => m.dy);
     if (lane === SEABED) { assert.ok(depths.every((dy) => dy >= 0 && dy <= 0.12) && heads.every((m) => m.wander === 0), 'seabed things stay on the sand'); continue; }
     const mean = depths.reduce((a, b) => a + b, 0) / depths.length;
@@ -93,7 +93,8 @@ test('each group swims at its own depth inside the band and wanders slowly; the 
 });
 
 test('lanes mix their own species with the odd stray from a neighbouring lane, and rarely repeat a species', () => {
-  const { spawns } = simulate();
+  // Long enough that even the rare power-ups (weight 4, 35 s cooldown) show up.
+  const { spawns } = simulate({ seconds: 1800 });
   const sizes = new Set();
   for (let lane = 0; lane < LANE_COUNT; lane++) {
     const here = spawns.filter((s) => s.order.lane === lane);
@@ -120,7 +121,7 @@ test('lanes mix their own species with the odd stray from a neighbouring lane, a
   assert.ok(mean > 0.78 && mean < 1.05, `average speed ratio ${mean.toFixed(3)}`);
   assert.ok(spawns.some((s) => s.order.lane === 1 && s.order.species.lane === 0), 'shallow fish sometimes stray a lane deeper');
   const seen = new Set(spawns.map((s) => s.order.species.id));
-  for (const s of SPECIES.filter((x) => !x.arcadeOnly && !x.rare)) assert.ok(seen.has(s.id), `${s.id} appears`);
+  for (const s of SPECIES.filter((x) => !x.arcadeOnly && !x.rare && !x.boss)) assert.ok(seen.has(s.id), `${s.id} appears`);
 });
 
 test('a faster group never swims through the slower group ahead of it', () => {
@@ -180,4 +181,21 @@ test('creatures still waiting for artwork leave their slot empty instead of crow
   assert.ok(perMinute(all, 'map') > 0.3 && perMinute(all, 'map') < 1.2, `maps ${perMinute(all, 'map')}/min`);
   assert.ok(perMinute(all, 'chest') > 0.15, `chests ${perMinute(all, 'chest')}/min`);
   assert.ok(perMinute(all, 'crown') + perMinute(all, 'lobster-king') < 0.4);
+});
+
+test('a boss crosses the middle every two to three minutes, never during the treasure rain, and only with artwork', () => {
+  const { spawns } = simulate({ seconds: 900, seed: 6 });
+  const bosses = spawns.filter((s) => s.order.boss);
+  assert.ok(bosses.length >= 4 && bosses.length <= 7, `${bosses.length} bosses in 15 minutes`);
+  assert.ok(bosses[0].time >= BOSS_FIRST[0] - 0.11);
+  bosses.slice(1).forEach((b, i) => assert.ok(b.time - bosses[i].time >= BOSS_EVERY[0] - 0.11));
+  for (const b of bosses) {
+    assert.equal(b.order.lane, BOSS_LANE); assert.ok(b.order.species.boss); assert.equal(b.order.members.length, 1);
+  }
+  bosses.slice(1).forEach((b, i) => assert.notEqual(b.order.species.id, bosses[i].order.species.id, 'a different boss each time'));
+  assert.ok(!spawns.some((s) => !s.order.boss && s.order.species.boss), 'bosses never come in the normal mix');
+  const rain = simulate({ seconds: 400, seed: 6, bonusAt: 0 }).spawns;
+  assert.equal(rain.filter((s) => s.order.boss).length, 0);
+  const noArt = simulate({ seconds: 400, seed: 6, species: SPECIES.filter((s) => !s.boss) }).spawns;
+  assert.equal(noArt.filter((s) => s.order.boss).length, 0);
 });
