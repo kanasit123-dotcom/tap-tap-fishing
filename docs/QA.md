@@ -2,7 +2,12 @@
 
 Date: 2026-10-04
 
-## Latest: Semi-Realistic Artwork And Home-Screen Icon (Claude Code, 2026-10-05, uncommitted)
+## Latest: Semi-Realistic Artwork And Home-Screen Icon (v0.3.0, deployed 2026-10-05)
+
+- Published as commit b346794; Pages Actions run 37249214080 succeeded (unit tests + build on the runner). Live checks on
+  https://kanasit123-dotcom.github.io/tap-tap-fishing/: `npm run test:pages` passed (34 entries with decoded images, no emoji,
+  colored/moving canvas, QA interface absent, no page/request errors); manifest, apple-touch icon, 512 icon, clownfish/boat/sea
+  WebP all 200 with the right MIME types; the removed `assets/cove.png` is 404. Screenshot inspected: test-results/pages-sea.png.
 
 - User delivered all 7 ChatGPT images. Checked before processing: names, sizes, true alpha on the creature/boat sheets, opaque
   seas, every animal facing right, no text; the visible glow is hidden RGB under transparent pixels (only ~0.5% of pixels are
