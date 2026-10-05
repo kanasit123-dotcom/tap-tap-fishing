@@ -2,7 +2,10 @@
 
 Date: 2026-10-04
 
-## Latest: Slightly Faster Swimming (2026-10-05, not yet deployed)
+## Latest: v0.4.1 — One Direction Per Row, Slightly Faster Swimming (deployed 2026-10-05)
+
+- Deployed at the user's request: commit 8c45030, Pages Actions run 37274185113 succeeded; the live page serves the same bundle
+  hash as the local Pages build (index-BLH23J3R.js) and the live smoke passed (46 entries, colored/moving canvas, no errors).
 
 - Includes the one-direction-per-row change below. `SWIM_PACE` 1.12 with gaps divided by it.
 - 50-minute spawner simulation, seed 9: pace 1.0 -> 1.12 gives mean on-screen speed 20.8 -> 23.0 world px/s and the same density
@@ -10,7 +13,7 @@ Date: 2026-10-04
 - `npm test`: 56 passed (new check: average group speed ratio to species speed x pace stays within 0.78-1.05).
 - Full Playwright run (`test-results/pace-full/`): 52 passed, 2 desktop touch skips, 0 failed.
 
-## Previous: One Swimming Direction Per Row (2026-10-05, not yet deployed)
+## Previous: One Swimming Direction Per Row (2026-10-05, deployed in v0.4.1)
 
 - User report from the live v0.4.0: fish in the same row should never swim against each other (cabinet behaviour).
 - Each lane now has one direction for the whole trip; neighbouring lanes alternate; the top lane's direction is random per trip.

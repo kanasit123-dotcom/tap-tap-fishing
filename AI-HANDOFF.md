@@ -51,6 +51,8 @@ special items **with effects + bonus stage**; **sea ambience + soft music** with
 - Art pipeline: prompts in `docs/ART-PROMPTS.md` (7 images), `python tools/sprites.py` cuts `art/incoming/` into
   `public/assets/sprites/*.webp` + backgrounds and rewrites `src/art-manifest.js`. Verified with synthetic sheets
   (transparent and flat-colour keyed, de-spill) and a synthetic boat/backgrounds run in the real game, then reverted.
+- **v0.4.1 LIVE (2026-10-05):** commit 8c45030, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37274185113 —
+  one direction per row + swim pace 1.12; live smoke passed.
 - **Swim pace (2026-10-05):** user found the fish "a tiny bit slow". `SWIM_PACE = 1.12` in `src/spawner.js` multiplies every group's
   speed and divides `LANE_GAPS`, so density is unchanged (~27 on screen) while the average on-screen speed rose about 11% (20.8 -> 23.0).
   Change that one number to tune the pace; note groups behind a slower group are capped, so effective speeds average ~0.85 of nominal.
