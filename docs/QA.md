@@ -2,7 +2,27 @@
 
 Date: 2026-10-04
 
-## Latest: v0.4.0 — Extra Species, Balance, Sharp Rendering (2026-10-05)
+## Latest: Slightly Faster Swimming (2026-10-05, not yet deployed)
+
+- Includes the one-direction-per-row change below. `SWIM_PACE` 1.12 with gaps divided by it.
+- 50-minute spawner simulation, seed 9: pace 1.0 -> 1.12 gives mean on-screen speed 20.8 -> 23.0 world px/s and the same density
+  (26.6 -> 26.5 creatures on screen; top row 4.2 both).
+- `npm test`: 56 passed (new check: average group speed ratio to species speed x pace stays within 0.78-1.05).
+- Full Playwright run (`test-results/pace-full/`): 52 passed, 2 desktop touch skips, 0 failed.
+
+## Previous: One Swimming Direction Per Row (2026-10-05, not yet deployed)
+
+- User report from the live v0.4.0: fish in the same row should never swim against each other (cabinet behaviour).
+- Each lane now has one direction for the whole trip; neighbouring lanes alternate; the top lane's direction is random per trip.
+  Vertical spread tightened so rows stay visually separate.
+- New unit test: across 6 seeds every lane has exactly one direction, neighbours are opposite, both starting directions occur,
+  and the treasure rain keeps per-lane directions; school spread + wander stays < 0.36 lane spacing from the lane centre.
+  The e2e "creatures enter" test now also asserts one direction per lane and alternation on the live scene.
+- `npm test`: 56 passed. Full Playwright run (`test-results/oneway-full/`): 52 passed, 2 desktop touch skips, 0 failed.
+- Browser check on iPad emulation: lanes R/L/R/L/R/L/R, and 0 of 369 sampled creatures sat nearer another row than their own.
+  Spawner simulation: ~27 creatures on screen, top row ~4.3 (unchanged density).
+
+## Previous: v0.4.0 — Extra Species, Balance, Sharp Rendering (2026-10-05)
 
 - Deployed at the user's request: commit afe02d2, Pages Actions run 37259027875 succeeded. Live smoke on
   https://kanasit123-dotcom.github.io/tap-tap-fishing/ passed (46 entries with decoded images, no errors); new sprites 200.

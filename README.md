@@ -28,10 +28,15 @@ npm run build
 npm run preview -- --port 5194
 ```
 
+## Version 0.4.1
+
+Every row swims one way (neighbouring rows alternate, like the cabinet) and all fish swim about 11% faster
+with the same number on screen.
+
 ## Version 0.4.0
 
-Sharp rendering at device resolution with pre-shrunk sprites, calm path-following motion, random sides/depths/strays
-and no same-species repeats, treasure floating in the middle water, a hook that keeps swinging from its cast angle,
+Sharp rendering at device resolution with pre-shrunk sprites, calm path-following motion, one swimming direction per
+row (alternating like the cabinet), random gaps/depths/strays and no same-species repeats, treasure floating in the middle water, a hook that keeps swinging from its cast angle,
 and 12 more species (46 in the book).
 
 ## Version 0.3.0 (0.2.0 plus the semi-realistic artwork and home-screen icon)

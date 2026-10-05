@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Spawner, MIN_GAP_PX, RARE_COOLDOWN, emptyLane } from '../src/spawner.js';
+import { Spawner, MIN_GAP_PX, RARE_COOLDOWN, SWIM_PACE, emptyLane } from '../src/spawner.js';
 import { SPECIES, LANE_COUNT, SEABED } from '../src/species.js';
 
 function seeded(seed) {
@@ -59,15 +59,20 @@ test('arrivals are irregular: random gaps per lane, never a fixed beat', () => {
   assert.ok(variation.reduce((a, b) => a + b, 0) / variation.length > 0.3);
 });
 
-test('groups come from both sides of every lane, in no fixed order', () => {
-  const { spawns } = simulate();
-  for (let lane = 0; lane < LANE_COUNT; lane++) {
-    const dirs = spawns.filter((s) => s.order.lane === lane).map((s) => s.order.dir);
-    const right = dirs.filter((d) => d > 0).length / dirs.length;
-    assert.ok(right > 0.3 && right < 0.7, `lane ${lane}: ${(right * 100).toFixed(0)}% swim right`);
-    const switches = dirs.slice(1).filter((d, i) => d !== dirs[i]).length / (dirs.length - 1);
-    assert.ok(switches > 0.3 && switches < 0.75, `lane ${lane}: direction changes ${(switches * 100).toFixed(0)}% of the time`);
+test('every creature in a lane swims the same way all trip, and neighbouring lanes alternate', () => {
+  const firsts = new Set();
+  for (const seed of [1, 2, 7, 8, 9, 12]) {
+    const { spawns } = simulate({ seconds: 300, seed });
+    const dirs = Array.from({ length: LANE_COUNT }, (_, lane) => new Set(spawns.filter((s) => s.order.lane === lane).map((s) => s.order.dir)));
+    dirs.forEach((set, lane) => assert.equal(set.size, 1, `seed ${seed} lane ${lane} has one direction`));
+    const lane = dirs.map((set) => [...set][0]);
+    lane.slice(1).forEach((dir, i) => assert.equal(dir, -lane[i], `seed ${seed}: lanes ${i}/${i + 1} swim opposite ways`));
+    firsts.add(lane[0]);
   }
+  assert.equal(firsts.size, 2, 'the top lane goes left on some trips and right on others');
+  // Strays and the treasure rain follow the direction of the lane they are in.
+  const rain = simulate({ seconds: 60, seed: 2, bonusAt: 30 }).spawns;
+  for (let lane = 0; lane < LANE_COUNT; lane++) assert.equal(new Set(rain.filter((s) => s.order.lane === lane).map((s) => s.order.dir)).size, 1);
 });
 
 test('each group swims at its own depth inside the band and wanders slowly; the seabed stays on the sand', () => {
@@ -75,12 +80,15 @@ test('each group swims at its own depth inside the band and wanders slowly; the 
   for (let lane = 0; lane < LANE_COUNT; lane++) {
     const heads = spawns.filter((s) => s.order.lane === lane).map((s) => s.order.members[0]);
     const depths = heads.map((m) => m.dy);
-    if (lane === SEABED) { assert.ok(depths.every((dy) => dy >= 0 && dy <= 0.14) && heads.every((m) => m.wander === 0), 'seabed things stay on the sand'); continue; }
+    if (lane === SEABED) { assert.ok(depths.every((dy) => dy >= 0 && dy <= 0.12) && heads.every((m) => m.wander === 0), 'seabed things stay on the sand'); continue; }
     const mean = depths.reduce((a, b) => a + b, 0) / depths.length;
     const sd = Math.sqrt(depths.reduce((a, b) => a + (b - mean) ** 2, 0) / depths.length);
-    assert.ok(sd > 0.12, `lane ${lane}: depth spread ${sd.toFixed(2)} of the lane spacing`);
-    assert.ok(depths.every((dy) => Math.abs(dy) <= 0.3 + 1e-9));
-    assert.ok(heads.every((m) => m.wander >= 0.04 && m.wander <= 0.16 && m.wanderRate > 0 && m.wanderRate < 0.5));
+    assert.ok(sd > 0.06, `lane ${lane}: depth spread ${sd.toFixed(2)} of the lane spacing`);
+    // Depth + wander + school spread stay well inside half a lane, so neighbouring rows never mix.
+    assert.ok(depths.every((dy) => Math.abs(dy) <= 0.14 + 1e-9));
+    assert.ok(heads.every((m) => m.wander >= 0.03 && m.wander <= 0.08 && m.wanderRate > 0 && m.wanderRate < 0.5));
+    const reach = Math.max(...spawns.filter((s) => s.order.lane === lane).flatMap((s) => s.order.members.map((m) => Math.abs(m.dy) + m.wander)));
+    assert.ok(reach < 0.36, `lane ${lane}: creatures reach ${reach.toFixed(2)} of the spacing from the lane centre`);
   }
 });
 
@@ -102,24 +110,28 @@ test('lanes mix their own species with the odd stray from a neighbouring lane, a
   for (const { order } of spawns) {
     const [min, max] = order.species.group;
     assert.ok(order.members.length >= min && order.members.length <= max + 3);
-    assert.ok(order.speed > 0 && order.speed <= order.species.speed * 1.25 + 1e-9, order.species.id);
+    assert.ok(order.speed > 0 && order.speed <= order.species.speed * SWIM_PACE * 1.25 + 1e-9, order.species.id);
     if (order.species.id === 'sardine') sizes.add(order.members.length);
   }
   assert.ok(sizes.size >= 2, 'sardine schools come in different sizes');
+  // On average groups swim at the species speed times the overall pace (a few are slowed to avoid overtaking).
+  const ratios = spawns.map(({ order }) => order.speed / (order.species.speed * SWIM_PACE));
+  const mean = ratios.reduce((a, b) => a + b, 0) / ratios.length;
+  assert.ok(mean > 0.78 && mean < 1.05, `average speed ratio ${mean.toFixed(3)}`);
   assert.ok(spawns.some((s) => s.order.lane === 1 && s.order.species.lane === 0), 'shallow fish sometimes stray a lane deeper');
   const seen = new Set(spawns.map((s) => s.order.species.id));
   for (const s of SPECIES.filter((x) => !x.arcadeOnly && !x.rare)) assert.ok(seen.has(s.id), `${s.id} appears`);
 });
 
-test('a faster group never swims through a slower group that entered from the same side', () => {
+test('a faster group never swims through the slower group ahead of it', () => {
   const { overlaps } = simulate({ seconds: 600, seed: 3 });
   assert.equal(overlaps, 0);
   const spawner = new Spawner({ species: SPECIES, rng: seeded(9) });
   spawner.wait.fill(0);
-  const blocked = Array.from({ length: LANE_COUNT }, () => ({ count: 2, span: 600, sides: { 1: { tailGap: MIN_GAP_PX - 1, tailSpeed: 10 }, [-1]: { tailGap: 0, tailSpeed: 10 } } }));
-  assert.deepEqual(spawner.tick(0.1, blocked), [], 'no spawn while both entrances are busy');
-  const oneSide = Array.from({ length: LANE_COUNT }, () => ({ count: 1, span: 600, sides: { 1: { tailGap: 0, tailSpeed: 10 }, [-1]: { tailGap: Infinity, tailSpeed: 0 } } }));
-  for (const order of spawner.tick(10, oneSide)) assert.equal(order.dir, -1, 'only the free side is used');
+  const blocked = Array.from({ length: LANE_COUNT }, () => ({ count: 2, span: 600, sides: { 1: { tailGap: MIN_GAP_PX - 1, tailSpeed: 10 }, [-1]: { tailGap: MIN_GAP_PX - 1, tailSpeed: 10 } } }));
+  assert.deepEqual(spawner.tick(0.1, blocked), [], 'no spawn while the lane entrance is busy');
+  const clear = Array.from({ length: LANE_COUNT }, () => emptyLane());
+  for (const order of spawner.tick(10, clear)) assert.equal(order.dir, spawner.dir[order.lane], 'groups use their lane direction');
 });
 
 test('special treasures respect cooldowns and the arcade-only pocket watch', () => {

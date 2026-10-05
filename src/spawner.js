@@ -2,8 +2,9 @@ import { LANE_COUNT, SEABED, SPECIES } from './species.js';
 
 // Average seconds of open water after a group has fully entered, per lane (top to seabed).
 // The wait only counts down once a lane entrance is clear, so slow creatures do not set a beat.
-// Groups arrive from both sides, so each side's gaps are about twice a one-way stream's.
-export const LANE_GAPS = [8.5, 8.5, 7.6, 8.4, 10, 11.6, 10];
+// Divided by SWIM_PACE so a faster pace keeps the same number of creatures on screen.
+export const SWIM_PACE = 1.12;   // overall swimming speed (user: "a little faster", 2026-10-05)
+export const LANE_GAPS = [4.25, 4.25, 3.8, 4.2, 5, 5.8, 5].map((gap) => gap / SWIM_PACE);
 export const MIN_GAP_PX = 36;
 export const RARE_COOLDOWN = 60;
 export const STRAY_SHARE = 0.15;  // relative chance of a neighbouring lane's animal straying into a lane
@@ -16,11 +17,12 @@ const WAVES = {
 const zone = (lane) => lane <= 3 ? 'upper' : lane < SEABED ? 'deep' : 'seabed';
 
 // Decides when and what enters each lane. It knows nothing about Phaser: the scene reports how much room is
-// left at each lane entrance (per side) and turns the returned orders into sprites.
-// Gaps are random (exponential), the sea alternates calm/normal/rush waves, each group picks a side, a depth
-// inside its band and its own slow up-and-down wander, schools vary in size, shape and speed, neighbouring
-// lanes' animals sometimes stray in, the same species rarely arrives twice in a row, and rare treasures have
-// cooldowns, so creatures never arrive as ruled rows on a fixed beat.
+// left at each lane entrance and turns the returned orders into sprites.
+// As in the arcade cabinets, every creature in a lane swims the same way for the whole trip and neighbouring
+// lanes alternate (which way the top lane goes is random per trip). Within that, gaps are random (exponential),
+// the sea alternates calm/normal/rush waves, each group takes its own depth inside the band and a slow
+// up-and-down wander, schools vary in size, shape and speed, neighbouring lanes' animals sometimes stray in,
+// the same species never arrives twice in a row, and rare treasures have cooldowns.
 export class Spawner {
   // species: creatures that have artwork (and may appear). Odds always come from the full catalog, so a
   // creature still waiting for its artwork leaves its slot empty instead of crowding the lane with the rest.
@@ -33,7 +35,9 @@ export class Spawner {
     this.bonus = false;
     this.lastSeen = {};
     this.history = Array.from({ length: LANE_COUNT }, () => []);   // last species ids per lane, newest first
-    this.side = [];        // side chosen for each lane's next group (kept until that entrance is clear)
+    // One direction per lane for the whole trip; neighbouring lanes alternate. 1 = swims right (enters left).
+    const first = this.rng() < 0.5 ? 1 : -1;
+    this.dir = Array.from({ length: LANE_COUNT }, (_, lane) => lane % 2 ? -first : first);
     this.lastRare = -Infinity;
     this.wait = LANE_GAPS.map((gap) => this.rng() * gap);
     this.wave = { kind: 'normal', until: this.between(...WAVES.normal.length), rushLane: -1 };
@@ -100,16 +104,10 @@ export class Spawner {
     const orders = [];
     for (let lane = 0; lane < LANE_COUNT; lane++) {
       const state = lanes[lane] ?? emptyLane();
-      const open = [1, -1].filter((side) => (state.sides?.[side]?.tailGap ?? Infinity) >= MIN_GAP_PX);
-      if (!open.length) continue;
+      const dir = this.dir[lane];
+      if ((state.sides?.[dir]?.tailGap ?? Infinity) < MIN_GAP_PX) continue;
       this.wait[lane] -= dt * this.rate(lane);
       if (this.wait[lane] > 0) continue;
-      // Each group picks its own side at random and waits for that entrance if it is busy, so sides are
-      // independent coin flips rather than a forced left/right alternation.
-      this.side[lane] ??= this.rng() < 0.5 ? 1 : -1;
-      const dir = this.side[lane];
-      if (!open.includes(dir)) continue;
-      this.side[lane] = undefined;
       const species = this.pick(this.candidates(lane));
       if (!species) { this.wait[lane] = 1; continue; }
       if (!this.available.has(species.id)) { this.wait[lane] = this.gap(lane); continue; }
@@ -127,8 +125,8 @@ export class Spawner {
     const extra = this.wave.kind === 'rush' && lane === this.wave.rushLane && max > 2 ? 3 : 0;
     const count = this.bonus ? 1 : min + Math.floor(this.rng() * (max - min + 1 + extra));
     // Treasure rain items drift faster than they crawl along the seabed, so the rain stays lively.
-    let speed = (this.bonus ? Math.max(species.speed, 26) : species.speed) * this.between(0.8, 1.25);
-    // Do not let a faster group catch the previous one from the same side while both are on screen.
+    let speed = (this.bonus ? Math.max(species.speed, 26) : species.speed) * SWIM_PACE * this.between(0.8, 1.25);
+    // Do not let a faster group catch the previous one while both are on screen.
     const tail = state.sides?.[dir];
     if (tail && Number.isFinite(tail.tailGap) && tail.tailSpeed > 0) {
       const room = Math.max(1, (state.span ?? 600) - tail.tailGap);
@@ -137,8 +135,9 @@ export class Spawner {
     // Depth inside the band (fraction of the lane spacing) and a slow shared wander, so groups never line up.
     const band = lane === SEABED ? 0 : 1;
     // Seabed things sit at slightly different distances on the sand (lower = nearer) instead of one line.
-    const depth = band ? this.between(-0.3, 0.3) : this.between(0, 0.14);
-    const wander = band * this.between(0.04, 0.16);
+    // Kept small enough that each lane still reads as its own row (neighbouring rows swim the other way).
+    const depth = band ? this.between(-0.14, 0.14) : this.between(0, 0.12);
+    const wander = band * this.between(0.03, 0.08);
     const wanderRate = this.between(0.15, 0.4);
     const wanderPhase = this.rng() * Math.PI * 2;
     // Schools swim close together; other groups are loose, with uneven spacing.
@@ -148,7 +147,7 @@ export class Spawner {
     for (let i = 0; i < count; i++) {
       members.push({
         offset,
-        dy: depth + (i ? band * this.between(tight ? -0.16 : -0.22, tight ? 0.16 : 0.22) : 0),
+        dy: depth + (i ? band * this.between(tight ? -0.1 : -0.12, tight ? 0.1 : 0.12) : 0),
         phase: this.rng() * Math.PI * 2,
         wander, wanderRate, wanderPhase,
         speedMul: i ? this.between(tight ? 0.99 : 0.97, tight ? 1.01 : 1.03) : 1,

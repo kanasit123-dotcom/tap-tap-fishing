@@ -313,6 +313,11 @@ test('creatures enter from beyond the screen edge at uneven times and leave on t
     expect(f.dir > 0 ? f.x + f.width / 2 > view.right - 30 : f.x - f.width / 2 < view.left + 30, `${k} left at the far edge`).toBe(true);
   }
   const final = await snapshot(page);
+  // Like the cabinet: no creature swims against the others in its lane, and neighbouring lanes alternate.
+  const laneDirs = Array.from({ length: 7 }, (_, lane) => [...new Set(final.fishes.filter((f) => f.lane === lane && !f.caught).map((f) => f.dir))]);
+  laneDirs.forEach((dirs, lane) => expect(dirs.length, `lane ${lane} directions ${dirs}`).toBeLessThanOrEqual(1));
+  const known = laneDirs.map((dirs) => dirs[0]);
+  for (let lane = 1; lane < 7; lane++) if (known[lane] && known[lane - 1]) expect(known[lane]).toBe(-known[lane - 1]);
   const gaps = [];
   for (let lane = 0; lane < 7; lane++) {
     const row = final.fishes.filter((f) => f.lane === lane && !f.caught).sort((a, b) => a.x - b.x);
