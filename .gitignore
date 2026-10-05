@@ -7,3 +7,7 @@ playwright-report/
 *.log
 .DS_Store
 art/preview/
+# Raw ChatGPT sheets (large); the processed sprites in public/assets are what ships
+art/incoming/*.png
+art/incoming/*.jpg
+art/incoming/*.webp

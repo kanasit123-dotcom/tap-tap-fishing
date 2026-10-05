@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeLayout, backgroundPlacement, WATERLINE } from '../src/layout.js';
+import { computeLayout, backgroundPlacement, BG_EDGE, WATERLINE } from '../src/layout.js';
 import { WORLD } from '../src/model.js';
 import { LANE_COUNT, SEABED } from '../src/species.js';
 
@@ -37,15 +37,30 @@ test('a missing or bogus control position still leaves a playable sea', () => {
   assert.ok(layout.seabedLine - layout.lanes[0] >= 300);
 });
 
-test('background keeps its waterline at the surface, reaches the bottom and repeats sideways', () => {
+test('background keeps its waterline at the surface, puts the sand on the seabed lane and fills below and beside', () => {
   const bg = { w: 1024, h: 1536, waterline: 0.12, seabed: 0.8 };
   for (const [name, screen] of Object.entries(screens)) {
     const layout = computeLayout(screen);
     const place = backgroundPlacement(bg, layout);
-    assert.ok(Math.abs(place.top + bg.waterline * bg.h * place.scale - WATERLINE) < 1e-6, name);
-    assert.ok(place.top + place.height >= screen.height - 1e-6, `${name} covers the bottom`);
-    assert.ok(place.tileWidth * place.tiles.length >= screen.width, `${name} covers the width`);
-    const sand = place.top + bg.seabed * bg.h * place.scale;
-    assert.ok(sand >= layout.seabedLine - 1e-6, `${name}: sand is never above the seabed lane`);
+    assert.ok(Math.abs(place.top + bg.waterline * place.height - WATERLINE) < 1e-6, name);
+    assert.ok(Math.abs(place.top + bg.seabed * place.height - layout.seabedLine) < 1e-6, `${name}: sand starts exactly on the seabed lane`);
+    assert.ok(place.top + place.height + place.below >= screen.height - 1e-6, `${name} reaches the bottom (picture + mirrored strip)`);
+    assert.ok(place.below < place.height * (1 - bg.seabed), `${name}: the mirrored strip stays inside the sand band`);
+    if (place.slices) {
+      assert.ok(Math.abs(place.slices.edge * 2 + place.slices.center - screen.width) < 1e-6, `${name}: reef | water | reef spans the screen exactly`);
+      assert.ok(Math.abs(place.slices.edge - place.tileWidth * BG_EDGE) < 1e-9, `${name}: the reef is never stretched`);
+    } else assert.ok(place.tileWidth >= screen.width, `${name}: a single picture covers the width`);
   }
+});
+
+test('the painting that needs the least stretching or cropping is chosen per screen shape', () => {
+  const portrait = { w: 1024, h: 1536, waterline: 0.126, seabed: 0.775 };
+  const landscape = { w: 1536, h: 1024, waterline: 0.182, seabed: 0.806 };
+  const pick = (screen) => {
+    const layout = computeLayout(screen);
+    return backgroundPlacement(portrait, layout).distortion <= backgroundPlacement(landscape, layout).distortion ? 'portrait' : 'landscape';
+  };
+  assert.equal(pick(screens.tallPhone), 'portrait');
+  assert.equal(pick(screens.desktop), 'landscape');
+  assert.equal(pick(screens.landscapePhone), 'landscape');
 });

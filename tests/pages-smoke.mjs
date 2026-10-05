@@ -16,6 +16,15 @@ try {
   const response = await page.goto(url);
   expect(response.status()).toBe(200);
   await expect(page.locator('#cast')).toBeEnabled();
+  // Home-screen install assets resolve under the site base (manifest, its icons and the Apple touch icon).
+  const manifestUrl = new URL(await page.locator('link[rel="manifest"]').getAttribute('href'), page.url());
+  const manifest = await (await page.request.get(manifestUrl.href)).json();
+  expect(manifest.display).toBe('standalone');
+  for (const src of [...manifest.icons.map((icon) => icon.src), await page.locator('link[rel="apple-touch-icon"]').getAttribute('href')]) {
+    const response = await page.request.get(new URL(src, src.startsWith('/') ? page.url() : manifestUrl).href);
+    expect(response.status(), src).toBe(200);
+    expect(response.headers()['content-type']).toContain('image/png');
+  }
   expect(await page.evaluate(() => Boolean(window.__FISHING_QA__))).toBe(false);
   const pixels = () => page.locator('canvas').evaluate((canvas) => {
     const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
@@ -35,6 +44,7 @@ try {
   await expect(page.locator('.collection-item')).toHaveCount(BOOK.length);
   await expect(page.locator('.species-art')).toHaveCount(BOOK.length);
   await expect(page.locator('.species-art.emoji')).toHaveCount(0);
+  await page.waitForFunction(() => [...document.querySelectorAll('img.species-art')].every((img) => img.complete && img.naturalWidth > 0), null, { timeout: 15_000 });
   await expect(page.locator('#music')).toBeVisible();
   await page.screenshot({ path: 'test-results/pages-book.png' });
   await page.locator('#close-book').click();

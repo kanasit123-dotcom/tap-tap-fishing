@@ -382,6 +382,10 @@ test('every creature collides with the real hook, lands and persists in the zone
   await page.locator('#collection').click();
   await expect(page.locator('.zone-title')).toHaveCount(ZONES.length);
   await expect(page.locator('.collection-item')).toHaveCount(SPECIES.length);
+  // Every book picture is a real, decoded sprite (no broken images, no emoji placeholders).
+  await page.waitForFunction(() => [...document.querySelectorAll('img.species-art')].every((img) => img.complete && img.naturalWidth > 0), null, { timeout: 15_000 });
+  expect(await page.locator('img.species-art').count()).toBe(SPECIES.length);
+  expect(await page.locator('.species-art.emoji').count()).toBe(0);
   await expect(page.locator('#dialog-title')).toContainText(`${sample.length} / ${SPECIES.length}`);
   for (const s of sample) await expect(page.locator('.collection-item').filter({ has: page.locator(`h4:text-is("${s.name}")`) })).toContainText('1 ครั้ง');
   await page.screenshot({ path: info.outputPath('book.png'), fullPage: true });

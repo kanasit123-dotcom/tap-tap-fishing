@@ -28,6 +28,10 @@ npm run build
 npm run preview -- --port 5194
 ```
 
+## Version 0.3.0 (0.2.0 plus the semi-realistic artwork and home-screen icon)
+
+Everything under Version 0.2.0 below, now with the redrawn artwork, the install icon and manifest, and the sea-fitting fixes.
+
 ## Version 0.2.0
 
 - **Living sea instead of fixed rows.** `src/spawner.js` decides when and what enters each of seven lanes
@@ -51,10 +55,17 @@ npm run preview -- --port 5194
   iOS unlock on pointerup/touchend/click/keydown and a rebuilt AudioContext after the page was hidden.
 - **Boat, rod and hook:** wooden boat with wheelhouse and fisherman; the rod is drawn in code, bends with line
   tension and its reel handle turns with every tap; steel J-hook with barb and a lead sinker.
-- **New artwork pending:** the user is generating semi-realistic sheets in ChatGPT from
-  [docs/ART-PROMPTS.md](docs/ART-PROMPTS.md); `python tools/sprites.py` cuts them into `public/assets/sprites/`.
-  Until then production shows only the 12 creatures that have (legacy cartoon) art; DEV `?qa=1` draws emoji placeholders
-  for the rest so every mechanic can be tested.
+- **Semi-realistic artwork (2026-10-05):** all 34 creatures/treasures, the boat with its fisherman and two seas were
+  generated in ChatGPT from [docs/ART-PROMPTS.md](docs/ART-PROMPTS.md) and cut by `python tools/sprites.py` into
+  `public/assets/sprites/*.webp` (about 1.2 MB in total). The earlier cartoon atlases were removed
+  (see [docs/ARTWORK.md](docs/ARTWORK.md)). Production shows every creature; DEV `?qa=1` would draw an emoji for any
+  future creature that has no sprite yet.
+- **Sea fills any screen:** the sand line is aligned to the seabed lane. On a screen wider than the painting the reef
+  stays pinned to both edges and only the open water is stretched; a mirrored strip fills the area behind the controls.
+  The boat is scaled to a fixed on-screen width with its waterline on the surface, and the rod is drawn from the
+  boat's own holder tube.
+- **Install as an app:** `public/manifest.webmanifest`, home-screen icons (`python tools/make_icon.py`), `apple-touch-icon`
+  and web-app meta tags, like the other games. There is still no service worker or offline mode.
 
 ## Version 0.1.0
 
@@ -101,7 +112,7 @@ No shared imports, storage migration, accounts, real money, ticket payouts or ad
 Storage key: `tap-tap-fishing-v1`. Collection saves after each landed catch; refreshing starts a new trip,
 but keeps the collection and best completed-trip scores. Live hook position is not persisted.
 
-All gameplay assets are served locally. There is no speech API or external font dependency.
+All gameplay assets are served locally. There is no external font dependency and no speech API except the optional device voice.
 Thai narration is **not recorded or guaranteed on every device**; when no Thai system voice exists,
 the wheel animation, status and sound effects still work. A service worker/offline installer is not included.
 
@@ -116,11 +127,13 @@ the wheel animation, status and sound effects still work. A service worker/offli
 | `src/species.js` | Catalog: lane, points, taps, size, speed, rarity, school size, motion, effects, art lookup |
 | `src/spawner.js` | Irregular arrivals per lane, waves, cooldowns, treasure-rain pool (pure, seeded in tests) |
 | `src/layout.js` | Lane positions from the visible sea and the controls; background placement |
-| `src/art-manifest.js` | Generated list of processed sprites/backgrounds (plus hand-set boat/background anchors) |
+| `src/art-manifest.js` | Generated list of processed sprites/backgrounds with the boat/background anchors (rewritten by the tool) |
 | `tools/sprites.py` | Cuts ChatGPT sheets from `art/incoming/` into sprites and updates the manifest |
+| `tools/make_icon.py` | Draws the home-screen icons (`public/icons/`) from the clownfish sprite and the portrait sea |
+| `public/manifest.webmanifest` | Installable app metadata: standalone, Thai name, any + maskable icons |
 | `src/progress.js` | Separate validated local storage and idempotent completed-trip recording |
 | `src/audio.js` | Synthesised ambience, music and effects, iOS unlock/rebuild, optional Thai device speech |
-| `public/assets/` | Original background and two transparent creature atlases |
+| `public/assets/` | Processed sprites (`sprites/*.webp`: 34 creatures + boat) and the two sea paintings |
 | `tests/` | Model/storage unit tests and real-browser workflow/input/render tests |
 
 Read [AI-HANDOFF.md](AI-HANDOFF.md) and [docs/QA.md](docs/QA.md) before continuing.
@@ -141,5 +154,5 @@ not a diagnosis of the user's exact iPad/browser version.
 
 ## Not Included Yet
 
-Multiple environments, boat upgrades, two-player play, recorded Thai voice, the redrawn semi-realistic artwork
-(waiting for the user's ChatGPT images) and real-device Safari approval. Do not imply these are finished.
+Multiple environments, boat upgrades, two-player play, recorded Thai voice, a service worker/offline install and
+real-device Safari approval (touch, sound, home-screen icon). Do not imply these are finished.

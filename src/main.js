@@ -1,7 +1,7 @@
 import { createIcons, Anchor, BookOpen, Volume2, VolumeX, Pause, Play, Fish, Trophy, Timer, X, RotateCcw, ArrowRight, Check, Music, Map as MapIcon, Sparkles } from 'lucide';
 import { createGame } from './scene.js';
 import { FishingRound, GOAL, MAP_PIECES } from './model.js';
-import { SPECIES_BY_ID, ATLASES, ZONES, speciesWithArt } from './species.js';
+import { SPECIES_BY_ID, ZONES, speciesWithArt } from './species.js';
 import { loadProgress, saveProgress, recordCatch, recordTrip } from './progress.js';
 import { FishingAudio } from './audio.js';
 import { bindTapControl } from './input.js';
@@ -17,11 +17,6 @@ const assetUrl = (file) => `${import.meta.env.BASE_URL}assets/${file}`;
 
 const art = (s) => {
   if (s.art?.kind === 'sprite') return `<img class="species-art" src="${assetUrl(s.art.file)}" alt="${s.name}" draggable="false">`;
-  if (s.art?.kind === 'atlas') {
-    const atlas = ATLASES[s.art.key];
-    const [x, y, w, h] = s.art.rect;
-    return `<svg class="species-art" role="img" aria-label="${s.name}" viewBox="0 0 ${w} ${h}"><defs><clipPath id="sprite-${s.id}" clipPathUnits="userSpaceOnUse"><rect width="${w}" height="${h}" /></clipPath></defs><image x="${-x}" y="${-y}" href="${assetUrl(atlas.file)}" width="${atlas.width}" height="${atlas.height}" clip-path="url(#sprite-${s.id})" /></svg>`;
-  }
   return `<span class="species-art emoji" role="img" aria-label="${s.name}">${s.emoji}</span>`;
 };
 

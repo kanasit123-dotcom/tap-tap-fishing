@@ -1,14 +1,16 @@
 import Phaser from 'phaser';
-import { SPECIES_BY_ID, ATLASES, SEABED, LANE_COUNT, PLACEHOLDER_ART, isMystery, isTreasure, displaySize, revealForRise } from './species.js';
-import { computeLayout, backgroundPlacement, WATERLINE } from './layout.js';
+import { SPECIES_BY_ID, SEABED, LANE_COUNT, PLACEHOLDER_ART, isMystery, isTreasure, displaySize, revealForRise } from './species.js';
+import { computeLayout, backgroundPlacement, BG_EDGE, WATERLINE } from './layout.js';
 import { Spawner } from './spawner.js';
 import { WORLD } from './model.js';
 import manifest from './art-manifest.js';
 
 const asset = (file) => `${import.meta.env.BASE_URL}assets/${file}`;
-const LEGACY_BG = { key: 'bg-legacy', file: 'cove.png', w: 1024, h: 1536, waterline: 0.093, seabed: 0.87 };
 // The rod sits in a holder on the boat; its tip is the pivot the hook swings from.
+// ROD_BUTT is where the drawn boat's holder goes; a boat image moves it to its own holder tube.
 const ROD_BUTT = { x: 196, y: 108 };
+const BOAT_WIDTH = 180;
+const BOAT_HOLDER_X = 204;
 const ROD_TIP = { x: WORLD.originX, y: WORLD.originY };
 const SURFACE_Y = WORLD.originY + WORLD.rest;
 const WARM_UP_SECONDS = 26;
@@ -23,11 +25,7 @@ export class CoveScene extends Phaser.Scene {
   }
 
   preload() {
-    const backgrounds = Object.entries(manifest.backgrounds ?? {});
-    if (!backgrounds.length) this.load.image(LEGACY_BG.key, asset(LEGACY_BG.file));
-    for (const [name, bg] of backgrounds) this.load.image(`bg-${name}`, asset(bg.file));
-    const atlases = new Set(this.controller.species.map((s) => s.art?.kind === 'atlas' && s.art.key).filter(Boolean));
-    for (const key of atlases) this.load.image(key, asset(ATLASES[key].file));
+    for (const [name, bg] of Object.entries(manifest.backgrounds ?? {})) this.load.image(`bg-${name}`, asset(bg.file));
     for (const s of this.controller.species) if (s.art?.kind === 'sprite') this.load.image(s.art.key, asset(s.art.file));
     if (manifest.sprites?.boat?.holder) this.load.image('boat', asset(manifest.sprites.boat.file));
     if (manifest.sprites?.hook) this.load.image('hook-art', asset(manifest.sprites.hook.file));
@@ -69,7 +67,6 @@ export class CoveScene extends Phaser.Scene {
 
   registerArt() {
     for (const s of this.controller.species) {
-      if (s.art?.kind === 'atlas' && !this.textures.get(s.art.key).has(s.id)) this.textures.get(s.art.key).add(s.id, 0, ...s.art.rect);
       if (!s.art) this.makeEmojiTexture(s);
       if (isMystery(s)) this.makeSilhouette(s);
     }
@@ -77,7 +74,6 @@ export class CoveScene extends Phaser.Scene {
 
   textureOf(s) {
     if (s.art?.kind === 'sprite') return { key: s.art.key, frame: undefined, w: s.art.w, h: s.art.h };
-    if (s.art?.kind === 'atlas') return { key: s.art.key, frame: s.id, w: s.art.w, h: s.art.h };
     return { key: `emoji-${s.id}`, frame: undefined, w: PLACEHOLDER_ART.w, h: PLACEHOLDER_ART.h };
   }
 
@@ -99,7 +95,7 @@ export class CoveScene extends Phaser.Scene {
     if (this.textures.exists(key)) return;
     const tex = this.textureOf(s);
     const source = this.textures.get(tex.key).getSourceImage();
-    const [x, y, w, h] = s.art?.kind === 'atlas' ? s.art.rect : [0, 0, source.width, source.height];
+    const [x, y, w, h] = [0, 0, source.width, source.height];
     const texture = this.textures.createCanvas(key, w, h);
     const ctx = texture.context;
     ctx.drawImage(source, x, y, w, h, 0, 0, w, h);
@@ -159,26 +155,33 @@ export class CoveScene extends Phaser.Scene {
     g.generateTexture('glint', 32, 32); g.destroy();
   }
 
+  // Copy of the boat image with the part under its waterline tinted like the sea.
+  wetBoat(art) {
+    const source = this.textures.get('boat').getSourceImage();
+    const wet = this.textures.createCanvas('boat-wet', source.width, source.height);
+    const ctx = wet.context;
+    ctx.drawImage(source, 0, 0);
+    ctx.globalCompositeOperation = 'source-atop';
+    const line = art.waterline * source.height / art.h;
+    const gradient = ctx.createLinearGradient(0, line, 0, source.height);
+    gradient.addColorStop(0, 'rgba(24,150,175,0.5)'); gradient.addColorStop(1, 'rgba(10,90,120,0.82)');
+    ctx.fillStyle = gradient; ctx.fillRect(0, line, source.width, source.height - line);
+    wet.refresh();
+    return 'boat-wet';
+  }
+
   // Boat artwork (when generated) or a drawn wooden boat with a fisherman and a rod holder.
   makeBoat() {
+    this.rodButt = ROD_BUTT;
     const container = this.add.container(0, 0).setDepth(16);
     const art = manifest.sprites?.boat;
     if (art?.holder && art.waterline && this.textures.exists('boat')) {
-      // Anchor the rod holder to ROD_BUTT and the hull's waterline to the sea surface (within a sane size).
-      const fit = (WATERLINE + 3 - ROD_BUTT.y) / (art.waterline - art.holder[1]);
-      const scale = Math.max(150 / art.w, Math.min(270 / art.w, fit));
-      // Bake the "under water" tint into the hull below its waterline.
-      const source = this.textures.get('boat').getSourceImage();
-      const wet = this.textures.createCanvas('boat-wet', source.width, source.height);
-      const ctx = wet.context;
-      ctx.drawImage(source, 0, 0);
-      ctx.globalCompositeOperation = 'source-atop';
-      const line = art.waterline * source.height / art.h;
-      const gradient = ctx.createLinearGradient(0, line, 0, source.height);
-      gradient.addColorStop(0, 'rgba(24,150,175,0.45)'); gradient.addColorStop(1, 'rgba(10,90,120,0.8)');
-      ctx.fillStyle = gradient; ctx.fillRect(0, line, source.width, source.height - line);
-      wet.refresh();
-      const image = this.add.image(ROD_BUTT.x - art.holder[0] * scale, ROD_BUTT.y - art.holder[1] * scale, 'boat-wet').setOrigin(0, 0).setScale(scale * art.w / source.width);
+      // Fixed on-screen width; the hull's waterline sits on the sea surface and the holder tube sets the rod butt.
+      const scale = BOAT_WIDTH / art.w;
+      const wet = this.wetBoat(art);
+      const top = WATERLINE + 3 - art.waterline * scale;
+      const image = this.add.image(BOAT_HOLDER_X - art.holder[0] * scale, top, wet).setOrigin(0, 0).setScale(scale * art.w / this.textures.get(wet).getSourceImage().width);
+      this.rodButt = { x: BOAT_HOLDER_X, y: top + art.holder[1] * scale };
       container.add(image);
       this.hull = null;
       return container;
@@ -236,25 +239,50 @@ export class CoveScene extends Phaser.Scene {
   }
 
   layoutBackground() {
-    // Use the painting that needs the fewest mirrored repeats on this screen shape.
+    // Use the painting that needs the least cropping or stretching on this screen shape.
     const options = Object.entries(manifest.backgrounds ?? {}).map(([name, bg]) => ({ ...bg, key: `bg-${name}` }));
-    let bg = LEGACY_BG;
-    let place = backgroundPlacement(bg, this.view);
-    let best = Infinity;
+    let bg = null;
+    let place = null;
     for (const option of options) {
       const placement = backgroundPlacement(option, this.view);
-      const score = placement.tiles.length * 10 + placement.tileWidth / this.view.width;
-      if (score < best) { best = score; bg = option; place = placement; }
+      if (!place || placement.distortion < place.distortion) { bg = option; place = placement; }
     }
     this.paintSky(bg.key);
     this.sky.setDisplaySize(this.view.width + 4, Math.max(2, place.top + 2));
-    while (this.bgTiles.length < place.tiles.length) this.bgTiles.push(this.add.image(0, 0, bg.key).setOrigin(0.5, 0).setDepth(-3));
-    this.bgTiles.forEach((tile, i) => {
-      const n = place.tiles[i];
-      tile.setVisible(n !== undefined);
-      if (n === undefined) return;
-      tile.setTexture(bg.key).setPosition(240 + n * place.tileWidth, place.top).setDisplaySize(place.tileWidth + 1, place.height).setFlipX(Math.abs(n) % 2 === 1);
+    this.bgFrames(bg);
+    // Pieces: [frame, x, width]. A wide screen gets reef | stretched water | reef; a narrow one a single centred picture.
+    const { left, right } = this.view;
+    const pieces = place.slices
+      ? [['L', left, place.slices.edge], ['C', left + place.slices.edge, place.slices.center], ['R', right - place.slices.edge, place.slices.edge]]
+      : [['W', 240 - place.tileWidth / 2, place.tileWidth]];
+    this.bgImages ??= [];
+    this.bgMirror ??= [];
+    while (this.bgImages.length < 3) {
+      this.bgImages.push(this.add.image(0, 0, bg.key).setOrigin(0, 0).setDepth(-3));
+      this.bgMirror.push(this.add.image(0, 0, bg.key).setOrigin(0, 0).setDepth(-3).setFlipY(true));
+    }
+    this.bgImages.forEach((image, i) => {
+      const mirror = this.bgMirror[i];
+      const piece = pieces[i];
+      image.setVisible(Boolean(piece));
+      mirror.setVisible(Boolean(piece) && place.below > 0);
+      if (!piece) return;
+      const [frame, x, width] = piece;
+      // +1 px of overlap hides seams between neighbouring pieces.
+      image.setTexture(bg.key, frame).setPosition(x, place.top).setDisplaySize(width + 1, place.height);
+      mirror.setTexture(bg.key, frame).setPosition(x, place.top + place.height - 1).setDisplaySize(width + 1, place.height).setFlipY(true);
     });
+  }
+
+  // Frames of a background texture: W whole, L/C/R the reef edges and the open water between them.
+  bgFrames(bg) {
+    const texture = this.textures.get(bg.key);
+    if (texture.has('W')) return;
+    const edge = Math.round(bg.w * BG_EDGE);
+    texture.add('W', 0, 0, 0, bg.w, bg.h);
+    texture.add('L', 0, 0, 0, edge, bg.h);
+    texture.add('C', 0, edge, 0, bg.w - 2 * edge, bg.h);
+    texture.add('R', 0, bg.w - edge, 0, edge, bg.h);
   }
 
   layoutRays() {
@@ -510,7 +538,7 @@ export class CoveScene extends Phaser.Scene {
 
   drawRod(hook, tension, bob) {
     const g = this.rod.clear();
-    const butt = { x: ROD_BUTT.x, y: ROD_BUTT.y + bob };
+    const butt = { x: this.rodButt.x, y: this.rodButt.y + bob };
     const rest = { x: ROD_TIP.x, y: ROD_TIP.y + bob };
     const dx = hook.x - rest.x, dy = hook.y - rest.y;
     const length = Math.hypot(dx, dy) || 1;

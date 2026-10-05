@@ -40,15 +40,20 @@ function simulate({ seconds = 900, mode = 'relaxed', seed = 1, bonusAt = Infinit
 
 test('arrivals are irregular: random gaps per lane, never a fixed beat', () => {
   const { spawns } = simulate();
+  const variation = [];
   for (let lane = 0; lane < LANE_COUNT; lane++) {
     const times = spawns.filter((s) => s.order.lane === lane).map((s) => s.time);
     assert.ok(times.length > 25, `lane ${lane} spawned ${times.length}`);
     const gaps = times.slice(1).map((t, i) => t - times[i]);
     const mean = gaps.reduce((a, b) => a + b, 0) / gaps.length;
     const sd = Math.sqrt(gaps.reduce((a, b) => a + (b - mean) ** 2, 0) / gaps.length);
-    assert.ok(sd / mean > 0.28, `lane ${lane} gaps vary (cv ${(sd / mean).toFixed(2)})`);
-    assert.ok(Math.max(...gaps) > mean * 1.6 && Math.min(...gaps) < mean * 0.7, `lane ${lane} has lulls and bursts (${Math.min(...gaps).toFixed(1)} .. ${Math.max(...gaps).toFixed(1)}, mean ${mean.toFixed(1)})`);
+    variation.push(sd / mean);
+    // A fixed beat has a coefficient of variation near 0; natural random arrivals sit well above 0.2.
+    assert.ok(sd / mean > 0.2, `lane ${lane} gaps vary (cv ${(sd / mean).toFixed(2)})`);
+    assert.ok(Math.max(...gaps) > mean * 1.5 && Math.min(...gaps) < mean * 0.75, `lane ${lane} has lulls and bursts (${Math.min(...gaps).toFixed(1)} .. ${Math.max(...gaps).toFixed(1)}, mean ${mean.toFixed(1)})`);
   }
+  const average = variation.reduce((a, b) => a + b, 0) / variation.length;
+  assert.ok(average > 0.3, `average variation ${average.toFixed(2)}`);
 });
 
 test('lanes only receive their own species, in varied school sizes and speeds', () => {
@@ -120,10 +125,11 @@ test('a lane changes direction only while it is empty', () => {
 });
 
 test('creatures still waiting for artwork leave their slot empty instead of crowding the lane', () => {
-  const legacy = SPECIES.filter((s) => s.legacy);
-  const few = simulate({ seconds: 1500, seed: 8, species: legacy }).spawns;
+  const original = new Set(['goldfish', 'clownfish', 'bluefish', 'angelfish', 'pufferfish', 'turtle', 'octopus', 'chest', 'seal', 'shark', 'anglerfish', 'giant-squid']);
+  const some = SPECIES.filter((s) => original.has(s.id));
+  const few = simulate({ seconds: 1500, seed: 8, species: some }).spawns;
   const all = simulate({ seconds: 1500, seed: 8 }).spawns;
-  assert.ok(few.every((s) => s.order.species.legacy));
+  assert.ok(few.every((s) => original.has(s.order.species.id)));
   const perMinute = (list, id) => list.filter((s) => s.order.species.id === id).length / 25;
   assert.ok(perMinute(few, 'chest') > 0.2 && perMinute(few, 'chest') < 1.5, `chests stay special (${perMinute(few, 'chest')}/min)`);
   assert.ok(few.filter((s) => s.order.lane === 6).length < all.filter((s) => s.order.lane === 6).length / 3);

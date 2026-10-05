@@ -2,7 +2,35 @@
 
 Date: 2026-10-04
 
-## Latest: Living Sea, Special Items And Synthesised Sound (v0.2.0, deployed 2026-10-05)
+## Latest: Semi-Realistic Artwork And Home-Screen Icon (Claude Code, 2026-10-05, uncommitted)
+
+- User delivered all 7 ChatGPT images. Checked before processing: names, sizes, true alpha on the creature/boat sheets, opaque
+  seas, every animal facing right, no text; the visible glow is hidden RGB under transparent pixels (only ~0.5% of pixels are
+  partially transparent, on subject edges). `tools/sprites.py` produced 34 creature sprites + boat + 2 seas (about 1.2 MB WebP);
+  each sheet slot gave exactly one piece, and `art/preview/` showed thin parts intact (butterflyfish streamer, swordfish bill,
+  ray tail, lobster antennae, squid tentacles, anglerfish lure). The boat anchors (red cross = holder tube, yellow line = hull
+  boundary) were checked on `art/preview/boat.png`.
+- Removed the cartoon atlases and all code/tests for them. New asset tests: every catalog entry has a sprite, every manifest
+  file exists with the recorded WebP size and alpha, boat/background anchors are inside their images and ordered sensibly,
+  every creature is readable at its smallest on-screen size (sardine and pocket watch were enlarged after this check).
+- Layout bugs found by looking at the real art and fixed: (1) tall phones: sand sat ~57 world px below the treasure lane;
+  the sand line now equals the seabed lane and a mirrored strip fills behind the controls; (2) wide screens: mirrored tiles
+  put reef "pillars" mid-sea; the reef is now pinned to both edges and only open water is stretched (`BG_EDGE` 22%).
+  `tests/layout.test.mjs` covers both (exact sand alignment, reef never stretched, painting choice per screen shape).
+- Home-screen install set (earlier this day) regenerated from the new clownfish over the portrait sea; checked at 32/180/192/512
+  and as maskable. `tests/icons.test.mjs` + `tests/pages-smoke.mjs` check manifest, icon sizes/MIME and head tags.
+- `npm run check`: 54 unit tests passed; normal and Pages builds succeed (dist 3.6 MB; existing Phaser bundle-size warning).
+- Full Playwright run (`test-results/new-art-full/`): 52 passed, 2 desktop touch skips, 0 failed across desktop, tablet, phone
+  and the selected WebKit cases. It includes: all 34 creatures hooked with the real hook, reeled, landed and listed in the
+  zoned book; the book's 34 `<img>` all decoded (no emoji, no broken images); mystery silhouette -> revealed real artwork;
+  treasure rain with the new treasures; layout fit and sand/controls alignment on six viewport sizes.
+- Local production smoke on a `/tap-tap-fishing/` preview passed: 34 book entries with decoded images, manifest and icons 200,
+  colored/moving canvas, no page/request errors. Inspected screenshots: iPad/phone/desktop/landscape-phone sea, mystery catch
+  at 0% and mid reveal, the book. The temporary preview on 5194 was stopped.
+- Not verified: how the new art and boat size feel on a real iPad (hit boxes against large silhouettes, readability of the
+  smallest creatures), real-device sound, the Add-to-Home-Screen icon on iOS, and the pocket-watch/map balance in real play.
+
+## Previous: Living Sea, Special Items And Synthesised Sound (v0.2.0, deployed 2026-10-05)
 
 - Published as commit ab5e4cc; Pages Actions run 37239154580 succeeded (unit tests + build on the runner).
   Live smoke on https://kanasit123-dotcom.github.io/tap-tap-fishing/?qa=1 passed: HTTP 200, 12 book entries with artwork,

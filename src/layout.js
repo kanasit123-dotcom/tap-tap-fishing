@@ -24,15 +24,22 @@ export function computeLayout({ width, height, dockTop = height }) {
   };
 }
 
+// Share of the picture's width, on each side, that holds the reef. It is never stretched.
+export const BG_EDGE = 0.22;
+
 // Scale/position for a background whose waterline and sand line are fractions of its height.
-// Aligns the sand with the seabed lane, always reaches the bottom of the view, and repeats
-// mirrored copies sideways on wide screens.
+// The sand line always lands on the seabed lane. On a screen narrower than the picture the picture is
+// centred (the outer reef is cropped). On a wider screen the reef stays pinned to both edges and only the
+// open water between them is stretched, so no reef ever appears in the middle of the sea. Whatever the
+// picture does not cover below the sand (the strip behind the controls) is filled with a mirrored copy.
 export function backgroundPlacement(bg, layout) {
-  const alignSeabed = (layout.seabedLine - WATERLINE) / ((bg.seabed - bg.waterline) * bg.h);
-  const coverBottom = (layout.height - WATERLINE) / ((1 - bg.waterline) * bg.h);
-  const scale = Math.max(alignSeabed, coverBottom);
+  const scale = (layout.seabedLine - WATERLINE) / ((bg.seabed - bg.waterline) * bg.h);
   const tileWidth = bg.w * scale;
-  const top = WATERLINE - bg.waterline * bg.h * scale;
-  const side = Math.max(0, Math.ceil((layout.width / tileWidth - 1) / 2));
-  return { scale, top, tileWidth, height: bg.h * scale, tiles: Array.from({ length: side * 2 + 1 }, (_, i) => i - side) };
+  const height = bg.h * scale;
+  const top = WATERLINE - bg.waterline * height;
+  const below = Math.max(0, layout.height - (top + height));
+  if (layout.width <= tileWidth) return { scale, top, tileWidth, height, below, slices: null, distortion: 1 - layout.width / tileWidth };
+  const edge = tileWidth * BG_EDGE;
+  const center = layout.width - 2 * edge;
+  return { scale, top, tileWidth, height, below, slices: { edge, center }, distortion: center / (tileWidth - 2 * edge) - 1 };
 }
