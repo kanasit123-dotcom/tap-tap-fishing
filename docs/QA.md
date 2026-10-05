@@ -4,6 +4,9 @@ Date: 2026-10-04
 
 ## Latest: v0.4.0 — Extra Species, Balance, Sharp Rendering (2026-10-05)
 
+- Deployed at the user's request: commit afe02d2, Pages Actions run 37259027875 succeeded. Live smoke on
+  https://kanasit123-dotcom.github.io/tap-tap-fishing/ passed (46 entries with decoded images, no errors); new sprites 200.
+
 - Ships the sharp-rendering, balance and continuous-swing rounds below plus 12 extra species from prompt H (46 entries).
 - Sheet H checked before cutting (order, facing right, true alpha); all 12 pieces cut clean, thin parts intact.
 - `npm test`: 56 passed (stray share lowered to 0.15 so lanes keep > 60% own animals with the larger catalog).

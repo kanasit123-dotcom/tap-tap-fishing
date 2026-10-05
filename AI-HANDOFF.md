@@ -51,6 +51,8 @@ special items **with effects + bonus stage**; **sea ambience + soft music** with
 - Art pipeline: prompts in `docs/ART-PROMPTS.md` (7 images), `python tools/sprites.py` cuts `art/incoming/` into
   `public/assets/sprites/*.webp` + backgrounds and rewrites `src/art-manifest.js`. Verified with synthetic sheets
   (transparent and flat-colour keyed, de-spill) and a synthetic boat/backgrounds run in the real game, then reverted.
+- **v0.4.0 LIVE (2026-10-05):** commit afe02d2, Actions run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37259027875,
+  live smoke passed (46 entries). Contains the sharpness, balance/continuous-swing and extra-species rounds below.
 - **Extra species (prompt H, 2026-10-05):** 12 sprites cut from `sheet-e-extra.png` and added to the catalog: lane 0 mackerel (school),
   yellow tang, damselfish; lane 1 Moorish idol; lane 2 cuttlefish (glide), batfish; lane 3 barracuda, dolphin (fast, cooldown 30 s);
   lane 5 manta (glide), whale shark (90 pts, cooldown 40 s); seabed hermit crab, horseshoe crab. Book: 46 entries. With more species per
