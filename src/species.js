@@ -16,46 +16,62 @@ export const ZONES = [
 // size: display width (world px) at layout scale 1; speed: world px per second;
 // weight: relative chance inside its lane; group: school size range; cooldown: seconds between appearances.
 const catalog = [
-  { id: 'sardine', name: 'ปลาซาร์ดีน', lane: 0, points: 3, taps: 5, size: 48, speed: 50, weight: 30, group: [4, 7], motion: 'school', emoji: '🐟' },
-  { id: 'goldfish', name: 'ปลาทอง', lane: 0, points: 5, taps: 6, size: 50, speed: 34, weight: 22, group: [1, 3], bonus: 30, emoji: '🐠' },
-  { id: 'clownfish', name: 'ปลาการ์ตูน', lane: 0, points: 8, taps: 7, size: 50, speed: 32, weight: 22, group: [1, 3], emoji: '🐠' },
-  { id: 'butterflyfish', name: 'ปลาผีเสื้อ', lane: 0, points: 10, taps: 7, size: 52, speed: 30, weight: 16, group: [1, 2], emoji: '🐠' },
-  { id: 'bottle', name: 'ขวดจดหมาย', kind: 'item', effect: 'double', lane: 0, points: 5, taps: 5, size: 46, speed: 16, weight: 5, motion: 'float', cooldown: 25, emoji: '🍾' },
+  // Shallow: small fish alone or in pairs, sardines in a small school.
+  { id: 'sardine', name: 'ปลาซาร์ดีน', lane: 0, points: 3, taps: 5, size: 48, speed: 46, weight: 14, group: [3, 4], motion: 'school', emoji: '🐟' },
+  { id: 'goldfish', name: 'ปลาทอง', lane: 0, points: 5, taps: 6, size: 50, speed: 34, weight: 22, group: [1, 2], bonus: 30, emoji: '🐠' },
+  { id: 'clownfish', name: 'ปลาการ์ตูน', lane: 0, points: 8, taps: 7, size: 50, speed: 32, weight: 22, group: [1, 2], emoji: '🐠' },
+  { id: 'mackerel', name: 'ปลาทู', lane: 0, points: 4, taps: 5, size: 52, speed: 44, weight: 16, group: [2, 4], motion: 'school', emoji: '🐟' },
+  { id: 'yellow-tang', name: 'ปลาขี้ตังเบ็ดเหลือง', lane: 0, points: 9, taps: 7, size: 50, speed: 30, weight: 18, group: [1, 2], emoji: '🐠' },
+  { id: 'damselfish', name: 'ปลาสลิดหินฟ้า', lane: 0, points: 6, taps: 6, size: 38, speed: 38, weight: 16, group: [1, 3], emoji: '🐟' },
+  { id: 'butterflyfish', name: 'ปลาผีเสื้อ', lane: 0, points: 10, taps: 7, size: 52, speed: 30, weight: 18, group: [1, 2], emoji: '🐠' },
 
-  { id: 'bluefish', name: 'ปลาแทงฟ้า', lane: 1, points: 12, taps: 9, size: 60, speed: 36, weight: 26, group: [1, 3], emoji: '🐟' },
+  { id: 'bluefish', name: 'ปลาแทงฟ้า', lane: 1, points: 12, taps: 9, size: 60, speed: 36, weight: 24, group: [1, 2], emoji: '🐟' },
   { id: 'angelfish', name: 'ปลาเทวดา', lane: 1, points: 15, taps: 10, size: 58, speed: 26, weight: 22, group: [1, 2], emoji: '🐠' },
   { id: 'parrotfish', name: 'ปลานกแก้ว', lane: 1, points: 14, taps: 9, size: 66, speed: 30, weight: 22, group: [1, 2], emoji: '🐟' },
+  { id: 'moorish-idol', name: 'ปลาผีเสื้อเทวรูป', lane: 1, points: 15, taps: 9, size: 60, speed: 26, weight: 18, group: [1, 2], emoji: '🐠' },
   { id: 'seahorse', name: 'ม้าน้ำ', lane: 1, points: 16, taps: 8, size: 30, speed: 14, weight: 14, group: [1, 2], motion: 'bob', emoji: '🦄' },
 
-  { id: 'pufferfish', name: 'ปลาปักเป้า', lane: 2, points: 18, taps: 11, size: 58, speed: 20, weight: 26, group: [1, 2], emoji: '🐡' },
-  { id: 'jellyfish', name: 'แมงกะพรุน', lane: 2, points: 12, taps: 8, size: 46, speed: 12, weight: 22, group: [1, 3], motion: 'pulse', noFlip: true, emoji: '🪼' },
+  // Middle water: animals, plus treasure and special items floating by (as in the arcade cabinets).
+  { id: 'pufferfish', name: 'ปลาปักเป้า', lane: 2, points: 18, taps: 11, size: 58, speed: 20, weight: 24, group: [1, 2], emoji: '🐡' },
+  { id: 'jellyfish', name: 'แมงกะพรุน', lane: 2, points: 12, taps: 8, size: 46, speed: 12, weight: 20, group: [1, 2], motion: 'pulse', noFlip: true, emoji: '🪼' },
   { id: 'turtle', name: 'เต่าทะเล', lane: 2, points: 22, taps: 12, size: 90, speed: 24, weight: 18, emoji: '🐢' },
   { id: 'lionfish', name: 'ปลาสิงโต', lane: 2, points: 24, taps: 12, size: 70, speed: 18, weight: 16, emoji: '🐠' },
+  { id: 'cuttlefish', name: 'หมึกกระดอง', lane: 2, points: 20, taps: 11, size: 66, speed: 20, weight: 18, motion: 'glide', emoji: '🦑' },
+  { id: 'batfish', name: 'ปลาค้างคาว', lane: 2, points: 20, taps: 11, size: 62, speed: 18, weight: 16, emoji: '🐟' },
+  { id: 'bottle', name: 'ขวดจดหมาย', kind: 'item', effect: 'double', lane: 2, points: 5, taps: 5, size: 46, speed: 20, weight: 5, motion: 'float', cooldown: 25, emoji: '🍾' },
+  { id: 'coins', name: 'ถุงเหรียญทอง', kind: 'item', lane: 2, points: 30, taps: 12, size: 48, speed: 22, weight: 8, motion: 'float', bonus: 30, emoji: '💰' },
 
-  { id: 'octopus', name: 'หมึกสาย', lane: 3, points: 28, taps: 14, size: 74, speed: 22, weight: 24, motion: 'pulse', emoji: '🐙' },
+  { id: 'octopus', name: 'หมึกสาย', lane: 3, points: 28, taps: 14, size: 74, speed: 22, weight: 22, motion: 'pulse', emoji: '🐙' },
   { id: 'seal', name: 'แมวน้ำ', lane: 3, points: 26, taps: 13, size: 104, speed: 40, weight: 20, emoji: '🦭' },
-  { id: 'tuna', name: 'ปลาทูน่า', lane: 3, points: 30, taps: 14, size: 100, speed: 52, weight: 20, group: [2, 3], motion: 'school', emoji: '🐟' },
+  { id: 'tuna', name: 'ปลาทูน่า', lane: 3, points: 30, taps: 14, size: 100, speed: 52, weight: 18, group: [2, 3], motion: 'school', emoji: '🐟' },
   { id: 'ray', name: 'ปลากระเบน', lane: 3, points: 32, taps: 15, size: 96, speed: 28, weight: 16, motion: 'glide', emoji: '🐟' },
+  { id: 'barracuda', name: 'ปลาสาก', lane: 3, points: 30, taps: 14, size: 110, speed: 56, weight: 16, emoji: '🐟' },
+  { id: 'dolphin', name: 'โลมา', lane: 3, points: 45, taps: 16, size: 120, speed: 64, weight: 6, cooldown: 30, emoji: '🐬' },
+  { id: 'pearl', name: 'หอยมุก', kind: 'item', lane: 3, points: 50, taps: 14, size: 52, speed: 20, weight: 6, motion: 'float', bonus: 18, emoji: '🦪' },
+  { id: 'map', name: 'แผนที่สมบัติ', kind: 'item', effect: 'map', lane: 3, points: 20, taps: 10, size: 50, speed: 20, weight: 12, motion: 'float', cooldown: 30, emoji: '🗺️' },
+  { id: 'watch', name: 'นาฬิกาพก', kind: 'item', effect: 'time', lane: 3, points: 10, taps: 8, size: 48, speed: 22, weight: 7, motion: 'float', cooldown: 25, arcadeOnly: true, emoji: '⏱️' },
 
-  { id: 'shark', name: 'ฉลาม', lane: 4, points: 34, taps: 16, size: 140, speed: 34, weight: 28, emoji: '🦈' },
-  { id: 'moray', name: 'ปลาไหลมอเรย์', lane: 4, points: 36, taps: 16, size: 130, speed: 24, weight: 22, motion: 'eel', emoji: '🐍' },
-  { id: 'anglerfish', name: 'ปลาตกเบ็ด', lane: 4, points: 38, taps: 17, size: 96, speed: 16, weight: 22, emoji: '🐟' },
+  { id: 'shark', name: 'ฉลาม', lane: 4, points: 34, taps: 16, size: 140, speed: 34, weight: 26, emoji: '🦈' },
+  { id: 'moray', name: 'ปลาไหลมอเรย์', lane: 4, points: 36, taps: 16, size: 130, speed: 24, weight: 20, motion: 'eel', emoji: '🐍' },
+  { id: 'anglerfish', name: 'ปลาตกเบ็ด', lane: 4, points: 38, taps: 17, size: 96, speed: 16, weight: 20, emoji: '🐟' },
   { id: 'swordfish', name: 'ปลากระโทงดาบ', lane: 4, points: 42, taps: 18, size: 150, speed: 60, weight: 10, emoji: '🐟' },
+  { id: 'chest', name: 'หีบสมบัติ', kind: 'item', lane: 4, points: 40, taps: 16, size: 76, speed: 18, weight: 7, motion: 'float', bonus: 14, emoji: '🧰' },
+  { id: 'crown', name: 'มงกุฎทองคำ', kind: 'item', lane: 4, points: 80, taps: 18, size: 58, speed: 20, weight: 0.8, motion: 'float', rare: true, jackpot: true, bonus: 5, emoji: '👑' },
 
   { id: 'grouper', name: 'ปลาเก๋ายักษ์', lane: 5, points: 40, taps: 18, size: 120, speed: 18, weight: 30, emoji: '🐟' },
   { id: 'giant-squid', name: 'หมึกยักษ์', lane: 5, points: 44, taps: 19, size: 130, speed: 26, weight: 26, emoji: '🦑' },
   { id: 'hammerhead', name: 'ฉลามหัวค้อน', lane: 5, points: 46, taps: 20, size: 150, speed: 32, weight: 18, emoji: '🦈' },
 
+  { id: 'manta', name: 'กระเบนราหู', lane: 5, points: 50, taps: 20, size: 150, speed: 26, weight: 14, motion: 'glide', emoji: '🐟' },
+  { id: 'whale-shark', name: 'ฉลามวาฬ', lane: 5, points: 90, taps: 22, size: 190, speed: 22, weight: 4, cooldown: 40, emoji: '🦈' },
+
+  // Seabed: crawlers, the jackpot lobster and the odd old boot.
   { id: 'starfish', name: 'ปลาดาว', lane: 6, points: 10, taps: 7, size: 44, speed: 13, weight: 24, group: [1, 2], motion: 'spin', noFlip: true, emoji: '⭐' },
   { id: 'crab', name: 'ปูทะเล', lane: 6, points: 15, taps: 9, size: 54, speed: 20, weight: 30, group: [1, 2], motion: 'crawl', noFlip: true, emoji: '🦀' },
-  { id: 'lobster-king', name: 'ราชากุ้งมังกร', lane: 6, points: 150, taps: 24, size: 104, speed: 18, weight: 1.2, motion: 'crawl', rare: true, jackpot: true, emoji: '🦞' },
-  { id: 'boot', name: 'รองเท้าบูทเก่า', kind: 'junk', lane: 6, points: 1, taps: 4, size: 50, speed: 18, weight: 10, motion: 'drift', emoji: '👢' },
-  { id: 'coins', name: 'ถุงเหรียญทอง', kind: 'item', lane: 6, points: 30, taps: 12, size: 48, speed: 18, weight: 10, motion: 'drift', bonus: 30, emoji: '💰' },
-  { id: 'pearl', name: 'หอยมุก', kind: 'item', lane: 6, points: 50, taps: 14, size: 52, speed: 18, weight: 7, motion: 'drift', bonus: 18, emoji: '🦪' },
-  { id: 'chest', name: 'หีบสมบัติ', kind: 'item', lane: 6, points: 40, taps: 16, size: 76, speed: 18, weight: 7, motion: 'drift', bonus: 14, emoji: '🧰' },
-  { id: 'map', name: 'แผนที่สมบัติ', kind: 'item', effect: 'map', lane: 6, points: 20, taps: 10, size: 50, speed: 18, weight: 15, motion: 'drift', cooldown: 30, emoji: '🗺️' },
-  { id: 'watch', name: 'นาฬิกาพก', kind: 'item', effect: 'time', lane: 6, points: 10, taps: 8, size: 48, speed: 18, weight: 7, motion: 'drift', cooldown: 25, arcadeOnly: true, emoji: '⏱️' },
-  { id: 'crown', name: 'มงกุฎทองคำ', kind: 'item', lane: 6, points: 80, taps: 18, size: 58, speed: 18, weight: 2, motion: 'drift', rare: true, jackpot: true, bonus: 5, emoji: '👑' },
+  { id: 'lobster-king', name: 'ราชากุ้งมังกร', lane: 6, points: 150, taps: 24, size: 104, speed: 18, weight: 0.35, motion: 'crawl', rare: true, jackpot: true, emoji: '🦞' },
+  { id: 'hermit-crab', name: 'ปูเสฉวน', lane: 6, points: 12, taps: 8, size: 50, speed: 12, weight: 20, group: [1, 2], motion: 'crawl', emoji: '🦀' },
+  { id: 'horseshoe-crab', name: 'แมงดาทะเล', lane: 6, points: 25, taps: 12, size: 70, speed: 14, weight: 14, motion: 'crawl', emoji: '🦀' },
+  { id: 'boot', name: 'รองเท้าบูทเก่า', kind: 'junk', lane: 6, points: 1, taps: 4, size: 50, speed: 18, weight: 4, motion: 'drift', cooldown: 35, emoji: '👢' },
 ];
 
 // Artwork comes from tools/sprites.py (art/incoming -> public/assets/sprites). A creature without a sprite

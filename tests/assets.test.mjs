@@ -30,7 +30,10 @@ test('catalog keeps every saved collection id and describes each creature comple
     assert.equal(ZONES.filter((zone) => zone.match(s)).length, 1, `${s.id} is in exactly one book section`);
   }
   for (const lane of Array.from({ length: LANE_COUNT }, (_, i) => i)) assert.ok(SPECIES.filter((s) => s.lane === lane).length >= 3);
-  assert.ok(SPECIES.filter((s) => s.lane === SEABED && s.kind === 'item').length >= 5, 'treasures on the seabed');
+  // As in the cabinets, treasure and special items float through the middle water, not along the seabed.
+  const items = SPECIES.filter((s) => s.kind === 'item');
+  assert.ok(items.length >= 6 && items.every((s) => s.lane >= 2 && s.lane <= 4), 'treasures in the middle lanes');
+  assert.ok(SPECIES.some((s) => s.lane === SEABED && s.jackpot), 'the jackpot lobster still crawls on the seabed');
   for (const effect of ['double', 'time', 'map']) assert.ok(SPECIES.some((s) => s.effect === effect));
   assert.ok(SPECIES.some((s) => s.jackpot) && SPECIES.some((s) => s.kind === 'junk'));
   assert.ok(SPECIES.filter((s) => s.bonus).length >= 4, 'treasure rain has a pool');

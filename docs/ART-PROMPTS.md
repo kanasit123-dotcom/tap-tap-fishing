@@ -14,6 +14,7 @@
 | E | `boat.png` | 1536×1024 แนวนอน | เรือประมงพร้อมคนตกปลา (ไม่มีคันเบ็ด) |
 | F | `background-portrait.png` | 1024×1536 แนวตั้ง | ฉากทะเลสำหรับมือถือ/ไอแพดแนวตั้ง |
 | G | `background-landscape.png` | 1536×1024 แนวนอน | ฉากทะเลสำหรับจอแนวนอน (ไม่บังคับ) |
+| H | `sheet-e-extra.png` | 1536×1024 แนวนอน | สัตว์ทะเลเพิ่ม 12 ชนิด (ชุดเสริม สั่งทีหลังได้) |
 
 ## วิธีทำ
 
@@ -149,6 +150,38 @@ A semi-realistic painted cross-section of a tropical sea used as a fishing game 
 NO fish, NO animals, NO boat, NO people, NO text, NO UI, no frame, no vignette, no logo.
 ```
 
+## H — `sheet-e-extra.png` สัตว์ทะเลเพิ่ม 12 ชนิด (ชุดเสริม 2026-10-05 — ใช้งานแล้ว)
+
+> สั่งเพิ่มเพื่อให้แต่ละชั้นมีปลาหลากหลายขึ้น ไม่เจอชนิดเดิมบ่อย ทำในแชตเดิมที่ทำ A-D ได้จะดีที่สุด แล้วพิมพ์เพิ่มท้าย prompt ว่า
+> `Match the exact art style of the earlier creature sheets.`
+
+```text
+Create a 1536x1024 landscape PNG with a TRANSPARENT background (real alpha, no checkerboard pattern drawn in).
+
+ART STYLE: semi-realistic painted illustration for a premium mobile fishing game, the same style as the earlier creature sheets. Natural anatomy and real proportions, accurate species markings and real-world colours (slightly richer than life), fine scale, skin and fin detail, soft light from above with a gentle rim light, a small natural highlight in the eye. NOT cartoon: no big cute eyes, no smiles, no eyebrows, no thick outlines, no chibi proportions. Calm and friendly for children, mouths closed or only slightly open with no visible teeth, no blood.
+
+LAYOUT: exactly 12 separate sea animals in a grid of 3 rows x 4 columns, in this reading order (left to right, then top to bottom). Each animal is centred in its own invisible cell, about 70% of the cell width, with wide empty transparent space all around. Nothing touches or overlaps another animal or the image edge. Every animal in side view facing RIGHT (head toward the right edge), swimming or walking horizontally, whole body visible including fins, tail, legs and antennae. No water, no sand, no bubbles, no shadows, no glow, no text, no labels, no numbers, no grid lines, no frame.
+
+1) a short mackerel (Thai pla thu): slim silver body with a blue-green back and fine dark wavy lines, yellowish fins
+2) a yellow tang: bright lemon-yellow, tall oval body, small pointed snout
+3) a Moorish idol: white and yellow body with two broad black vertical bands, very long trailing white dorsal streamer, orange saddle on the snout
+4) a small blue damselfish: vivid electric blue with a yellow tail
+5) a common cuttlefish: oval body with a wavy fin skirt along the sides, mottled brown and cream zebra pattern, short arms in front on the right
+6) a great barracuda: long slim silver body with dark bars, pointed head, mouth closed
+7) an orbicular batfish: tall round silver-grey disc-shaped body with darker vertical bands and tall fins
+8) a bottlenose dolphin swimming, sleek grey body, gentle expression, mouth closed
+9) a manta ray seen from slightly above, very wide dark wings with a pale belly edge, head fins in front on the right, short tail to the left
+10) a whale shark: very long body, dark blue-grey with white spots and pale stripes, wide flat head, mouth closed
+11) a hermit crab walking to the right, red-orange legs and claws, living inside a spiral sea-snail shell
+12) a horseshoe crab walking to the right, smooth brown helmet-like shell and long pointed tail spine, seen from the side and slightly above
+```
+
+ชื่อชิ้นตอนตัด (ตามลำดับ): `mackerel yellow-tang moorish-idol damselfish cuttlefish barracuda batfish dolphin manta whale-shark hermit-crab horseshoe-crab`
+
+ตำแหน่งในเกมที่วางแผนไว้ (AI ใส่ใน `src/species.js` ตอนได้รูป): ชั้นบน ปลาทู (ฝูงเล็ก) ปลาขี้ตังเบ็ดเหลือง ปลาสลิดหินฟ้า,
+ชั้นสอง ปลาผีเสื้อเทวรูป, กลางน้ำ หมึกกระดอง ปลาค้างคาว ปลาสาก โลมา (ว่ายเร็ว หายาก), ทะเลลึก กระเบนราหู ฉลามวาฬ (หายาก คะแนนสูง),
+พื้นทราย ปูเสฉวน แมงดาทะเล
+
 ---
 
 ## สำหรับ AI ที่ทำงานต่อ
@@ -158,6 +191,7 @@ NO fish, NO animals, NO boat, NO people, NO text, NO UI, no frame, no vignette, 
 - ตารางช่อง/ชื่อ id ต่อแผ่นอยู่ใน `SHEETS` (ลำดับต้องตรงกับ prompt ข้างบน) จุดยึดที่วัดจากรูปจริงอยู่ใน `ANCHORS`
   (ปากท่อวางคันเบ็ดและเส้นรอยต่อสีท้องเรือของ `boat.png`, เส้นน้ำและขอบทรายของพื้นหลัง) — ถ้าสั่งเรือหรือพื้นหลังใหม่ ต้องวัดแล้วแก้ตารางนี้
   ดูกากบาทแดง/เส้นเหลืองใน `art/preview/boat.png` และ `background-*.png` ว่าตรงตำแหน่ง
+- แผ่น H: เพิ่มรายการ 12 ตัวใน `src/species.js` ตามตำแหน่งที่วางแผนไว้ในหัวข้อ H ก่อนรัน `tools/sprites.py sheet-e-extra`
 - ตั้งชื่อ `id` ใหม่ในแผ่นต้องมีรายการใน `src/species.js` ด้วย (ทดสอบ `tests/assets.test.mjs` บังคับให้ทุกตัวมีภาพและทุกภาพมีรายการ)
 - สัตว์ที่ไม่มีภาพจะไม่ออกในเกมจริง (โหมด DEV `?qa=1` ใช้อีโมจิแทน)
 - ชุดการ์ตูนเดิม (atlas + `legacy`) ถูกลบแล้ว ดูได้ใน Git ที่ commit `ab5e4cc`

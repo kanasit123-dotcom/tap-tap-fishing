@@ -37,6 +37,7 @@ SHEETS = {
     'sheet-b-middle': ((2, 4), ['pufferfish', 'turtle', 'jellyfish', 'lionfish', 'octopus', 'seal', 'tuna', 'ray'], 480),
     'sheet-c-deep': ((2, 3), ['shark', 'hammerhead', 'swordfish', 'grouper', 'giant-squid', 'moray'], 640),
     'sheet-d-seabed': ((3, 4), ['anglerfish', 'lobster-king', 'crab', 'starfish', 'chest', 'pearl', 'coins', 'crown', 'boot', 'bottle', 'watch', 'map'], 420),
+    'sheet-e-extra': ((3, 4), ['mackerel', 'yellow-tang', 'moorish-idol', 'damselfish', 'cuttlefish', 'barracuda', 'batfish', 'dolphin', 'manta', 'whale-shark', 'hermit-crab', 'horseshoe-crab'], 480),
     'boat': ((1, 1), ['boat'], 900),
 }
 # พื้นหลัง: (ชื่อ, ความสูงสูงสุดของไฟล์ผลลัพธ์) — เส้นน้ำ/ขอบทราย (สัดส่วนความสูง) อยู่ใน ANCHORS

@@ -1,20 +1,26 @@
-import { LANE_COUNT, SPECIES } from './species.js';
+import { LANE_COUNT, SEABED, SPECIES } from './species.js';
 
 // Average seconds of open water after a group has fully entered, per lane (top to seabed).
-// The wait only counts down once the lane entrance is clear, so slow creatures do not set a beat.
-export const LANE_GAPS = [2.6, 3.2, 3.8, 4.2, 5, 5.8, 3.2];
+// The wait only counts down once a lane entrance is clear, so slow creatures do not set a beat.
+// Groups arrive from both sides, so each side's gaps are about twice a one-way stream's.
+export const LANE_GAPS = [8.5, 8.5, 7.6, 8.4, 10, 11.6, 10];
 export const MIN_GAP_PX = 36;
-export const RARE_COOLDOWN = 40;
+export const RARE_COOLDOWN = 60;
+export const STRAY_SHARE = 0.15;  // relative chance of a neighbouring lane's animal straying into a lane
+export const REPEAT_SHARE = 0.4;  // the species that arrived two groups ago is this much less likely to come next
 const WAVES = {
   calm: { rate: 0.55, length: [6, 10] },
   normal: { rate: 1, length: [10, 18] },
   rush: { rate: 1.9, length: [4, 7] },
 };
+const zone = (lane) => lane <= 3 ? 'upper' : lane < SEABED ? 'deep' : 'seabed';
 
-// Decides when and what enters each lane. It knows nothing about Phaser: the scene reports
-// how much room is left at each lane entrance and turns the returned orders into sprites.
-// Gaps are random (exponential), the sea alternates calm/normal/rush waves, schools vary in size
-// and speed, and rare treasures have cooldowns, so creatures never arrive on a fixed beat.
+// Decides when and what enters each lane. It knows nothing about Phaser: the scene reports how much room is
+// left at each lane entrance (per side) and turns the returned orders into sprites.
+// Gaps are random (exponential), the sea alternates calm/normal/rush waves, each group picks a side, a depth
+// inside its band and its own slow up-and-down wander, schools vary in size, shape and speed, neighbouring
+// lanes' animals sometimes stray in, the same species rarely arrives twice in a row, and rare treasures have
+// cooldowns, so creatures never arrive as ruled rows on a fixed beat.
 export class Spawner {
   // species: creatures that have artwork (and may appear). Odds always come from the full catalog, so a
   // creature still waiting for its artwork leaves its slot empty instead of crowding the lane with the rest.
@@ -26,8 +32,9 @@ export class Spawner {
     this.time = 0;
     this.bonus = false;
     this.lastSeen = {};
+    this.history = Array.from({ length: LANE_COUNT }, () => []);   // last species ids per lane, newest first
+    this.side = [];        // side chosen for each lane's next group (kept until that entrance is clear)
     this.lastRare = -Infinity;
-    this.dir = Array.from({ length: LANE_COUNT }, (_, lane) => lane % 2 ? -1 : 1);
     this.wait = LANE_GAPS.map((gap) => this.rng() * gap);
     this.wave = { kind: 'normal', until: this.between(...WAVES.normal.length), rushLane: -1 };
   }
@@ -57,11 +64,16 @@ export class Spawner {
       return this.species.filter((s) => s.bonus && (!s.rare || this.time - this.lastRare >= RARE_COOLDOWN))
         .map((s) => ({ species: s, weight: s.bonus }));
     }
-    return this.species
-      .filter((s) => s.lane === lane && (!s.arcadeOnly || this.mode === 'arcade'))
+    // The species that just arrived never comes straight back in the same lane; the one before is less likely.
+    const [last, before] = this.history[lane];
+    const list = this.species
+      .filter((s) => s.lane === lane || (s.kind === 'animal' && Math.abs(s.lane - lane) === 1 && zone(s.lane) === zone(lane) && zone(lane) !== 'seabed'))
+      .filter((s) => !s.arcadeOnly || this.mode === 'arcade')
       .filter((s) => !s.cooldown || this.time - (this.lastSeen[s.id] ?? -Infinity) >= s.cooldown)
       .filter((s) => !s.rare || this.time - this.lastRare >= RARE_COOLDOWN)
-      .map((s) => ({ species: s, weight: s.weight }));
+      .map((s) => ({ species: s, weight: s.weight * (s.lane === lane ? 1 : STRAY_SHARE) * (s.id === before ? REPEAT_SHARE : 1) }));
+    const fresh = list.filter((item) => item.species.id !== last);
+    return fresh.length ? fresh : list;
   }
 
   pick(list) {
@@ -78,49 +90,73 @@ export class Spawner {
     return Math.min(mean * 3, Math.max(mean * 0.25, sample));
   }
 
-  // lanes[i] = { count, tailGap, tailSpeed, span }: creatures in the lane, room in px between the
-  // entry edge and the nearest creature still entering, that creature's speed, and the crossing width.
+  // lanes[i] = { count, span, sides: { 1: { tailGap, tailSpeed }, -1: {...} } }: creatures in the lane, the
+  // crossing width, and per entry side the room in px between that edge and the nearest creature still entering
+  // from it, plus that creature's speed. Side 1 is the left edge (swimming right), -1 the right edge.
   tick(dt, lanes) {
     if (!Number.isFinite(dt) || dt <= 0) return [];
     this.time += dt;
     if (this.time >= this.wave.until) this.nextWave();
     const orders = [];
     for (let lane = 0; lane < LANE_COUNT; lane++) {
-      const state = lanes[lane] ?? { count: 0, tailGap: Infinity, tailSpeed: 0, span: 600 };
-      if (state.tailGap < MIN_GAP_PX) continue;
+      const state = lanes[lane] ?? emptyLane();
+      const open = [1, -1].filter((side) => (state.sides?.[side]?.tailGap ?? Infinity) >= MIN_GAP_PX);
+      if (!open.length) continue;
       this.wait[lane] -= dt * this.rate(lane);
       if (this.wait[lane] > 0) continue;
+      // Each group picks its own side at random and waits for that entrance if it is busy, so sides are
+      // independent coin flips rather than a forced left/right alternation.
+      this.side[lane] ??= this.rng() < 0.5 ? 1 : -1;
+      const dir = this.side[lane];
+      if (!open.includes(dir)) continue;
+      this.side[lane] = undefined;
       const species = this.pick(this.candidates(lane));
       if (!species) { this.wait[lane] = 1; continue; }
       if (!this.available.has(species.id)) { this.wait[lane] = this.gap(lane); continue; }
-      // A lane only changes direction while it is empty, so creatures never meet head-on.
-      if (!state.count && this.rng() < 0.3) this.dir[lane] *= -1;
-      const order = this.order(species, lane, state);
-      orders.push(order);
+      orders.push(this.order(species, lane, dir, state));
       this.lastSeen[species.id] = this.time;
+      this.history[lane] = [species.id, this.history[lane][0]];
       if (species.rare) this.lastRare = this.time;
       this.wait[lane] = this.gap(lane);
     }
     return orders;
   }
 
-  order(species, lane, state) {
+  order(species, lane, dir, state) {
     const [min, max] = species.group;
     const extra = this.wave.kind === 'rush' && lane === this.wave.rushLane && max > 2 ? 3 : 0;
     const count = this.bonus ? 1 : min + Math.floor(this.rng() * (max - min + 1 + extra));
     // Treasure rain items drift faster than they crawl along the seabed, so the rain stays lively.
-    let speed = (this.bonus ? Math.max(species.speed, 26) : species.speed) * this.between(0.85, 1.2);
-    // Do not let a faster group catch the previous one while both are still on screen.
-    if (state.count && Number.isFinite(state.tailGap) && state.tailSpeed > 0) {
-      const room = Math.max(1, state.span - state.tailGap);
-      speed = Math.min(speed, state.tailSpeed * (1 + Math.max(0, state.tailGap - MIN_GAP_PX) / room));
+    let speed = (this.bonus ? Math.max(species.speed, 26) : species.speed) * this.between(0.8, 1.25);
+    // Do not let a faster group catch the previous one from the same side while both are on screen.
+    const tail = state.sides?.[dir];
+    if (tail && Number.isFinite(tail.tailGap) && tail.tailSpeed > 0) {
+      const room = Math.max(1, (state.span ?? 600) - tail.tailGap);
+      speed = Math.min(speed, tail.tailSpeed * (1 + Math.max(0, tail.tailGap - MIN_GAP_PX) / room));
     }
+    // Depth inside the band (fraction of the lane spacing) and a slow shared wander, so groups never line up.
+    const band = lane === SEABED ? 0 : 1;
+    // Seabed things sit at slightly different distances on the sand (lower = nearer) instead of one line.
+    const depth = band ? this.between(-0.3, 0.3) : this.between(0, 0.14);
+    const wander = band * this.between(0.04, 0.16);
+    const wanderRate = this.between(0.15, 0.4);
+    const wanderPhase = this.rng() * Math.PI * 2;
+    // Schools swim close together; other groups are loose, with uneven spacing.
+    const tight = species.motion === 'school';
     const members = [];
     let offset = 0;
     for (let i = 0; i < count; i++) {
-      members.push({ offset, dy: i ? this.between(-0.28, 0.28) : this.between(-0.12, 0.12), phase: this.rng() * Math.PI * 2 });
-      offset += species.size * this.between(0.95, 1.5);
+      members.push({
+        offset,
+        dy: depth + (i ? band * this.between(tight ? -0.16 : -0.22, tight ? 0.16 : 0.22) : 0),
+        phase: this.rng() * Math.PI * 2,
+        wander, wanderRate, wanderPhase,
+        speedMul: i ? this.between(tight ? 0.99 : 0.97, tight ? 1.01 : 1.03) : 1,
+      });
+      offset += species.size * (tight ? this.between(0.75, 1.25) : this.between(1, 2.6));
     }
-    return { species, lane, dir: this.dir[lane], speed, members };
+    return { species, lane, dir, speed, members };
   }
 }
+
+export const emptyLane = (span = 600) => ({ count: 0, span, sides: { 1: { tailGap: Infinity, tailSpeed: 0 }, [-1]: { tailGap: Infinity, tailSpeed: 0 } } });

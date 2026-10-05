@@ -74,6 +74,7 @@ class FishingApp {
     this.progress = loadProgress(this.storage);
     this.species = speciesWithArt(QA);
     this.rng = QA && params.has('seed') ? seeded(Number(params.get('seed'))) : Math.random;
+    this.dpr = this.pixelRatio();
     this.audio = new FishingAudio(this.progress.sound, { music: this.progress.music });
     this.round = this.makeRound('relaxed');
     this.scene = null;
@@ -152,6 +153,29 @@ class FishingApp {
     return top - stage.top;
   }
 
+  // Canvas backing pixels: CSS size x device pixel ratio (capped at 2 to keep phones fast), so sprites are
+  // drawn at the screen's real resolution instead of being blown up by the browser.
+  pixelRatio() { return Math.min(2, Math.max(1, window.devicePixelRatio || 1)); }
+
+  seaSize() {
+    const sea = $('#sea');
+    // A hidden page reports 0x0: use the nominal sea size until it is visible.
+    const css = sea.clientWidth > 0 && sea.clientHeight > 0 ? [sea.clientWidth, sea.clientHeight] : [480, 760];
+    return { css, width: Math.round(css[0] * this.dpr), height: Math.round(css[1] * this.dpr) };
+  }
+
+  // Sizes the canvas ourselves (Phaser scale mode NONE with zoom 1/dpr). This also covers iPad rotation,
+  // where Phaser's own RESIZE mode could keep the old canvas size.
+  fitCanvas() {
+    this.dpr = this.pixelRatio();
+    const scale = this.game.scale;
+    const size = this.seaSize();
+    if (scale.zoom !== 1 / this.dpr) scale.setZoom(1 / this.dpr);
+    if (scale.gameSize.width !== size.width || scale.gameSize.height !== size.height) scale.resize(size.width, size.height);
+    scale.canvas.style.width = `${size.css[0]}px`;
+    scale.canvas.style.height = `${size.css[1]}px`;
+  }
+
   measure() {
     requestAnimationFrame(() => {
       const canvas = $('#sea canvas');
@@ -160,14 +184,7 @@ class FishingApp {
       $('.stage').style.setProperty('--scene-width', `${Math.min(stage.width, stage.height * 480 / 760)}px`);
       $('.stage').style.setProperty('--scene-gap', '0px');
       $('.stage').style.setProperty('--scene-top', '0px');
-      // Phaser can record a rotated container's new size without resizing the canvas (iPad rotation):
-      // refresh it whenever the canvas and its container disagree.
-      const sea = $('#sea');
-      const size = this.game.scale.gameSize;
-      if (Math.abs(size.width - sea.clientWidth) > 1 || Math.abs(size.height - sea.clientHeight) > 1) {
-        this.game.scale.getParentBounds();
-        this.game.scale.refresh();
-      }
+      this.fitCanvas();
       this.scene?.relayout();
     });
   }

@@ -28,6 +28,23 @@ test('casts lock the aim, do not double-cast, and return without a penalty after
   tick(r, 1); assert.equal(r.angle, angle);
   tick(r, 6); assert.equal(r.phase, 'aim'); assert.equal(r.length, WORLD.rest); assert.equal(r.score, 0);
 });
+test('after a catch or a miss the swing carries on from the angle it was cast at', () => {
+  const untilAim = (r) => { for (let i = 0; i < 1200 && r.phase !== 'aim'; i++) r.tick(1 / 60); };
+  const r = new FishingRound(); tick(r, 1.3);
+  const angle = r.angle; const direction = Math.sign(Math.cos(r.swingTime * 1.12));
+  catchFish(r);
+  for (let i = 0; i < r.requiredTaps; i++) r.reel(i * 100);
+  untilAim(r);
+  assert.ok(Math.abs(r.angle - angle) < 0.03, `resumed at ${r.angle.toFixed(3)} (cast at ${angle.toFixed(3)})`);
+  const before = r.angle; r.tick(1 / 30);
+  assert.equal(Math.sign(r.angle - before), direction, 'and keeps swinging the same way');
+  const miss = new FishingRound(); tick(miss, 0.8); const cast = miss.angle;
+  miss.cast(); r.tick(1 / 60);
+  for (let i = 0; i < 1200 && miss.phase === 'aim'; i++) miss.tick(1 / 60);
+  untilAim(miss);
+  assert.ok(Math.abs(miss.angle - cast) < 0.03, `after a miss ${miss.angle.toFixed(3)} vs ${cast.toFixed(3)}`);
+});
+
 test('the hook turns back at the layout floor and side walls', () => {
   const r = new FishingRound(); r.setBounds({ floor: 300, left: 0, right: 480 });
   r.cast(); let deepest = 0;

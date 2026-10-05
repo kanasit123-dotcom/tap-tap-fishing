@@ -181,6 +181,66 @@ export default {
       "file": "sprites/map.webp",
       "w": 170,
       "h": 145
+    },
+    "mackerel": {
+      "file": "sprites/mackerel.webp",
+      "w": 190,
+      "h": 89
+    },
+    "yellow-tang": {
+      "file": "sprites/yellow-tang.webp",
+      "w": 146,
+      "h": 111
+    },
+    "moorish-idol": {
+      "file": "sprites/moorish-idol.webp",
+      "w": 177,
+      "h": 136
+    },
+    "damselfish": {
+      "file": "sprites/damselfish.webp",
+      "w": 136,
+      "h": 87
+    },
+    "cuttlefish": {
+      "file": "sprites/cuttlefish.webp",
+      "w": 205,
+      "h": 105
+    },
+    "barracuda": {
+      "file": "sprites/barracuda.webp",
+      "w": 231,
+      "h": 78
+    },
+    "batfish": {
+      "file": "sprites/batfish.webp",
+      "w": 158,
+      "h": 153
+    },
+    "dolphin": {
+      "file": "sprites/dolphin.webp",
+      "w": 223,
+      "h": 112
+    },
+    "manta": {
+      "file": "sprites/manta.webp",
+      "w": 207,
+      "h": 166
+    },
+    "whale-shark": {
+      "file": "sprites/whale-shark.webp",
+      "w": 249,
+      "h": 123
+    },
+    "hermit-crab": {
+      "file": "sprites/hermit-crab.webp",
+      "w": 207,
+      "h": 127
+    },
+    "horseshoe-crab": {
+      "file": "sprites/horseshoe-crab.webp",
+      "w": 204,
+      "h": 112
     }
   },
   "backgrounds": {

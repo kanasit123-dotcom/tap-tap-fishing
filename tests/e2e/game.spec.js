@@ -47,6 +47,9 @@ test('full-bleed scene loads, moves, fits, and uses the actual raster assets', a
   });
   expect(pixels.filled).toBeGreaterThan(400); expect(pixels.colors).toBeGreaterThan(80);
   expect(pixels.left).toBe(255); expect(pixels.right).toBe(255); expect(pixels.top).toBe(255);
+  // Drawn at the screen's real resolution (device pixel ratio, capped at 2), not blown up by the browser.
+  const backing = await page.locator('#sea canvas').evaluate((canvas) => ({ ratio: canvas.width / canvas.clientWidth, expected: Math.min(2, Math.max(1, devicePixelRatio)) }));
+  expect(Math.abs(backing.ratio - backing.expected)).toBeLessThan(0.02);
   for (const id of ['cast', 'reel', 'collection', 'music', 'sound', 'pause']) {
     const box = await page.locator(`#${id}`).boundingBox(); expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(info.project.use.viewport?.width ?? await page.evaluate(() => innerWidth));
   }
@@ -270,18 +273,20 @@ test('compact portrait and landscape: controls fit and the lanes fill the sea do
     expect(Math.max(cast.y + cast.height, reel.y + reel.height)).toBeLessThanOrEqual(height);
     const { view } = await snapshot(page);
     const stage = await page.locator('.stage').boundingBox();
-    const seabedCss = stage.y + (view.seabedLine - view.y) * view.zoom;
+    // view.zoom is canvas pixels per world unit; the canvas has view.dpr pixels per CSS pixel.
+    const seabedCss = stage.y + (view.seabedLine - view.y) * view.zoom / view.dpr;
     const controlsTop = Math.min(cast.y, reel.y);
     expect(Math.abs(seabedCss - controlsTop), `${width}x${height} seabed meets the controls`).toBeLessThan(12);
     expect(view.lanes[6] - view.lanes[0]).toBeGreaterThan(300);
-    expect(Math.abs(view.left - view.x)).toBeLessThan(1.5); expect(Math.abs(view.right - view.left - stage.width / view.zoom)).toBeLessThan(1.5);
+    expect(Math.abs(view.left - view.x)).toBeLessThan(1.5); expect(Math.abs(view.right - view.left - stage.width * view.dpr / view.zoom)).toBeLessThan(1.5);
     await page.screenshot({ path: info.outputPath(`fit-${width}x${height}.png`) });
   }
   expect(errors).toEqual([]);
 });
 
 test('creatures enter from beyond the screen edge at uneven times and leave on the far side', async ({ page }, info) => {
-  test.setTimeout(60_000); const errors = await boot(page);
+  // Software-rendered WebKit on Windows advances game time far slower than the wall clock.
+  test.setTimeout(180_000); const errors = await boot(page);
   const seen = new Map(); const gone = new Set(); let view;
   // Watch 14 seconds of game time (slow software-rendered engines advance it more slowly than the wall clock).
   const start = (await snapshot(page)).time;
@@ -364,7 +369,7 @@ test('the pocket watch adds ten seconds in arcade mode', async ({ page }) => {
 });
 
 test('every creature collides with the real hook, lands and persists in the zoned book', async ({ page }, info) => {
-  test.setTimeout(240_000); const errors = await boot(page);
+  test.setTimeout(480_000); const errors = await boot(page);
   const sample = info.project.name === 'desktop' ? SPECIES : SPECIES.filter((s) => ['seal', 'anglerfish', 'giant-squid', 'crab', 'lobster-king', 'boot'].includes(s.id));
   let total = 0; let doubled = false;
   for (const s of sample) {

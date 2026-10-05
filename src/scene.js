@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { SPECIES_BY_ID, SEABED, LANE_COUNT, PLACEHOLDER_ART, isMystery, isTreasure, displaySize, revealForRise } from './species.js';
 import { computeLayout, backgroundPlacement, BG_EDGE, WATERLINE } from './layout.js';
-import { Spawner } from './spawner.js';
+import { Spawner, emptyLane } from './spawner.js';
 import { WORLD } from './model.js';
 import manifest from './art-manifest.js';
 
@@ -44,11 +44,12 @@ export class CoveScene extends Phaser.Scene {
     this.bubbles = Array.from({ length: 16 }, (_, i) => this.add.circle(0, 0, 1.4 + i % 3, 0xffffff, 0.16).setStrokeStyle(1, 0xffffff, 0.35).setDepth(2).setData('seed', i));
     this.bonusGlow = this.add.rectangle(240, 380, 480, 760, 0xffd34d, 0.1).setDepth(3).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.fishes = this.physics.add.group();
-    this.line = this.add.graphics().setDepth(12);
+    // Line, hook and a hooked catch are drawn in front of the boat so they never vanish behind the hull.
+    this.line = this.add.graphics().setDepth(16.5);
     this.boat = this.makeBoat();
     this.rod = this.add.graphics().setDepth(17);
     this.water = this.add.graphics().setDepth(18);
-    this.hook = this.physics.add.image(240, SURFACE_Y, this.textures.exists('hook-art') ? 'hook-art' : 'hook').setDepth(15);
+    this.hook = this.physics.add.image(240, SURFACE_Y, this.textures.exists('hook-art') ? 'hook-art' : 'hook').setDepth(16.6);
     this.hook.setDisplaySize(19, 30);
     this.hook.body.setAllowGravity(false);
     this.hook.body.setSize(this.hook.width * 0.8, this.hook.height * 0.62, true);
@@ -66,15 +67,47 @@ export class CoveScene extends Phaser.Scene {
   // ---------- artwork ----------
 
   registerArt() {
-    for (const s of this.controller.species) {
-      if (!s.art) this.makeEmojiTexture(s);
-      if (isMystery(s)) this.makeSilhouette(s);
-    }
+    for (const s of this.controller.species) if (!s.art) this.makeEmojiTexture(s);
   }
 
+  // Source picture of a species (its aspect ratio drives the display size).
   textureOf(s) {
-    if (s.art?.kind === 'sprite') return { key: s.art.key, frame: undefined, w: s.art.w, h: s.art.h };
-    return { key: `emoji-${s.id}`, frame: undefined, w: PLACEHOLDER_ART.w, h: PLACEHOLDER_ART.h };
+    if (s.art?.kind === 'sprite') return { key: s.art.key, w: s.art.w, h: s.art.h };
+    return { key: `emoji-${s.id}`, w: PLACEHOLDER_ART.w, h: PLACEHOLDER_ART.h };
+  }
+
+  // Canvas drawImage shrinks big pictures with cheap sampling, so a 400 px sprite drawn at 60 px looks jagged and
+  // shimmers while it moves. Pre-shrink each picture to about its on-screen size by repeated halving (like mipmaps)
+  // and draw that copy instead. Widths are bucketed so small layout changes reuse the same copy.
+  fitted(key, displayWidth) {
+    const source = this.textures.get(key).getSourceImage();
+    const want = displayWidth * this.view.zoom * 1.2;
+    if (want >= source.width * 0.75) return key;
+    const width = Math.max(16, Math.ceil(want / 16) * 16);
+    const fittedKey = `${key}@${width}`;
+    if (this.textures.exists(fittedKey)) return fittedKey;
+    const height = Math.max(1, Math.round(source.height * width / source.width));
+    let image = source;
+    let w = source.width;
+    let h = source.height;
+    while (w / 2 >= width) {
+      const half = document.createElement('canvas');
+      half.width = Math.ceil(w / 2);
+      half.height = Math.ceil(h / 2);
+      const ctx = half.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(image, 0, 0, w, h, 0, 0, half.width, half.height);
+      image = half;
+      w = half.width;
+      h = half.height;
+    }
+    const texture = this.textures.createCanvas(fittedKey, width, height);
+    texture.context.imageSmoothingEnabled = true;
+    texture.context.imageSmoothingQuality = 'high';
+    texture.context.drawImage(image, 0, 0, w, h, 0, 0, width, height);
+    texture.refresh();
+    return fittedKey;
   }
 
   // DEV QA only: species whose artwork has not been generated yet are drawn as emoji.
@@ -89,21 +122,21 @@ export class CoveScene extends Phaser.Scene {
     texture.refresh();
   }
 
-  // Canvas renderer cannot tint sprites: keep the cutout's alpha mask and paint it black.
-  makeSilhouette(s) {
-    const key = `shadow-${s.id}`;
-    if (this.textures.exists(key)) return;
-    const tex = this.textureOf(s);
-    const source = this.textures.get(tex.key).getSourceImage();
-    const [x, y, w, h] = [0, 0, source.width, source.height];
+  // Canvas renderer cannot tint sprites: keep the cutout's alpha mask and paint it black (one per fitted copy).
+  silhouette(textureKey) {
+    const key = `${textureKey}#shadow`;
+    if (this.textures.exists(key)) return key;
+    const source = this.textures.get(textureKey).getSourceImage();
+    const [w, h] = [source.width, source.height];
     const texture = this.textures.createCanvas(key, w, h);
     const ctx = texture.context;
-    ctx.drawImage(source, x, y, w, h, 0, 0, w, h);
+    ctx.drawImage(source, 0, 0, w, h, 0, 0, w, h);
     ctx.globalCompositeOperation = 'source-in';
     ctx.fillStyle = '#04141c';
     ctx.fillRect(0, 0, w, h);
     ctx.globalCompositeOperation = 'source-over';
     texture.refresh();
+    return key;
   }
 
   // Sky above the painted background: blend into the colour of the image's top edge.
@@ -155,10 +188,12 @@ export class CoveScene extends Phaser.Scene {
     g.generateTexture('glint', 32, 32); g.destroy();
   }
 
-  // Copy of the boat image with the part under its waterline tinted like the sea.
-  wetBoat(art) {
-    const source = this.textures.get('boat').getSourceImage();
-    const wet = this.textures.createCanvas('boat-wet', source.width, source.height);
+  // Copy of the (fitted) boat image with the part under its waterline tinted like the sea.
+  wetBoat(art, key) {
+    const name = `${key}#wet`;
+    if (this.textures.exists(name)) return name;
+    const source = this.textures.get(key).getSourceImage();
+    const wet = this.textures.createCanvas(name, source.width, source.height);
     const ctx = wet.context;
     ctx.drawImage(source, 0, 0);
     ctx.globalCompositeOperation = 'source-atop';
@@ -167,7 +202,7 @@ export class CoveScene extends Phaser.Scene {
     gradient.addColorStop(0, 'rgba(24,150,175,0.5)'); gradient.addColorStop(1, 'rgba(10,90,120,0.82)');
     ctx.fillStyle = gradient; ctx.fillRect(0, line, source.width, source.height - line);
     wet.refresh();
-    return 'boat-wet';
+    return name;
   }
 
   // Boat artwork (when generated) or a drawn wooden boat with a fisherman and a rod holder.
@@ -178,11 +213,11 @@ export class CoveScene extends Phaser.Scene {
     if (art?.holder && art.waterline && this.textures.exists('boat')) {
       // Fixed on-screen width; the hull's waterline sits on the sea surface and the holder tube sets the rod butt.
       const scale = BOAT_WIDTH / art.w;
-      const wet = this.wetBoat(art);
       const top = WATERLINE + 3 - art.waterline * scale;
-      const image = this.add.image(BOAT_HOLDER_X - art.holder[0] * scale, top, wet).setOrigin(0, 0).setScale(scale * art.w / this.textures.get(wet).getSourceImage().width);
+      // The picture itself is fitted to the zoom in layoutBoat().
+      this.boatImage = this.add.image(BOAT_HOLDER_X - art.holder[0] * scale, top, 'boat').setOrigin(0, 0).setDisplaySize(BOAT_WIDTH, art.h * scale);
       this.rodButt = { x: BOAT_HOLDER_X, y: top + art.holder[1] * scale };
-      container.add(image);
+      container.add(this.boatImage);
       this.hull = null;
       return container;
     }
@@ -227,15 +262,28 @@ export class CoveScene extends Phaser.Scene {
     const width = size.width / zoom;
     const height = size.height / zoom;
     this.cameras.main.setSize(size.width, size.height).setZoom(zoom).centerOn(240, height / 2);
+    // dockTop is in CSS px; the canvas has dpr backing pixels per CSS px.
+    const dpr = this.controller.dpr ?? 1;
     const dock = this.controller.dockTop?.();
-    this.view = computeLayout({ width, height, dockTop: Number.isFinite(dock) && dock > 0 ? dock / zoom : height });
+    this.view = computeLayout({ width, height, dockTop: Number.isFinite(dock) && dock > 0 ? dock * dpr / zoom : height });
     this.view.zoom = zoom;
+    this.view.dpr = dpr;
     this.controller.round.setBounds(this.view);
     this.layoutBackground();
     this.bonusGlow.setPosition(240, height / 2).setSize(width + 4, height);
     this.layoutRays();
+    this.layoutBoat();
     // Creatures already swimming take the new lane heights and sizes.
     for (const fish of this.fishes.getChildren()) if (!fish.getData('caught')) this.resize(fish);
+  }
+
+  // The boat picture is re-fitted to the zoom (sharp on every screen, no shimmer while it bobs).
+  layoutBoat() {
+    const art = manifest.sprites?.boat;
+    if (!this.boatImage || !art) return;
+    const key = this.wetBoat(art, this.fitted('boat', BOAT_WIDTH));
+    if (this.boatImage.texture.key !== key) this.boatImage.setTexture(key);
+    this.boatImage.setDisplaySize(BOAT_WIDTH, BOAT_WIDTH * art.h / art.w);
   }
 
   layoutBackground() {
@@ -308,7 +356,19 @@ export class CoveScene extends Phaser.Scene {
     const d = fish.data.values;
     const size = this.sizeOf(d.species, d.lane);
     fish.setData({ w: size.width, h: size.height });
+    this.dress(fish, size);
+  }
+
+  // Picture (fitted to the on-screen size), hit box and silhouette of a creature.
+  dress(fish, size) {
+    const d = fish.data.values;
+    const key = this.fitted(this.textureOf(d.species).key, size.width);
+    if (fish.texture.key !== key) {
+      fish.setTexture(key);
+      d.shadow?.setTexture(this.silhouette(key));
+    }
     fish.setDisplaySize(size.width, size.height);
+    fish.body.setSize(fish.width * 0.7, fish.height * 0.62, true);
   }
 
   // ---------- creatures ----------
@@ -339,17 +399,20 @@ export class CoveScene extends Phaser.Scene {
   }
 
   addCreature(species, lane, x, dir, speed, member, size) {
-    const tex = this.textureOf(species);
-    const fish = this.fishes.create(x, this.laneY(lane, size.height), tex.key, tex.frame);
-    fish.setDisplaySize(size.width, size.height);
+    const key = this.fitted(this.textureOf(species).key, size.width);
+    const fish = this.fishes.create(x, this.laneY(lane, size.height), key);
     fish.body.setAllowGravity(false);
     fish.body.moves = false;
-    fish.body.setSize(tex.w * 0.7, tex.h * 0.62, true);
     const floating = this.bonusActive && lane !== SEABED && species.lane !== lane;
-    fish.setData({ species, lane, dir, speed, dy: member.dy, phase: member.phase, w: size.width, h: size.height,
-      caught: false, frozen: false, floating, reveal: isMystery(species) ? 0 : 1, born: this.time0, uid: this.serial = (this.serial ?? 0) + 1 });
-    fish.setFlipX(!species.noFlip && dir < 0).setDepth(5 + lane * 0.1);
-    if (isMystery(species)) fish.setData('shadow', this.add.image(x, fish.y, `shadow-${species.id}`));
+    fish.setData({ species, lane, dir, speed: speed * (member.speedMul ?? 1), dy: member.dy, phase: member.phase,
+      wander: member.wander ?? 0, wanderRate: member.wanderRate ?? 0.2, wanderPhase: member.wanderPhase ?? 0, tilt: 0,
+      w: size.width, h: size.height, caught: false, frozen: false, floating, reveal: isMystery(species) ? 0 : 1,
+      born: this.time0, uid: this.serial = (this.serial ?? 0) + 1 });
+    // Nearer (lower) creatures in a lane are drawn in front of farther ones.
+    fish.setFlipX(!species.noFlip && dir < 0).setDepth(5 + lane * 0.1 + member.dy * 0.05);
+    if (isMystery(species)) fish.setData('shadow', this.add.image(x, fish.y, this.silhouette(key)));
+    this.dress(fish, size);
+    this.swim(fish, fish.data.values, 0, this.time0);
     if (isTreasure(species) || species.jackpot) fish.setData('glint', this.add.image(x, fish.y, 'glint').setBlendMode(Phaser.BlendModes.ADD));
     this.syncExtras(fish);
     return fish;
@@ -375,15 +438,17 @@ export class CoveScene extends Phaser.Scene {
     }
   }
 
+  // Room at each lane entrance, per side (creatures from the left swim right, dir 1).
   laneStates() {
-    const states = Array.from({ length: LANE_COUNT }, () => ({ count: 0, tailGap: Infinity, tailSpeed: 0, span: this.view.width + 80 }));
+    const states = Array.from({ length: LANE_COUNT }, () => emptyLane(this.view.width + 80));
     for (const fish of this.fishes.getChildren()) {
       const d = fish.data.values;
       if (d.caught) continue;
       const state = states[d.lane];
       state.count++;
+      const side = state.sides[d.dir];
       const gap = d.dir > 0 ? fish.x - d.w / 2 - this.view.left : this.view.right - (fish.x + d.w / 2);
-      if (gap < state.tailGap) { state.tailGap = gap; state.tailSpeed = d.speed; }
+      if (gap < side.tailGap) { side.tailGap = gap; side.tailSpeed = d.speed; }
     }
     return states;
   }
@@ -407,21 +472,33 @@ export class CoveScene extends Phaser.Scene {
     let speed = d.speed;
     if (motion === 'crawl') speed *= 0.55 + 0.45 * Math.abs(Math.sin(t * 5 + d.phase));
     if (motion === 'pulse') speed *= 0.55 + 0.45 * Math.max(0, Math.sin(t * 2.2 + d.phase));
-    fish.x += d.dir * speed * dt;
-    const base = this.laneY(d.lane, d.h) + (d.lane === SEABED ? 0 : d.dy * this.view.spacing);
+    const dx = d.dir * speed * dt;
+    fish.x += dx;
+    const seabed = d.lane === SEABED;
+    // Every creature wanders slowly up and down inside its depth band, so rows never look ruled.
+    const wander = seabed ? 0 : Math.sin(t * d.wanderRate + d.wanderPhase) * d.wander * this.view.spacing;
+    const base = this.laneY(d.lane, d.h) + d.dy * this.view.spacing + wander;
     const wave = (rate, size) => Math.sin(t * rate + d.phase) * size;
-    let bob = wave(1.6, 2.5), angle = wave(5.5, 2), stretch = 1;
-    if (motion === 'school') { bob = wave(2.4, 3); angle = wave(7, 3); }
-    if (motion === 'pulse') { bob = wave(2.2, 7); angle = 0; stretch = 1 + Math.sin(t * 4.4 + d.phase) * 0.06; }
-    if (motion === 'bob') { bob = wave(1.7, 6); angle = wave(1.7, 4); }
-    if (motion === 'glide') { bob = wave(0.9, 6); angle = Math.sin(t * 0.9 + d.phase + 1) * 5; stretch = 1 + Math.sin(t * 2.6 + d.phase) * 0.08; }
-    if (motion === 'eel') { bob = wave(1.6, 3); angle = wave(3.2, 4); }
-    if (motion === 'crawl') { bob = -Math.abs(Math.sin(t * 5 + d.phase)) * 1.5; angle = 0; }
-    if (motion === 'drift') { bob = wave(1.1, 1.2); angle = wave(0.8, 2); }
-    if (motion === 'float') { bob = wave(1.5, 5); angle = wave(1.2, 12); }
-    fish.y = base + bob;
+    let bob = wave(1.3, 2), stretch = 1, rock = null;
+    if (motion === 'school') bob = wave(1.8, 2.5);
+    if (motion === 'pulse') { bob = wave(2.2, 7); rock = 0; stretch = 1 + Math.sin(t * 4.4 + d.phase) * 0.05; }
+    if (motion === 'bob') { bob = wave(1.4, 5); rock = wave(1.4, 3); }
+    if (motion === 'glide') { bob = wave(0.9, 5); stretch = 1 + Math.sin(t * 2.2 + d.phase) * 0.06; }
+    if (motion === 'eel') bob = wave(1.2, 3);
+    if (motion === 'crawl') { bob = -Math.abs(Math.sin(t * 5 + d.phase)) * 1.2; rock = 0; }
+    if (motion === 'drift') { bob = wave(1.1, 1); rock = wave(0.8, 1.5); }
+    if (motion === 'float') { bob = wave(1.5, 5); rock = wave(1.2, 10); }
+    const y = base + bob;
     if (motion === 'spin') fish.angle += d.dir * dt * 14;
-    else fish.angle = angle * (fish.flipX ? -1 : 1);
+    else if (dt > 0) {
+      // No wiggling: swimmers only pitch their nose along their path, smoothed so they never shake.
+      const mirror = fish.flipX ? -1 : 1;
+      const target = rock !== null ? rock * mirror
+        : Math.max(-7, Math.min(7, Math.atan2(y - fish.y, Math.max(Math.abs(dx), 1e-3)) * 45)) * mirror;
+      d.tilt += (target - d.tilt) * Math.min(1, dt * 2.5);
+      fish.angle = d.tilt;
+    }
+    fish.y = y;
     if (stretch !== 1) fish.setDisplaySize(d.w, d.h * stretch);
   }
 
@@ -431,7 +508,7 @@ export class CoveScene extends Phaser.Scene {
     if (!round.catch(species.id)) return;
     fish.setData({ caught: true, caughtY: round.hook.y });
     fish.body.enable = false;
-    fish.setDepth(14);
+    fish.setDepth(16.4);
     this.caught = fish;
     this.bubbleBurst(round.hook.x, round.hook.y, 6);
     this.controller.onHook(species);
@@ -467,7 +544,9 @@ export class CoveScene extends Phaser.Scene {
       fish.setData('reveal', 1);
       this.syncExtras(fish);
       fish.getData('shadow')?.setAlpha(0);
-      this.tweens.add({ targets: fish, x: 162, y: 96, angle: 0, scale: fish.scale * 0.6, duration: 650, ease: 'Back.easeIn',
+      // Lifted out of the water it drops behind the gunwale, into the boat.
+      fish.setDepth(15.9);
+      this.tweens.add({ targets: fish, x: 150, y: 112, angle: 0, scale: fish.scale * 0.6, duration: 650, ease: 'Back.easeIn',
         onUpdate: () => this.syncExtras(fish), onComplete: () => this.removeCreature(fish) });
     }
     const text = landing.multiplier > 1 ? `+${landing.points}  x2` : `+${landing.points}`;
@@ -649,6 +728,7 @@ export class CoveScene extends Phaser.Scene {
     const species = SPECIES_BY_ID[id];
     if (!this.controller.species.includes(species)) throw new Error(`No artwork for ${id}`);
     round.elapsed = 0;
+    round.swingTime = 0;
     round.angle = 0;
     this.testAim = true;
     this.qaHold = true;
@@ -661,10 +741,12 @@ export class CoveScene extends Phaser.Scene {
 }
 
 export function createGame(controller) {
+  // The canvas is sized by the controller (CSS size x device pixel ratio, see FishingApp.fitCanvas).
+  const { width, height } = controller.seaSize();
   return new Phaser.Game({
-    type: Phaser.CANVAS, parent: 'sea', width: WORLD.width, height: WORLD.height, transparent: true,
+    type: Phaser.CANVAS, parent: 'sea', width, height, transparent: true,
     render: { antialias: true, roundPixels: false },
-    scale: { mode: Phaser.Scale.RESIZE },
+    scale: { mode: Phaser.Scale.NONE, width, height, zoom: 1 / controller.dpr },
     physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, debug: false, fps: 60 } },
     audio: { noAudio: true }, scene: [new CoveScene(controller)],
   });

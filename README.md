@@ -28,6 +28,12 @@ npm run build
 npm run preview -- --port 5194
 ```
 
+## Version 0.4.0
+
+Sharp rendering at device resolution with pre-shrunk sprites, calm path-following motion, random sides/depths/strays
+and no same-species repeats, treasure floating in the middle water, a hook that keeps swinging from its cast angle,
+and 12 more species (46 in the book).
+
 ## Version 0.3.0 (0.2.0 plus the semi-realistic artwork and home-screen icon)
 
 Everything under Version 0.2.0 below, now with the redrawn artwork, the install icon and manifest, and the sea-fitting fixes.
@@ -43,7 +49,7 @@ Everything under Version 0.2.0 below, now with the redrawn artwork, the install 
   cast/reel controls, and scales creatures with the lane spacing, so tall phones no longer leave the lower half empty.
   The background is scaled uniformly (no more stretching), aligned to the waterline and seabed, and repeated mirrored
   on very wide screens; the painting that needs the fewest repeats is chosen per screen shape.
-- **34 collection entries** (`src/species.js`): 12 original IDs kept for saved progress, plus sardine, butterflyfish,
+- **46 collection entries** (`src/species.js`; 34 at first, 12 added later): 12 original IDs kept for saved progress, plus sardine, butterflyfish,
   parrotfish, seahorse, jellyfish, lionfish, tuna, eagle ray, moray, swordfish, grouper, hammerhead, crab, sea star,
   golden lobster king (jackpot) and treasures. The book is grouped by zone.
 - **Special items:** message bottle = next catch x2, pocket watch = +10 s (arcade only), old boot = 1-point joke,
@@ -55,7 +61,7 @@ Everything under Version 0.2.0 below, now with the redrawn artwork, the install 
   iOS unlock on pointerup/touchend/click/keydown and a rebuilt AudioContext after the page was hidden.
 - **Boat, rod and hook:** wooden boat with wheelhouse and fisherman; the rod is drawn in code, bends with line
   tension and its reel handle turns with every tap; steel J-hook with barb and a lead sinker.
-- **Semi-realistic artwork (2026-10-05):** all 34 creatures/treasures, the boat with its fisherman and two seas were
+- **Semi-realistic artwork (2026-10-05):** all 46 creatures/treasures (34 first, 12 more from prompt H), the boat with its fisherman and two seas were
   generated in ChatGPT from [docs/ART-PROMPTS.md](docs/ART-PROMPTS.md) and cut by `python tools/sprites.py` into
   `public/assets/sprites/*.webp` (about 1.2 MB in total). The earlier cartoon atlases were removed
   (see [docs/ARTWORK.md](docs/ARTWORK.md)). Production shows every creature; DEV `?qa=1` would draw an emoji for any

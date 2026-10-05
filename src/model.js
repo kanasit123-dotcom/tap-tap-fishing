@@ -17,6 +17,8 @@ export class FishingRound {
     this.elapsed = 0;
     this.angle = 0;
     this.swing = 0.67;
+    // The swing only advances while aiming, so after a cast it resumes from the same angle (like the cabinet).
+    this.swingTime = 0;
     this.length = WORLD.rest;
     this.targetLength = WORLD.rest;
     this.remaining = ROUND_SECONDS;
@@ -91,7 +93,10 @@ export class FishingRound {
       if (this.remaining === 0 && this.phase === 'casting') this.phase = 'returning';
     }
     if (this.phase === 'aim' && this.bonus === 0 && this.goalReached) { this.phase = 'complete'; return; }
-    if (this.phase === 'aim') this.angle = Math.sin(this.elapsed * 1.12) * this.swing;
+    if (this.phase === 'aim') {
+      this.swingTime += dt;
+      this.angle = Math.sin(this.swingTime * 1.12) * this.swing;
+    }
     if (this.phase === 'casting') {
       this.length += 245 * dt;
       const h = this.hook;

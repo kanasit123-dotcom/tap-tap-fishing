@@ -51,6 +51,38 @@ special items **with effects + bonus stage**; **sea ambience + soft music** with
 - Art pipeline: prompts in `docs/ART-PROMPTS.md` (7 images), `python tools/sprites.py` cuts `art/incoming/` into
   `public/assets/sprites/*.webp` + backgrounds and rewrites `src/art-manifest.js`. Verified with synthetic sheets
   (transparent and flat-colour keyed, de-spill) and a synthetic boat/backgrounds run in the real game, then reverted.
+- **Extra species (prompt H, 2026-10-05):** 12 sprites cut from `sheet-e-extra.png` and added to the catalog: lane 0 mackerel (school),
+  yellow tang, damselfish; lane 1 Moorish idol; lane 2 cuttlefish (glide), batfish; lane 3 barracuda, dolphin (fast, cooldown 30 s);
+  lane 5 manta (glide), whale shark (90 pts, cooldown 40 s); seabed hermit crab, horseshoe crab. Book: 46 entries. With more species per
+  lane `STRAY_SHARE` went down to 0.15 so lanes keep >60% of their own animals. Deployed together with the balance and sharpness rounds.
+- **Balance round (2026-10-05, user feedback after playing: top row too dense, same fish five in a row, treasure should float in
+  the middle like the cabinet, hook angle should continue after a catch):**
+  - Items moved off the seabed into the middle water with a floating motion: bottle/coins lane 2, pearl/map/watch lane 3,
+    chest/crown lane 4 (still visible among the deep silhouettes). Seabed: crab, starfish, the lobster-king jackpot, old boot
+    (weight 4, cooldown 35 s).
+  - Smaller groups (most 1-2, sardines 3-4, tuna 2-3); the species that just arrived in a lane is excluded from the next pick,
+    the one before weighted 0.4; strays from neighbouring lanes 0.2. Gaps per side `[8.5, 8.5, 7.6, 8.4, 10, 11.6, 10]` give about
+    4/4.5/5/4/3/2.5/5 creatures on screen per lane (~27 total). Jackpots: crown 0.8, lobster 0.35, shared cooldown 60 s.
+  - `FishingRound.swingTime` only advances while aiming, so the hook resumes swinging from its cast angle in the same direction.
+  - Line, hook and a hooked catch are drawn in front of the boat (they used to disappear behind the hull at the left end of the
+    swing); the landed catch drops behind the gunwale into the boat.
+  - Prompt H (`sheet-e-extra.png`, 12 more species) added to docs/ART-PROMPTS.md and to `SHEETS` in tools/sprites.py; their catalog
+    entries are to be added when the user delivers the sheet.
+- **Sharpness and randomness (2026-10-05, after the user's iPhone screenshot: fish "แตก มัว สั่น", patterns too regular):**
+  - Cause 1: Phaser RESIZE mode rendered the canvas at CSS size, so a DPR-3 iPhone blew it up 3x. Now scale mode NONE with
+    `zoom: 1/dpr`; `FishingApp.fitCanvas()` sizes the backing store to CSS x dpr (capped at 2 for speed) on every measure
+    (this also replaces the earlier iPad-rotation refresh). `view.zoom` is canvas px per world unit, `view.dpr` is exposed in QA.
+  - Cause 2: 300-470 px sprites were drawn at ~50-70 canvas px with cheap bilinear sampling (jagged, shimmering).
+    `scene.fitted(key, displayWidth)` makes mipmap-like copies (repeated halving, imageSmoothingQuality high) bucketed by 16 px;
+    creatures (`dress()`), silhouettes (`silhouette(key)`) and the boat (`layoutBoat()`) use them and are refitted on relayout.
+  - Cause 3: a constant tail-wag rotation looked like shaking. Swimmers now only pitch along their actual path (smoothed);
+    jellyfish/seahorse/items keep gentle explicit rocking.
+  - Randomness: each group picks its own side (committed until that entrance is clear, so sides are independent), its own depth
+    inside the band (±0.3 lane spacing) and a slow shared wander; schools are tight, other groups loose with uneven spacing and
+    ±3% member speeds; neighbouring lanes' animals stray in (`STRAY_SHARE` 0.15, same zone only); the species that just arrived
+    in a lane is less likely next (`REPEAT_SHARE` 0.3); seabed things sit 0-0.14 spacing into the sand, nearer drawn in front.
+    Gaps doubled (`LANE_GAPS`) because both sides feed each lane (~34 creatures on screen, like before); crown/lobster-king
+    weights lowered (about one jackpot per 10 minutes).
 - **Deployed as v0.3.0 (2026-10-05, at the user's request):** commit b346794, Actions run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37249214080 (success); live smoke passed
   (34 book entries with decoded images, manifest and icons 200, old `cove.png` 404, no errors); live screenshot inspected.
 - **Artwork delivered and integrated (2026-10-05):** the user's 7 ChatGPT images (`art/incoming/`, git-ignored) were cut

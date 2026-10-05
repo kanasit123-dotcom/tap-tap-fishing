@@ -2,7 +2,48 @@
 
 Date: 2026-10-04
 
-## Latest: Semi-Realistic Artwork And Home-Screen Icon (v0.3.0, deployed 2026-10-05)
+## Latest: v0.4.0 — Extra Species, Balance, Sharp Rendering (2026-10-05)
+
+- Ships the sharp-rendering, balance and continuous-swing rounds below plus 12 extra species from prompt H (46 entries).
+- Sheet H checked before cutting (order, facing right, true alpha); all 12 pieces cut clean, thin parts intact.
+- `npm test`: 56 passed (stray share lowered to 0.15 so lanes keep > 60% own animals with the larger catalog).
+- Full Playwright run (`test-results/extra-full/`): 50 passed, 2 skipped, 2 failed on time limits only — the desktop
+  all-creature test now hooks 46 species (needed > 4 min) and the slow software WebKit "creatures enter" case hit 60 s.
+  Limits raised to 8 min / 3 min; both reran and passed (`test-results/extra-rerun1/`, `extra-rerun2/`).
+- Screenshot inspected: iPad sea with mackerel and damselfish, Moorish idols, batfish, floating bottle and pearl, manta and
+  horseshoe-crab silhouettes.
+
+## Previous: Balance, Middle-Water Treasure And Continuous Swing (2026-10-05, not yet deployed)
+
+- Includes the sharp-rendering round below (also not deployed yet).
+- User feedback: top row too dense and the same fish five in a row; treasure belongs in the middle rows; the hook should keep
+  swinging from its previous angle after a catch.
+- Measured with a 50-minute spawner simulation before/after: top-row creatures on screen 6.3 -> about 3.9 (total ~27);
+  consecutive same-species groups in a lane 0% while another candidate exists; boots ~0.5/min; jackpots roughly every 6-10 min.
+- New/updated tests: items only in lanes 2-4; same-species repeats < 3%; schools of different sizes; model test that the swing
+  resumes at the cast angle (within 0.03 rad) and keeps its direction after a catch and after a miss.
+- `npm test`: 56 passed. Full Playwright run (`test-results/balance-full/`): 52 passed, 2 desktop touch skips, 0 failed.
+- Screenshots inspected: rebalanced iPad sea (chest floating at depth among silhouettes); hook at the far-left end of its swing,
+  now drawn in front of the hull instead of disappearing behind it.
+
+## Previous: Sharp Rendering, Calm Motion And More Random Arrivals (2026-10-05, not yet deployed)
+
+- Trigger: the user's iPhone screenshot of v0.3.0 — fish looked jagged, blurry and shaky; arrival patterns too regular.
+- Causes found: canvas rendered at CSS resolution on a DPR-3 phone; large sprites shrunk 5-6x per frame with cheap sampling;
+  a constant tail-wag rotation; lanes fed from one side at one height with same-species runs.
+- Fixes: canvas backing = CSS x min(2, dpr) (Phaser scale NONE + zoom 1/dpr, sized in `fitCanvas()`); mipmap-like fitted
+  sprite/silhouette/boat textures; path-following pitch instead of wiggle; per-group side, depth, wander, loose spacing,
+  strays and anti-repeat; seabed things at varied depth on the sand. Densities kept (~34 on screen); jackpots rarer.
+- `npm run check`: 55 unit tests passed (new spawner tests: both sides with independent direction switches, depth spread
+  > 0.12 lane spacing, strays only within the zone and < 40%, same-species repeats < 25%, same-side groups never overlap,
+  jackpot rate below 0.25/min). Builds succeed.
+- Full Playwright run (`test-results/sharp-full/`): 52 passed, 2 desktop touch skips, 0 failed. The full-bleed test now also
+  asserts canvas backing pixels = CSS size x min(2, devicePixelRatio).
+- Emulated iPhone 13 (DPR 3): canvas 780x1294 for 390x647 CSS (2x); screenshot inspected at native resolution — smooth
+  edges, mixed species at different heights and directions. Local Pages preview smoke passed (34 entries, no errors).
+- Not verified on a real iPhone/iPad yet: perceived sharpness at DPR 2 vs 3 and frame rate with the larger canvas.
+
+## Previous: Semi-Realistic Artwork And Home-Screen Icon (v0.3.0, deployed 2026-10-05)
 
 - Published as commit b346794; Pages Actions run 37249214080 succeeded (unit tests + build on the runner). Live checks on
   https://kanasit123-dotcom.github.io/tap-tap-fishing/: `npm run test:pages` passed (34 entries with decoded images, no emoji,
