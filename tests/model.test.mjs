@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FishingRound, WORLD, GOAL, BONUS_SECONDS, MAP_PIECES, TIME_BONUS } from '../src/model.js';
+import { FishingRound, WORLD, GOAL, BONUS_SECONDS, MAP_PIECES, TIME_BONUS, COMBO_FOR_FEVER, FEVER_SECONDS, TURBO_CATCHES, POWER_SECONDS, PIRATE_SHOTS, PIRATE_HIT, PIRATE_DEFEAT } from '../src/model.js';
 import { SPECIES } from '../src/species.js';
 
 function tick(round, seconds) { for (let i = 0; i < Math.ceil(seconds * 60); i++) round.tick(1 / 60); }
@@ -96,8 +96,10 @@ test('time running out during an empty cast returns the hook and ends', () => {
 });
 test('eight landed catches complete a relaxed trip without a timer', () => {
   const r = new FishingRound();
-  for (let i = 0; i < GOAL; i++) { catchFish(r); land(r); tick(r, 2); }
-  assert.equal(r.phase, 'complete'); assert.equal(r.score, 40); assert.equal(r.catches.length, 8);
+  let points = 0;
+  for (let i = 0; i < GOAL; i++) { catchFish(r); land(r); points += r.landing.points; tick(r, 2); }
+  // Eight in a row also earns a fever, so some catches count double.
+  assert.equal(r.phase, 'complete'); assert.equal(r.score, points); assert.ok(points > 40); assert.equal(r.catches.length, 8);
   assert.equal(r.cast(), false);
 });
 test('a message bottle doubles only the next catch, never itself', () => {
@@ -113,7 +115,7 @@ test('a pocket watch adds time in arcade mode and does nothing to relaxed play',
   const relaxed = new FishingRound(); catchAndLand(relaxed, 'watch'); assert.equal(relaxed.remaining, 90);
 });
 test('four map pieces start the treasure rain, which halves taps and pauses the arcade clock', () => {
-  const r = new FishingRound('arcade', () => {}, { maps: 2 });
+  const r = new FishingRound('arcade', () => {}, { maps: 2, bonusTurn: 1 });
   assert.equal(r.maps, 2);
   catchAndLand(r, 'map'); assert.equal(r.maps, 3); assert.equal(r.bonus, 0);
   catchFish(r, 'map'); land(r);
@@ -126,7 +128,7 @@ test('four map pieces start the treasure rain, which halves taps and pauses the 
   assert.equal(new FishingRound('relaxed', () => {}, { maps: MAP_PIECES + 1 }).maps, 1);
 });
 test('treasure-rain catches do not end the trip; a goal reached during the rain waits for it to finish', () => {
-  const r = new FishingRound('relaxed', () => {}, { maps: 3 });
+  const r = new FishingRound('relaxed', () => {}, { maps: 3, bonusTurn: 1 });
   for (let i = 0; i < GOAL - 1; i++) catchAndLand(r, 'goldfish');
   catchAndLand(r, 'map');
   assert.equal(r.tripCatches, GOAL); assert.ok(r.bonus > 0); assert.equal(r.phase, 'aim');
@@ -137,4 +139,86 @@ test('invalid time deltas and tap timestamps do not corrupt state', () => {
   const r = new FishingRound(); catchFish(r);
   for (const n of [NaN, Infinity, -1, 0]) r.tick(n);
   assert.ok(Number.isFinite(r.length)); assert.equal(r.reel(NaN), false); assert.equal(r.reel(Infinity), false);
+});
+
+test('three catches in a row start a fever that doubles points for a while', () => {
+  const r = new FishingRound();
+  catchAndLand(r, 'goldfish'); catchAndLand(r, 'goldfish');
+  assert.equal(r.combo, 2); assert.equal(r.fever, 0);
+  catchFish(r, 'goldfish'); land(r);
+  assert.equal(r.landing.feverStarted, true); assert.equal(r.landing.multiplier, 1, 'the catch that starts it is not doubled');
+  assert.ok(r.fever > FEVER_SECONDS - 1.5); assert.equal(r.combo, 0);
+  tick(r, 2);
+  catchAndLand(r, 'turtle'); assert.equal(r.landing.multiplier, 2); assert.equal(r.landing.points, 44);
+  assert.equal(r.score, 5 * COMBO_FOR_FEVER + 44);
+  tick(r, FEVER_SECONDS); assert.equal(r.fever, 0);
+  catchAndLand(r, 'turtle'); assert.equal(r.landing.multiplier, 1);
+});
+test('a miss or an old boot breaks the combo; the bottle stacks with fever', () => {
+  const r = new FishingRound();
+  catchAndLand(r, 'goldfish'); catchAndLand(r, 'goldfish');
+  r.cast(); tick(r, 8); assert.equal(r.phase, 'aim'); assert.equal(r.combo, 0, 'an empty cast resets');
+  catchAndLand(r, 'goldfish'); catchAndLand(r, 'boot'); assert.equal(r.combo, 0, 'the boot resets');
+  const f = new FishingRound();
+  catchAndLand(f, 'goldfish'); catchAndLand(f, 'goldfish'); catchAndLand(f, 'bottle');
+  assert.ok(f.fever > 0 && f.doubleNext);
+  catchAndLand(f, 'turtle'); assert.equal(f.landing.multiplier, 4);
+});
+
+test('a net scoops up to two neighbours with the hooked creature, once', () => {
+  const r = new FishingRound();
+  catchAndLand(r, 'net'); assert.equal(r.netCharges, 1); assert.deepEqual(r.landing.powers, ['net']);
+  const n = new FishingRound(); catchAndLand(n, 'net');
+  assert.equal(n.cast(), true); n.length = 130;
+  assert.equal(n.catch('goldfish', ['clownfish', 'turtle', 'shark']), true);
+  assert.deepEqual(n.extraIds, ['clownfish', 'turtle']); assert.equal(n.netCharges, 0);
+  assert.equal(n.requiredTaps, 12, 'the toughest creature in the net sets the taps');
+  land(n);
+  assert.equal(n.landing.points, 5 + 8 + 22); assert.deepEqual(n.catches.slice(-3), ['goldfish', 'clownfish', 'turtle']);
+  assert.equal(n.tripCatches, 4);
+  tick(n, 2); n.cast(); n.length = 130; n.catch('goldfish', ['clownfish']);
+  assert.deepEqual(n.extraIds, [], 'no net left');
+});
+test('the turbo reel speeds up the next three catches and halves their taps', () => {
+  const r = new FishingRound();
+  catchAndLand(r, 'turbo-reel'); assert.equal(r.turbo, TURBO_CATCHES);
+  r.cast(); const before = r.length; r.tick(0.1); assert.ok(r.length - before > 245 * 0.1 * 1.5, 'the line drops faster');
+  r.length = 130; r.catch('shark'); assert.equal(r.requiredTaps, 8);
+  land(r); tick(r, 2);
+  catchAndLand(r, 'shark'); catchAndLand(r, 'shark');
+  assert.equal(r.turbo, 0);
+  catchFish(r, 'shark'); assert.equal(r.requiredTaps, 16);
+});
+test('golden hook and spyglass run for twenty seconds, paused with the game', () => {
+  const r = new FishingRound();
+  catchAndLand(r, 'gold-hook'); catchAndLand(r, 'spyglass');
+  assert.ok(r.goldHook > POWER_SECONDS - 7 && r.spyglass > POWER_SECONDS - 4);
+  r.pause(); const g = r.goldHook; tick(r, 5); assert.equal(r.goldHook, g); r.pause(false);
+  tick(r, POWER_SECONDS); assert.equal(r.goldHook, 0); assert.equal(r.spyglass, 0);
+});
+test('completed maps alternate: the pirate battle, then the treasure rain', () => {
+  const r = new FishingRound('arcade', () => {}, { maps: 3 });
+  catchFish(r, 'map'); land(r);
+  assert.equal(r.landing.bonusKind, 'pirate'); assert.equal(r.bonus, 0); assert.equal(r.bonusTurn, 1);
+  tick(r, 2); assert.equal(r.phase, 'pirate'); assert.equal(r.pirate.shots, PIRATE_SHOTS);
+  const clock = r.remaining; const angle = r.angle; tick(r, 1);
+  assert.equal(r.remaining, clock, 'the arcade clock waits'); assert.notEqual(r.angle, angle, 'the cannon swings');
+  assert.equal(r.cast(), false, 'no casting during the battle');
+  r.maps = 3; r.pirate = null; r.phase = 'aim';
+  catchFish(r, 'map'); land(r); assert.equal(r.landing.bonusKind, 'rain'); assert.ok(r.bonus > 0);
+});
+test('cannon shots: one ball at a time, streak bonus, sinking bonus, battle ends after the last ball', () => {
+  const r = new FishingRound('relaxed', () => {}, { maps: 3 });
+  catchFish(r, 'map'); land(r); tick(r, 2);
+  const start = r.score;
+  assert.equal(r.fire(), true); assert.equal(r.fire(), false, 'wait for the ball to land');
+  assert.equal(r.resolveShot({ hit: true, kind: 'medium' }).points, PIRATE_HIT.medium);
+  r.fire(); assert.equal(r.resolveShot({ hit: true, kind: 'medium', sunk: true }).points, Math.round((PIRATE_HIT.medium + PIRATE_DEFEAT.medium) * 1.5));
+  r.fire(); assert.equal(r.resolveShot({ hit: true, kind: 'small', sunk: true }).points, (PIRATE_HIT.small + PIRATE_DEFEAT.small) * 2);
+  r.fire(); assert.equal(r.resolveShot({ hit: false }).points, 0); assert.equal(r.pirate.streak, 0);
+  assert.equal(r.score - start, r.pirate.loot);
+  let last;
+  while (r.pirate && r.fire()) last = r.resolveShot({ hit: false });
+  assert.equal(last.ended, true); assert.equal(r.pirate, null); assert.equal(r.phase, 'aim');
+  assert.equal(r.resolveShot({ hit: true }), null);
 });

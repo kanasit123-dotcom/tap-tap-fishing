@@ -47,7 +47,7 @@ test('every fishing event schedules sound', (t) => {
   const contexts = []; install(t, contexts);
   const audio = new FishingAudio(); audio.unlock(); t.after(() => audio.teardown());
   const ctx = contexts[0];
-  for (const event of ['cast', 'tap', 'hook', 'struggle', 'splash', 'land', 'treasure', 'jackpot', 'junk', 'map', 'double', 'time', 'bonus', 'miss', 'tick']) {
+  for (const event of ['cast', 'tap', 'hook', 'struggle', 'splash', 'land', 'treasure', 'jackpot', 'junk', 'map', 'double', 'time', 'bonus', 'miss', 'tick', 'combo', 'fever', 'coins', 'cannon', 'hit', 'pirate', 'powerup']) {
     const before = ctx.starts.length; audio.play(event, { progress: 0.5 });
     assert.ok(ctx.starts.length > before, event);
   }

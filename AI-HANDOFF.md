@@ -51,6 +51,30 @@ special items **with effects + bonus stage**; **sea ambience + soft music** with
 - Art pipeline: prompts in `docs/ART-PROMPTS.md` (7 images), `python tools/sprites.py` cuts `art/incoming/` into
   `public/assets/sprites/*.webp` + backgrounds and rewrites `src/art-manifest.js`. Verified with synthetic sheets
   (transparent and flat-colour keyed, de-spill) and a synthetic boat/backgrounds run in the real game, then reverted.
+- **Roadmap agreed 2026-10-05 (user: "ดีทุกข้อ ทำทีละอย่าง"):** (1) effects + combo/Fever — done, below; (2) power-up items
+  net / turbo reel / golden hook / spyglass and (3) the pirate-ship mini-game after 4 map pieces — both wait for prompt I
+  (`sheet-f-pirate.png`, already in docs/ART-PROMPTS.md and `SHEETS`); then boss fish, lucky wheel at trip end, unlockable boat/hook
+  skins from book zones, day/sunset/night. Power-up and pirate design notes are under prompt I in ART-PROMPTS.md.
+  When sheet I arrives, `tests/assets.test.mjs` must allow the non-catalog prop ids (pirate ships, cannon, coin...).
+- **Power-ups + pirate battle (2026-10-05, from prompt I `sheet-f-pirate.png`):**
+  - Catalog items (book zone "treasure"): `net` (lane 2) -> `netCharges`; the next catch also scoops up to 2 creatures within
+    80x60 world px of the hook (taps = the toughest one; all recorded, all count for the trip). `turbo-reel` (lane 2) -> next 3 catches
+    half taps and the line drops 1.6x faster. `gold-hook` (lane 3) -> 20 s, hook body 1.9x1.7 and the golden hook picture.
+    `spyglass` (lane 4) -> 20 s, deep silhouettes show their colours and names. HUD strip `#powers` under the score.
+  - Completed maps alternate (persisted `progress.bonusTurn`): even -> pirate battle, odd -> treasure rain. Battle = round phase
+    `pirate` after the celebration: cannon (prop sprite) on our bow, crosshair swings with `round.angle`, the cast button becomes
+    "ยิงปืนใหญ่", 10 balls, one in flight at a time; `src/pirate.js` (`PirateBattle`) sails small/medium/large ships (1/2/3 hits)
+    along the horizon in one direction, ball flies 0.75 s, hit = rock + loot drop + coins; a ship out of hits sails away fast.
+    Points (`PIRATE_HIT`, `PIRATE_DEFEAT`, streak x1.5/x2) via `round.fire()` / `round.resolveShot()`. Arcade clock pauses.
+    No skulls, nobody hurt, nothing sinks.
+  - Prop sprites (`PROPS` in species.js) are art only, not in the book. QA: `arrange(id, extras)`, `setBonusTurn`, `setPower`,
+    `freezeShips`, `aimAt(x)`.
+- **Effects + Fever (2026-10-05):** `FishingRound.combo/fever`; 3 catches in a row without an empty cast
+  (an old boot also breaks it) start 15 s FEVER (`COMBO_FOR_FEVER`, `FEVER_SECONDS`), doubling catches and stacking with the bottle
+  (x4). HUD fever banner, golden line + hook glow, faster music, combo/fever/coins sounds. DOM gold coins fly from the catch to the
+  score box (`FishingApp.flyCoins`) which bumps; camera shake + flash for jackpots / >= 80 points, light shake >= 40; sparkle trail on
+  rare or >= 45-point creatures (capped at 40 sparkles); ripple where the line meets the water on cast. Reduced-motion skips shake
+  and flying coins. QA snapshot exposes combo, fever and the last landing.
 - **v0.4.1 LIVE (2026-10-05):** commit 8c45030, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37274185113 —
   one direction per row + swim pace 1.12; live smoke passed.
 - **Swim pace (2026-10-05):** user found the fish "a tiny bit slow". `SWIM_PACE = 1.12` in `src/spawner.js` multiplies every group's

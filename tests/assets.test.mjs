@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { SPECIES, LANE_COUNT, SEABED, ZONES, isMystery, displaySize, revealForRise, speciesWithArt } from '../src/species.js';
+import { SPECIES, LANE_COUNT, SEABED, ZONES, PROPS, isMystery, displaySize, revealForRise, speciesWithArt } from '../src/species.js';
 import manifest from '../src/art-manifest.js';
 
 const ORIGINAL_IDS = ['goldfish', 'clownfish', 'bluefish', 'angelfish', 'pufferfish', 'turtle', 'octopus', 'chest', 'seal', 'shark', 'anglerfish', 'giant-squid'];
@@ -43,7 +43,8 @@ test('every creature, the boat and both seas have processed artwork that exists 
   for (const s of SPECIES) assert.ok(s.art, `${s.id} has a sprite in the manifest`);
   assert.equal(speciesWithArt(false).length, SPECIES.length, 'production shows the whole catalog');
   assert.ok(manifest.sprites.boat && manifest.backgrounds.portrait && manifest.backgrounds.landscape);
-  for (const id of Object.keys(manifest.sprites)) assert.ok(id === 'boat' || SPECIES.some((s) => s.id === id), `${id} belongs to the catalog`);
+  for (const id of Object.keys(manifest.sprites)) assert.ok(id === 'boat' || PROPS.includes(id) || SPECIES.some((s) => s.id === id), `${id} belongs to the catalog or the props`);
+  for (const id of PROPS) assert.ok(manifest.sprites[id], `prop ${id} has artwork`);
   const entries = [...Object.entries(manifest.sprites), ...Object.entries(manifest.backgrounds)];
   for (const [id, entry] of entries) {
     const url = new URL(`../public/assets/${entry.file}`, import.meta.url);

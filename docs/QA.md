@@ -2,7 +2,29 @@
 
 Date: 2026-10-04
 
-## Latest: v0.4.1 — One Direction Per Row, Slightly Faster Swimming (deployed 2026-10-05)
+## Latest: v0.5.0 — Power-Ups And Pirate Battle (2026-10-05)
+
+- Includes the combo/Fever and effects round below. Sheet I checked (12 subjects, order, ships bow right, coin-emblem flags,
+  no skulls) and cut cleanly.
+- `npm test`: 64 passed (net scoop/taps/points/one charge, turbo 3 catches + faster drop, golden hook/spyglass timers paused with
+  the game, map bonuses alternate pirate/rain, cannon one-ball rule, streak and sinking points, battle end, bonusTurn persistence).
+- New e2e: power-ups (net scoops a neighbour with a mesh bag, turbo halves taps, spyglass reveals a grouper's name and colours,
+  golden hook enlarges the hit box, HUD icons) and the pirate battle (banner, fire button, reel disabled, arcade clock paused,
+  a hit raises the score, 10 balls then back to fishing, bonusTurn saved).
+- Full Playwright run (`test-results/pirate-full/`): 57 passed, 2 skipped, 4 failed — all test expectations, not game bugs:
+  the QA landing object gained `extras`, and in the all-creature run the spyglass (caught earlier) correctly named the shark.
+  Tests updated; reran both on desktop/tablet/phone: 6 passed (`test-results/pirate-rerun/`).
+- Screenshots inspected: pirate aim (cannon on the bow, crosshair on a galleon), hit (loot and coins), net bag, power-up icons.
+
+## Previous: Combo/Fever And Catch Effects (2026-10-05, deployed in v0.5.0)
+
+- `npm test`: 58 passed (new model tests: fever after 3 in a row, the starting catch not doubled, x2 during fever, ends after
+  15 s; empty cast and old boot reset the combo; bottle x fever = x4; trip-score tests now sum real landing points).
+- New e2e: three goldfish -> combo toast, coins fly and are cleaned up, FEVER banner, next clownfish scores 16 (x2).
+- Full Playwright run (`test-results/fever-full/`): 55 passed, 2 desktop touch skips, 0 failed (24.7 min).
+- Screenshot inspected (phone): FEVER banner with countdown, golden line and glowing hook.
+
+## Previous: v0.4.1 — One Direction Per Row, Slightly Faster Swimming (deployed 2026-10-05)
 
 - Deployed at the user's request: commit 8c45030, Pages Actions run 37274185113 succeeded; the live page serves the same bundle
   hash as the local Pages build (index-BLH23J3R.js) and the live smoke passed (46 entries, colored/moving canvas, no errors).

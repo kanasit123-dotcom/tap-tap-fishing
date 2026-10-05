@@ -2,7 +2,7 @@ import { SPECIES } from './species.js';
 import { MAP_PIECES } from './model.js';
 
 export const STORAGE_KEY = 'tap-tap-fishing-v1';
-export const freshProgress = () => ({ version: 1, collection: {}, best: { relaxed: 0, arcade: 0 }, trips: 0, sound: true, music: true, maps: 0 });
+export const freshProgress = () => ({ version: 1, collection: {}, best: { relaxed: 0, arcade: 0 }, trips: 0, sound: true, music: true, maps: 0, bonusTurn: 0 });
 const count = (n) => Number.isSafeInteger(n) && n >= 0 ? n : 0;
 
 export function loadProgress(storage) {
@@ -15,6 +15,7 @@ export function loadProgress(storage) {
       best: { relaxed: count(raw.best?.relaxed), arcade: count(raw.best?.arcade) },
       trips: count(raw.trips), sound: raw.sound !== false, music: raw.music !== false,
       maps: count(raw.maps) % MAP_PIECES,
+      bonusTurn: count(raw.bonusTurn) % 2,
     };
   } catch { return freshProgress(); }
 }

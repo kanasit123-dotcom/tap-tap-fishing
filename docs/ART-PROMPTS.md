@@ -14,7 +14,8 @@
 | E | `boat.png` | 1536×1024 แนวนอน | เรือประมงพร้อมคนตกปลา (ไม่มีคันเบ็ด) |
 | F | `background-portrait.png` | 1024×1536 แนวตั้ง | ฉากทะเลสำหรับมือถือ/ไอแพดแนวตั้ง |
 | G | `background-landscape.png` | 1536×1024 แนวนอน | ฉากทะเลสำหรับจอแนวนอน (ไม่บังคับ) |
-| H | `sheet-e-extra.png` | 1536×1024 แนวนอน | สัตว์ทะเลเพิ่ม 12 ชนิด (ชุดเสริม สั่งทีหลังได้) |
+| H | `sheet-e-extra.png` | 1536×1024 แนวนอน | สัตว์ทะเลเพิ่ม 12 ชนิด (ใช้งานแล้ว) |
+| I | `sheet-f-pirate.png` | 1536×1024 แนวนอน | เรือโจรสลัด 3 ลำ ปืนใหญ่ ไอเทมช่วยจับ (ใช้งานแล้ว) |
 
 ## วิธีทำ
 
@@ -181,6 +182,38 @@ LAYOUT: exactly 12 separate sea animals in a grid of 3 rows x 4 columns, in this
 ตำแหน่งในเกมที่วางแผนไว้ (AI ใส่ใน `src/species.js` ตอนได้รูป): ชั้นบน ปลาทู (ฝูงเล็ก) ปลาขี้ตังเบ็ดเหลือง ปลาสลิดหินฟ้า,
 ชั้นสอง ปลาผีเสื้อเทวรูป, กลางน้ำ หมึกกระดอง ปลาค้างคาว ปลาสาก โลมา (ว่ายเร็ว หายาก), ทะเลลึก กระเบนราหู ฉลามวาฬ (หายาก คะแนนสูง),
 พื้นทราย ปูเสฉวน แมงดาทะเล
+
+## I — `sheet-f-pirate.png` เรือโจรสลัด + ไอเทมช่วยจับ (2026-10-05)
+
+> ใช้กับมินิเกมยิงเรือโจรสลัด (หลังเก็บแผนที่ครบ) และไอเทมช่วยจับ (แห รอกเร็ว ตะขอทอง กล้องส่องทางไกล)
+> ทำในแชตเดิมที่ทำแผ่น A-H แล้วพิมพ์เพิ่มท้าย prompt ว่า `Match the exact art style of the earlier sheets.`
+
+```text
+Create a 1536x1024 landscape PNG with a TRANSPARENT background (real alpha, no checkerboard pattern drawn in).
+
+ART STYLE: semi-realistic painted illustration for a premium mobile fishing game, the same style as the earlier sheets. Realistic materials (weathered wood, canvas sails, rope, brass, iron, gold, net cord, glass), real-world colours, soft daylight from above with a gentle rim light. NOT cartoon: no faces on objects, no thick outlines. Friendly for children: no skulls, no bones, no weapons held by anyone, no people on the ships.
+
+LAYOUT: exactly 12 separate subjects in a grid of 3 rows x 4 columns, in this reading order (left to right, then top to bottom). Each subject is centred in its own invisible cell, about 75% of the cell width, with empty transparent space all around. Nothing touches or overlaps another subject or the image edge. Ships in strict side view with the bow pointing RIGHT. No water, no waves, no splash, no smoke, no shadows, no glow, no text, no letters, no numbers, no grid lines, no frame.
+
+1) a small pirate sloop: one mast, dark weathered wooden hull, patched cream sail, a small black flag with a plain round gold coin emblem
+2) a medium pirate brig: two masts, dark red and brown hull with a row of closed gun ports, grey-cream sails, the same gold coin flag
+3) a large pirate galleon: three masts, tall carved stern on the left, dark hull with gold trim, full sails, the same gold coin flag
+4) a short brass ship cannon on a small wooden carriage with wheels, side view, barrel pointing up and to the right
+5) one black iron cannonball with a soft highlight
+6) an open wooden treasure chest overflowing with gold coins and a few gems, floating style (no water drawn)
+7) a wooden barrel with iron hoops, lying on its side
+8) a rolled bundle of fishing net made of tan cord with round orange cork floats
+9) a shiny golden fishing reel with a small crank handle
+10) a large shiny golden fishing hook with an eye at the top
+11) an antique brass spyglass telescope, extended, lying horizontally
+12) one shiny gold coin seen from the front, plain embossed rim, NO letters or numbers
+```
+
+ชื่อชิ้นตอนตัด (ตามลำดับ): `pirate-small pirate-medium pirate-large cannon cannonball float-chest barrel net turbo-reel gold-hook spyglass coin`
+
+แผนการใช้ (AI ทำตอนได้รูป): เรือโจรสลัด 3 ขนาดแล่นบนผิวน้ำในมินิเกม (ลำใหญ่ต้องยิงหลายนัด), ปืนใหญ่ติดหัวเรือเรา, ลูกปืน, หีบลอยและถังไม้หล่นจากเรือที่ถูกยิง,
+ไอเทมช่วยจับลอยมาในแถวกลาง: แห = ทอดครั้งถัดไปจับได้ทุกตัวที่แหผ่าน (สูงสุด 3), รอกเร็ว = 3 ครั้งถัดไปแตะรอกครึ่งเดียวและเบ็ดลงเร็วขึ้น,
+ตะขอทอง = ตะขอใหญ่ขึ้น 20 วินาที, กล้องส่องทางไกล = เห็นสีจริงของสัตว์ทะเลลึก 20 วินาที, เหรียญ = ใช้ทำ effect เหรียญบินเข้าคะแนน
 
 ---
 

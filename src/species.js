@@ -41,6 +41,8 @@ const catalog = [
   { id: 'bottle', name: 'ขวดจดหมาย', kind: 'item', effect: 'double', lane: 2, points: 5, taps: 5, size: 46, speed: 20, weight: 5, motion: 'float', cooldown: 25, emoji: '🍾' },
   { id: 'coins', name: 'ถุงเหรียญทอง', kind: 'item', lane: 2, points: 30, taps: 12, size: 48, speed: 22, weight: 8, motion: 'float', bonus: 30, emoji: '💰' },
 
+  { id: 'net', name: 'แห', kind: 'item', effect: 'net', lane: 2, points: 10, taps: 6, size: 54, speed: 20, weight: 4, motion: 'float', cooldown: 35, emoji: '🕸️' },
+  { id: 'turbo-reel', name: 'รอกเร็ว', kind: 'item', effect: 'turbo', lane: 2, points: 10, taps: 6, size: 50, speed: 22, weight: 4, motion: 'float', cooldown: 35, emoji: '🎣' },
   { id: 'octopus', name: 'หมึกสาย', lane: 3, points: 28, taps: 14, size: 74, speed: 22, weight: 22, motion: 'pulse', emoji: '🐙' },
   { id: 'seal', name: 'แมวน้ำ', lane: 3, points: 26, taps: 13, size: 104, speed: 40, weight: 20, emoji: '🦭' },
   { id: 'tuna', name: 'ปลาทูน่า', lane: 3, points: 30, taps: 14, size: 100, speed: 52, weight: 18, group: [2, 3], motion: 'school', emoji: '🐟' },
@@ -51,6 +53,8 @@ const catalog = [
   { id: 'map', name: 'แผนที่สมบัติ', kind: 'item', effect: 'map', lane: 3, points: 20, taps: 10, size: 50, speed: 20, weight: 12, motion: 'float', cooldown: 30, emoji: '🗺️' },
   { id: 'watch', name: 'นาฬิกาพก', kind: 'item', effect: 'time', lane: 3, points: 10, taps: 8, size: 48, speed: 22, weight: 7, motion: 'float', cooldown: 25, arcadeOnly: true, emoji: '⏱️' },
 
+  { id: 'gold-hook', name: 'ตะขอทอง', kind: 'item', effect: 'goldhook', lane: 3, points: 10, taps: 6, size: 40, speed: 20, weight: 4, motion: 'float', cooldown: 35, emoji: '🪝' },
+  { id: 'spyglass', name: 'กล้องส่องทางไกล', kind: 'item', effect: 'spyglass', lane: 4, points: 10, taps: 6, size: 58, speed: 20, weight: 4, motion: 'float', cooldown: 35, emoji: '🔭' },
   { id: 'shark', name: 'ฉลาม', lane: 4, points: 34, taps: 16, size: 140, speed: 34, weight: 26, emoji: '🦈' },
   { id: 'moray', name: 'ปลาไหลมอเรย์', lane: 4, points: 36, taps: 16, size: 130, speed: 24, weight: 20, motion: 'eel', emoji: '🐍' },
   { id: 'anglerfish', name: 'ปลาตกเบ็ด', lane: 4, points: 38, taps: 17, size: 96, speed: 16, weight: 20, emoji: '🐟' },
@@ -82,6 +86,9 @@ function artFor(s) {
 }
 
 export const SPECIES = catalog.map((s) => ({ kind: 'animal', group: [1, 1], motion: 'swim', ...s, art: artFor(s) }));
+// Artwork used by the pirate battle and effects; not part of the collection book.
+export const PROPS = ['pirate-small', 'pirate-medium', 'pirate-large', 'cannon', 'cannonball', 'float-chest', 'barrel', 'coin'];
+export const propArt = (id) => manifest.sprites?.[id] ? { key: `sp-${id}`, ...manifest.sprites[id] } : null;
 export const SPECIES_BY_ID = Object.fromEntries(SPECIES.map((s) => [s.id, s]));
 export const PLACEHOLDER_ART = { kind: 'emoji', w: 128, h: 128 };
 

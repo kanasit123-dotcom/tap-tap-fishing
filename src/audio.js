@@ -259,7 +259,7 @@ export class FishingAudio {
     const song = this.song;
     while (song.time < horizon) {
       this.musicNote(song.step, song.time, song.loop);
-      song.time += 60 / (this.bonus ? 126 : 96) / 2;
+      song.time += 60 / (this.bonus ? 126 : this.fever ? 112 : 96) / 2;
       if (++song.step >= STEPS) { song.step = 0; song.loop++; }
     }
   }
@@ -297,6 +297,8 @@ export class FishingAudio {
   }
 
   setBonus(on) { this.bonus = on; }
+
+  setFever(on) { this.fever = on; }
 
   // Quieter sea and no music while a dialog is open.
   duck(on) {
@@ -427,4 +429,27 @@ const EFFECTS = {
     for (let i = 0; i < 3; i++) { const f = rand(400, 700); this.tone({ freq: f, end: f * 2.2, at: 0.1 + i * 0.09, dur: 0.06, vol: 0.03 }); }
   },
   tick() { this.tone({ freq: 1500, dur: 0.035, vol: 0.05 }); },
+  combo({ combo = 1 } = {}) { this.marimba(79 + combo * 3, { vol: 0.09, dur: 0.3 }); },
+  fever() {
+    this.arpeggio([72, 76, 79, 84, 88, 91, 96], 0, 0.06, 0.11);
+    this.noise({ dur: 0.6, vol: 0.08, freq: 1800, end: 5200, q: 0.7, at: 0.05 });
+    this.shimmer(14, 0.35);
+  },
+  cannon() {
+    this.tone({ freq: 110, end: 38, dur: 0.45, vol: 0.4 });
+    this.noise({ dur: 0.5, vol: 0.28, type: 'lowpass', freq: 1400, end: 220 });
+    this.noise({ dur: 0.18, vol: 0.12, freq: 3000, end: 900, q: 0.6, at: 0.01 });
+  },
+  hit() {
+    for (const at of [0, 0.05, 0.11]) this.noise({ at, dur: 0.09, vol: 0.14, freq: 900, end: 400, q: 2 });
+    this.arpeggio([79, 84, 88], 0.12, 0.07, 0.1);
+  },
+  pirate() {
+    [[62, 0], [66, 0.18], [69, 0.36], [74, 0.6]].forEach(([note, at]) => this.marimba(note, { at, vol: 0.12, dur: 0.5 }));
+    this.tone({ freq: 147, type: 'sawtooth', dur: 0.9, vol: 0.05, lowpass: 700, at: 0.6 });
+  },
+  powerup() { this.arpeggio([76, 83, 88, 95], 0, 0.05, 0.09); this.shimmer(8, 0.15); },
+  coins({ count = 6 } = {}) {
+    for (let i = 0; i < Math.min(count, 8); i++) this.tone({ freq: 2600 + i * 140, at: i * 0.045, dur: 0.07, vol: 0.05 });
+  },
 };

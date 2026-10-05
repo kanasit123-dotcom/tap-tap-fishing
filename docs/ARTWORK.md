@@ -21,6 +21,7 @@ reprocess. Only the processed output below is published.
 | `sheet-c-deep.png` (6 large animals) | 1536x1024 RGBA | `dafba060965a07985d918ada2e4e875429e31ab543edf88dd9eb274aea6cac8b` |
 | `sheet-d-seabed.png` (12 seabed animals, treasures, special items) | 1536x1024 RGBA | `047fe49fff40e31bfd90db8102601ece8bde63ce8feb15b9ebdbe7eac805d55b` |
 | `sheet-e-extra.png` (12 extra species, prompt H, delivered later the same day) | 1536x1024 RGBA | `5e063c4f0a51a688dc07d7c638114ce75bcb820d03b5219e6ca4eb28a3d6b1be` |
+| `sheet-f-pirate.png` (pirate ships, cannon, loot, power-ups, coin; prompt I) | 1536x1024 RGBA | `03236a50b8a06ccdbf9e40c5200cb3792f61c79a3513453134fdd55b325af50c` |
 | `boat.png` (fishing boat with fisherman, empty rod holder) | 1536x1024 RGBA | `88e396b55d58a34e632469f72b1ae1dae2ac35f92c5c988a4144ea4ebdb9b8f5` |
 | `background-portrait.png` | 1024x1536 RGB | `44b1bca2b55536c1a0e9491299198790874ef0410caae8e9822c143160692ba7` |
 | `background-landscape.png` | 1536x1024 RGB | `2966f78610381b33adc9c562d78c7ad56804e377527ce18bb9200992a012afd8` |

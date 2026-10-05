@@ -241,6 +241,66 @@ export default {
       "file": "sprites/horseshoe-crab.webp",
       "w": 204,
       "h": 112
+    },
+    "pirate-small": {
+      "file": "sprites/pirate-small.webp",
+      "w": 219,
+      "h": 217
+    },
+    "pirate-medium": {
+      "file": "sprites/pirate-medium.webp",
+      "w": 267,
+      "h": 214
+    },
+    "pirate-large": {
+      "file": "sprites/pirate-large.webp",
+      "w": 284,
+      "h": 229
+    },
+    "cannon": {
+      "file": "sprites/cannon.webp",
+      "w": 209,
+      "h": 183
+    },
+    "cannonball": {
+      "file": "sprites/cannonball.webp",
+      "w": 151,
+      "h": 150
+    },
+    "float-chest": {
+      "file": "sprites/float-chest.webp",
+      "w": 231,
+      "h": 204
+    },
+    "barrel": {
+      "file": "sprites/barrel.webp",
+      "w": 216,
+      "h": 158
+    },
+    "net": {
+      "file": "sprites/net.webp",
+      "w": 227,
+      "h": 157
+    },
+    "turbo-reel": {
+      "file": "sprites/turbo-reel.webp",
+      "w": 228,
+      "h": 180
+    },
+    "gold-hook": {
+      "file": "sprites/gold-hook.webp",
+      "w": 153,
+      "h": 192
+    },
+    "spyglass": {
+      "file": "sprites/spyglass.webp",
+      "w": 287,
+      "h": 110
+    },
+    "coin": {
+      "file": "sprites/coin.webp",
+      "w": 155,
+      "h": 154
     }
   },
   "backgrounds": {

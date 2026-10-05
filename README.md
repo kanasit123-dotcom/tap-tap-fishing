@@ -28,6 +28,12 @@ npm run build
 npm run preview -- --port 5194
 ```
 
+## Version 0.5.0
+
+Combo/FEVER (3 in a row = x2 for 15 s), coins flying to the score, shake and sparkles for big catches, power-ups
+(net, turbo reel, golden hook, spyglass) and a pirate-ship cannon mini-game that alternates with the treasure rain
+after every 4 map pieces. 50 book entries.
+
 ## Version 0.4.1
 
 Every row swims one way (neighbouring rows alternate, like the cabinet) and all fish swim about 11% faster

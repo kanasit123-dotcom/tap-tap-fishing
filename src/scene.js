@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
-import { SPECIES_BY_ID, SEABED, LANE_COUNT, PLACEHOLDER_ART, isMystery, isTreasure, displaySize, revealForRise } from './species.js';
+import { PROPS, propArt, SPECIES_BY_ID, SEABED, LANE_COUNT, PLACEHOLDER_ART, isMystery, isTreasure, displaySize, revealForRise } from './species.js';
 import { computeLayout, backgroundPlacement, BG_EDGE, WATERLINE } from './layout.js';
 import { Spawner, emptyLane } from './spawner.js';
-import { WORLD } from './model.js';
+import { WORLD, NET_EXTRA } from './model.js';
+import { PirateBattle } from './pirate.js';
 import manifest from './art-manifest.js';
 
 const asset = (file) => `${import.meta.env.BASE_URL}assets/${file}`;
@@ -28,6 +29,8 @@ export class CoveScene extends Phaser.Scene {
     for (const [name, bg] of Object.entries(manifest.backgrounds ?? {})) this.load.image(`bg-${name}`, asset(bg.file));
     for (const s of this.controller.species) if (s.art?.kind === 'sprite') this.load.image(s.art.key, asset(s.art.file));
     if (manifest.sprites?.boat?.holder) this.load.image('boat', asset(manifest.sprites.boat.file));
+    for (const id of PROPS) { const art = propArt(id); if (art) this.load.image(art.key, asset(art.file)); }
+    for (const id of ['gold-hook']) if (manifest.sprites?.[id] && !this.textures.exists(`sp-${id}`)) this.load.image(`sp-${id}`, asset(manifest.sprites[id].file));
     if (manifest.sprites?.hook) this.load.image('hook-art', asset(manifest.sprites.hook.file));
     this.load.on('loaderror', () => this.controller.assetError());
   }
@@ -51,8 +54,14 @@ export class CoveScene extends Phaser.Scene {
     this.water = this.add.graphics().setDepth(18);
     this.hook = this.physics.add.image(240, SURFACE_Y, this.textures.exists('hook-art') ? 'hook-art' : 'hook').setDepth(16.6);
     this.hook.setDisplaySize(19, 30);
+    this.hookGlow = this.add.image(240, SURFACE_Y, 'glint').setDepth(16.55).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.hook.body.setAllowGravity(false);
-    this.hook.body.setSize(this.hook.width * 0.8, this.hook.height * 0.62, true);
+    this.hookBody = [this.hook.width * 0.8, this.hook.height * 0.62];
+    this.hook.body.setSize(...this.hookBody, true);
+    this.bigHook = false;
+    this.netted = [];
+    this.netMesh = this.add.graphics().setDepth(16.45);
+    this.pirate = new PirateBattle(this);
     this.physics.add.overlap(this.hook, this.fishes, (_hook, fish) => this.hooked(fish),
       (_hook, fish) => !this.controller.round.paused && this.controller.round.phase === 'casting' && !fish.getData('caught'));
     this.time0 = 0;
@@ -461,6 +470,8 @@ export class CoveScene extends Phaser.Scene {
       const d = fish.data.values;
       if (d.caught) continue;
       if (!d.frozen) this.swim(fish, d, dt, t);
+      if (isMystery(d.species)) d.reveal = this.controller.round.spyglass > 0 ? 1 : 0;
+      if (d.species.rare || d.species.points >= 45) this.trail(fish, d, dt);
       const gone = d.dir > 0 ? fish.x - d.w / 2 > this.view.right + 40 : fish.x + d.w / 2 < this.view.left - 40;
       if (gone) { this.removeCreature(fish); continue; }
       this.syncExtras(fish);
@@ -502,14 +513,48 @@ export class CoveScene extends Phaser.Scene {
     if (stretch !== 1) fish.setDisplaySize(d.w, d.h * stretch);
   }
 
+  // Valuable creatures leave a short trail of sparkles so children notice them.
+  trail(fish, d, dt) {
+    d.trailClock = (d.trailClock ?? Math.random() * 0.2) - dt;
+    if (d.trailClock > 0 || fish.x < this.view.left || fish.x > this.view.right || this.sparkles >= 40) return;
+    d.trailClock = 0.16;
+    this.sparkles = (this.sparkles ?? 0) + 1;
+    const tail = fish.x - d.dir * fish.displayWidth * 0.45;
+    const spark = this.add.image(tail, fish.y + (Math.random() - 0.5) * fish.displayHeight * 0.5, 'glint')
+      .setScale(0.22 + Math.random() * 0.2).setDepth(fish.depth - 0.01).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.9);
+    this.tweens.add({ targets: spark, alpha: 0, scale: 0.05, x: tail - d.dir * 10, y: spark.y - 6, angle: 90, duration: 700,
+      onComplete: () => { spark.destroy(); this.sparkles--; } });
+  }
+
+  // Rings where the line meets the water as the hook drops.
+  castRipple(angle) {
+    const x = WORLD.originX + Math.tan(angle) * (WATERLINE - WORLD.originY);
+    for (const [delay, size] of [[0, 1], [140, 0.7]]) {
+      const ring = this.add.ellipse(x, WATERLINE + 1, 8, 2.5).setStrokeStyle(1.6, 0xffffff, 0.85).setDepth(19);
+      this.tweens.add({ targets: ring, scaleX: 5 * size, scaleY: 2.5 * size, alpha: 0, delay, duration: 600, onComplete: () => ring.destroy() });
+    }
+  }
+
   hooked(fish) {
     const round = this.controller.round;
     const species = fish.getData('species');
-    if (!round.catch(species.id)) return;
+    const h = round.hook;
+    // A net also scoops up the creatures right next to the hook.
+    const nearby = round.netCharges > 0 ? this.fishes.getChildren()
+      .filter((o) => o !== fish && !o.getData('caught') && Math.abs(o.x - h.x) < 80 && Math.abs(o.y - h.y) < 60)
+      .sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y)).slice(0, NET_EXTRA) : [];
+    if (!round.catch(species.id, nearby.map((o) => o.getData('species').id))) return;
     fish.setData({ caught: true, caughtY: round.hook.y });
     fish.body.enable = false;
     fish.setDepth(16.4);
     this.caught = fish;
+    this.netted = round.extraIds.map((_id, i) => {
+      const o = nearby[i];
+      o.setData({ caught: true, caughtY: round.hook.y });
+      o.body.enable = false;
+      o.setDepth(16.39);
+      return { fish: o, ox: (i ? 1 : -1) * (fish.displayWidth * 0.42 + o.displayWidth * 0.3), oy: 4 + i * 10 };
+    });
     this.bubbleBurst(round.hook.x, round.hook.y, 6);
     this.controller.onHook(species);
   }
@@ -549,16 +594,46 @@ export class CoveScene extends Phaser.Scene {
       this.tweens.add({ targets: fish, x: 150, y: 112, angle: 0, scale: fish.scale * 0.6, duration: 650, ease: 'Back.easeIn',
         onUpdate: () => this.syncExtras(fish), onComplete: () => this.removeCreature(fish) });
     }
-    const text = landing.multiplier > 1 ? `+${landing.points}  x2` : `+${landing.points}`;
+    for (const { fish: o } of this.netted) {
+      o.setData('reveal', 1);
+      o.getData('shadow')?.setAlpha(0);
+      o.setDepth(15.9);
+      this.tweens.add({ targets: o, x: 150 + (Math.random() - 0.5) * 30, y: 112, angle: 0, scale: o.scale * 0.6, duration: 700, ease: 'Back.easeIn',
+        onUpdate: () => this.syncExtras(o), onComplete: () => this.removeCreature(o) });
+    }
+    this.netted = [];
+    this.netMesh.clear();
+    const text = landing.multiplier > 1 ? `+${landing.points}  x${landing.multiplier}` : `+${landing.points}`;
     const label = this.add.text(240, 176, text, { fontFamily: 'Tahoma, sans-serif', fontSize: species.jackpot ? '40px' : '32px', fontStyle: 'bold', color: '#ffea8e', stroke: '#145466', strokeThickness: 6 }).setOrigin(0.5).setDepth(21);
     this.tweens.add({ targets: label, y: 120, alpha: 0, delay: species.jackpot ? 600 : 250, duration: species.jackpot ? 1400 : 900, onComplete: () => label.destroy() });
     if (species.kind === 'item' || species.jackpot) this.coinBurst(x, species.jackpot ? 34 : 18);
+    if (landing.points > 1) this.controller.flyCoins?.(x, WATERLINE - 10, Math.max(3, Math.min(14, Math.ceil(landing.points / 8))));
+    const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (!calm && (species.jackpot || landing.points >= 80)) { this.cameras.main.shake(380, 0.009); this.cameras.main.flash(260, 255, 236, 170); }
+    else if (!calm && landing.points >= 40) this.cameras.main.shake(200, 0.004);
     else {
       for (let i = 0; i < 15; i++) {
         const confetti = this.add.rectangle(240, 150, 5, 8, [0xffd05b, 0xff786b, 0xffffff, 0x89e8ab][i % 4]).setDepth(20);
         this.tweens.add({ targets: confetti, x: 120 + i * 18, y: 214 + (i % 5) * 18, angle: i * 50, alpha: 0, duration: 1000, onComplete: () => confetti.destroy() });
       }
     }
+  }
+
+  // A simple mesh bag around everything the net is bringing up.
+  drawNet() {
+    const g = this.netMesh.clear();
+    if (!this.netted.length || !this.caught) return;
+    const all = [this.caught, ...this.netted.map((n) => n.fish)];
+    const x0 = Math.min(...all.map((f) => f.x - f.displayWidth / 2)) - 5;
+    const x1 = Math.max(...all.map((f) => f.x + f.displayWidth / 2)) + 5;
+    const y0 = Math.min(...all.map((f) => f.y - f.displayHeight / 2)) - 4;
+    const y1 = Math.max(...all.map((f) => f.y + f.displayHeight / 2)) + 6;
+    g.lineStyle(1, 0xe2c48a, 0.6);
+    for (let x = x0; x <= x1; x += 8) g.lineBetween(x, y0, x, y1);
+    for (let y = y0; y <= y1; y += 8) g.lineBetween(x0, y, x1, y);
+    g.lineStyle(2, 0xb98b4e, 0.9).strokeRoundedRect(x0, y0, x1 - x0, y1 - y0, 8);
+    g.fillStyle(0xe8692e, 1);
+    for (let x = x0 + 6; x < x1; x += 18) g.fillCircle(x, y0, 2.6);
   }
 
   coinBurst(x, count) {
@@ -593,9 +668,16 @@ export class CoveScene extends Phaser.Scene {
       else this.testAim = false;
     }
     if (before === 'casting' && round.phase === 'returning') this.controller.onMiss();
+    if (before === 'aim' && round.phase === 'casting') this.castRipple(round.angle);
+    const pirate = round.phase === 'pirate';
+    if (pirate && !this.pirate.active) { this.pirate.start(this.controller.rng); this.controller.onPirateStart?.(); }
+    if (!pirate && this.pirate.active) this.pirate.end();
+    this.controller.audio.setFever?.(round.fever > 0);
     if ((round.bonus > 0) !== this.bonusActive) this.setBonus(round.bonus > 0);
+    this.controller.audio.setBonus(round.bonus > 0 || pirate);
     this.controller.audio.setLine(round.phase);
     this.advanceSea(dt);
+    this.pirate.update(dt, round);
     const h = round.hook;
     const bob = Math.sin(round.elapsed * 2.1) * 1.2;
     this.boat.y = bob;
@@ -603,12 +685,36 @@ export class CoveScene extends Phaser.Scene {
     const tip = this.drawRod(h, tension, bob);
     this.hook.body.reset(h.x, h.y);
     this.hook.setAngle(-round.angle * 180 / Math.PI);
-    this.drawLine(tip, h, round.angle);
+    this.drawLine(tip, h, round.angle, round.fever > 0);
+    // Golden hook: bigger catch area and the golden hook picture.
+    const gold = round.goldHook > 0;
+    if (gold !== this.bigHook) {
+      this.bigHook = gold;
+      this.hook.body.setSize(this.hookBody[0] * (gold ? 1.9 : 1), this.hookBody[1] * (gold ? 1.7 : 1), true);
+      if (gold && !this.goldHookImg && this.textures.exists('sp-gold-hook')) {
+        this.goldHookImg = this.add.image(0, 0, this.fitted('sp-gold-hook', 30)).setDepth(16.61);
+        this.goldHookImg.setDisplaySize(30, 30 * this.goldHookImg.height / this.goldHookImg.width);
+      }
+    }
+    const showGold = gold && !pirate && Boolean(this.goldHookImg);
+    this.goldHookImg?.setVisible(showGold).setPosition(h.x - 2, h.y + 2).setAngle(-round.angle * 180 / Math.PI);
+    this.hook.setVisible(!pirate && !showGold);
+    this.rod.setVisible(!pirate);
+    this.line.setVisible(!pirate);
+    this.hookGlow.setVisible(round.fever > 0 && !pirate);
+    if (round.fever > 0) this.hookGlow.setPosition(h.x, h.y).setScale(1.6 + Math.sin(this.time0 * 8) * 0.3).setAngle(this.time0 * 60).setAlpha(0.85);
     if (this.caught && round.phase === 'reeling') {
       const struggle = Math.sin(this.time0 * 15) * 9;
       this.caught.setPosition(h.x + 4, h.y + 12 + this.caught.displayHeight * 0.25).setAngle((this.caught.flipX ? 18 : -18) + struggle);
-      this.caught.setData('reveal', revealForRise(this.caught.getData('species'), h.y, this.caught.getData('caughtY'), SURFACE_Y));
+      const reveal = (f) => round.spyglass > 0 ? 1 : revealForRise(f.getData('species'), h.y, f.getData('caughtY'), SURFACE_Y);
+      this.caught.setData('reveal', reveal(this.caught));
       this.syncExtras(this.caught);
+      for (const n of this.netted) {
+        n.fish.setPosition(h.x + n.ox, h.y + 12 + n.oy + n.fish.displayHeight * 0.2).setAngle((n.fish.flipX ? 14 : -14) + Math.sin(this.time0 * 13 + n.oy) * 7);
+        n.fish.setData('reveal', reveal(n.fish));
+        this.syncExtras(n.fish);
+      }
+      this.drawNet();
     }
     this.animateWater(dt);
     if (this.bonusActive) this.bonusGlow.setAlpha(0.08 + Math.sin(this.time0 * 3) * 0.04);
@@ -651,11 +757,11 @@ export class CoveScene extends Phaser.Scene {
     return tip;
   }
 
-  drawLine(tip, hook, angle) {
+  drawLine(tip, hook, angle, fever = false) {
     const top = { x: hook.x - Math.sin(angle) * 11, y: hook.y - Math.cos(angle) * 11 };
     const g = this.line.clear();
     g.lineStyle(2.4, 0x0b4b5c, 0.35).lineBetween(tip.x, tip.y, top.x, top.y);
-    g.lineStyle(1.1, 0xf4fbff, 0.95).lineBetween(tip.x, tip.y, top.x, top.y);
+    g.lineStyle(fever ? 1.6 : 1.1, fever ? 0xffd34d : 0xf4fbff, 0.95).lineBetween(tip.x, tip.y, top.x, top.y);
     // Small lead sinker just above the hook
     const sx = top.x + (tip.x - top.x) * 0.06, sy = top.y + (tip.y - top.y) * 0.06;
     g.fillStyle(0x4b565c, 1).fillEllipse(sx, sy - 6, 4.6, 7.5);
@@ -696,6 +802,9 @@ export class CoveScene extends Phaser.Scene {
   }
 
   resetRound() {
+    this.pirate.clear();
+    this.netted = [];
+    this.netMesh.clear();
     this.testAim = false;
     this.qaHold = false;
     this.newSea();
@@ -713,6 +822,9 @@ export class CoveScene extends Phaser.Scene {
     return { ready: true, phase: round.phase, paused: round.paused, angle: round.angle, hook: round.hook, length: round.length, targetLength: round.targetLength,
       taps: round.taps, requiredTaps: round.requiredTaps, score: round.score, catches: [...round.catches], tripCatches: round.tripCatches, remaining: round.remaining,
       bonus: round.bonus, maps: round.maps, doubleNext: round.doubleNext, wave: this.spawner.wave.kind, time: this.time0,
+      combo: round.combo, fever: round.fever, landing: round.landing ? { id: round.landing.species.id, points: round.landing.points, multiplier: round.landing.multiplier, extras: round.landing.extras.map((s) => s.id) } : null,
+      powers: { net: round.netCharges, turbo: round.turbo, goldHook: round.goldHook, spyglass: round.spyglass, bigHook: this.bigHook }, extras: [...round.extraIds], netted: this.netted.length,
+      pirate: round.pirate ? { ...round.pirate } : null, battle: this.pirate.state(round), bonusTurn: round.bonusTurn,
       view: { x: this.cameras.main.worldView.x, y: this.cameras.main.worldView.y, zoom: this.cameras.main.zoom, ...this.view },
       audio: { state: this.controller.audio.context?.state ?? 'locked', enabled: this.controller.audio.enabled, music: this.controller.audio.musicOn, level: this.controller.audio.level() },
       fishes: this.fishes.getChildren().map((f) => {
@@ -722,7 +834,7 @@ export class CoveScene extends Phaser.Scene {
       }) };
   }
 
-  arrangeForTest(id = 'goldfish') {
+  arrangeForTest(id = 'goldfish', extras = []) {
     const round = this.controller.round;
     if (round.phase !== 'aim') throw new Error('Arrange only before a cast');
     const species = SPECIES_BY_ID[id];
@@ -735,6 +847,13 @@ export class CoveScene extends Phaser.Scene {
     this.clearSea();
     const fish = this.addCreature(species, species.lane, WORLD.originX, 1, 0, { dy: 0, phase: 0 }, this.sizeOf(species));
     fish.setData('frozen', true);
+    // Neighbours for net tests: same depth, either side of the hook's path.
+    extras.forEach((extraId, i) => {
+      const extra = SPECIES_BY_ID[extraId];
+      const size = this.sizeOf(extra, species.lane);
+      const other = this.addCreature(extra, species.lane, WORLD.originX + (i ? 1 : -1) * (fish.displayWidth / 2 + size.width / 2 + 4), 1, 0, { dy: 0, phase: 0 }, size);
+      other.setData('frozen', true);
+    });
   }
 
   releaseTest() { this.qaHold = false; }

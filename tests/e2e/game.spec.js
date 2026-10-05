@@ -11,8 +11,8 @@ async function boot(page, query = '') {
   return errors;
 }
 const snapshot = (page) => page.evaluate(() => window.__FISHING_QA__.snapshot());
-async function fish(page, id = 'goldfish') {
-  await page.evaluate((id) => window.__FISHING_QA__.arrange(id), id);
+async function fish(page, id = 'goldfish', extras = []) {
+  await page.evaluate(([id, extras]) => window.__FISHING_QA__.arrange(id, extras), [id, extras]);
   await page.locator('#cast').click();
   await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'reeling');
 }
@@ -107,10 +107,12 @@ test('eight catches reward only once and start a fresh trip without losing the b
   test.setTimeout(100_000); const errors = await boot(page);
   for (let i = 0; i < 8; i++) { await fish(page); await reel(page); await landed(page); }
   await expect(page.locator('#dialog-title')).toHaveText('นักสำรวจอ่าวสมบัติ!');
-  await expect(page.locator('.reward-score')).toContainText('40');
+  // Eight in a row include a fever, so the trip scores more than 8 x 5.
+  const total = (await snapshot(page)).score; expect(total).toBeGreaterThan(40);
+  await expect(page.locator('.reward-score')).toContainText(String(total));
   await page.screenshot({ path: info.outputPath('reward.png') });
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('tap-tap-fishing-v1')));
-  expect(saved.trips).toBe(1); expect(saved.collection.goldfish).toBe(8); expect(saved.best.relaxed).toBe(40);
+  expect(saved.trips).toBe(1); expect(saved.collection.goldfish).toBe(8); expect(saved.best.relaxed).toBe(total);
   await page.locator('#again').click();
   const fresh = await snapshot(page);
   expect(fresh.phase).toBe('aim'); expect(fresh.fishes.length).toBeGreaterThan(10); await expect(page.locator('#score')).toHaveText('0');
@@ -338,7 +340,8 @@ test('special items: the bottle doubles the next catch and four map pieces start
   await fish(page, 'goldfish'); await reel(page); await landed(page);
   expect((await snapshot(page)).score).toBe(5 + 10);
   await expect(page.locator('#double')).toBeHidden();
-  await page.evaluate(() => window.__FISHING_QA__.setMaps(3));
+  // Even turns bring the pirate battle; this test wants the treasure rain.
+  await page.evaluate(() => { window.__FISHING_QA__.setMaps(3); window.__FISHING_QA__.setBonusTurn(1); });
   await fish(page, 'map'); await reel(page); await landed(page);
   const rain = await snapshot(page);
   expect(rain.maps).toBe(0); expect(rain.bonus).toBeGreaterThan(15);
@@ -376,17 +379,22 @@ test('the pocket watch adds ten seconds in arcade mode', async ({ page }) => {
 test('every creature collides with the real hook, lands and persists in the zoned book', async ({ page }, info) => {
   test.setTimeout(480_000); const errors = await boot(page);
   const sample = info.project.name === 'desktop' ? SPECIES : SPECIES.filter((s) => ['seal', 'anglerfish', 'giant-squid', 'crab', 'lobster-king', 'boot'].includes(s.id));
-  let total = 0; let doubled = false;
+  let total = 0;
   for (const s of sample) {
     await fish(page, s.id);
-    await expect(page.locator('#caught-name')).toHaveText(s.kind === 'animal' && s.lane >= 4 ? 'สัตว์ลึกลับ' : s.name);
+    // Deep animals are mysteries unless a spyglass caught earlier in this run is still active.
+    const spyglass = (await snapshot(page)).powers.spyglass > 0;
+    await expect(page.locator('#caught-name')).toHaveText(s.kind === 'animal' && s.lane >= 4 && !spyglass ? 'สัตว์ลึกลับ' : s.name);
     await reel(page);
-    // A message bottle doubles the following catch.
-    total += s.points * (doubled && s.effect !== 'double' ? 2 : 1);
-    doubled = s.effect === 'double' || (doubled && s.effect === 'double');
+    // Bottle and fever multipliers: each catch scores its points x1, x2 or x4.
+    const { landing } = await snapshot(page);
+    expect(landing.id).toBe(s.id);
+    expect([1, 2, 4]).toContain(landing.multiplier);
+    expect(landing.points).toBe(s.points * landing.multiplier);
+    total += landing.points;
     await expect(page.locator('#score')).toHaveText(String(total));
     await landed(page);
-    if ((await snapshot(page)).phase === 'complete') { await page.locator('#again').click(); total = 0; doubled = false; }
+    if ((await snapshot(page)).phase === 'complete') { await page.locator('#again').click(); total = 0; }
   }
   await page.reload(); await page.waitForFunction(() => window.__FISHING_QA__?.snapshot().ready);
   await page.locator('#collection').click();
@@ -399,5 +407,94 @@ test('every creature collides with the real hook, lands and persists in the zone
   await expect(page.locator('#dialog-title')).toContainText(`${sample.length} / ${SPECIES.length}`);
   for (const s of sample) await expect(page.locator('.collection-item').filter({ has: page.locator(`h4:text-is("${s.name}")`) })).toContainText('1 ครั้ง');
   await page.screenshot({ path: info.outputPath('book.png'), fullPage: true });
+  expect(errors).toEqual([]);
+});
+
+test('three catches in a row start FEVER: banner, golden line, doubled points and coins flying to the score', async ({ page }, info) => {
+  test.setTimeout(90_000); const errors = await boot(page);
+  for (let i = 0; i < 2; i++) { await fish(page, 'goldfish'); await reel(page); await landed(page); }
+  expect((await snapshot(page)).combo).toBe(2);
+  await expect(page.locator('#toast')).toContainText('คอมโบ 2');
+  await fish(page, 'goldfish'); await reel(page);
+  // Coins fly to the score box and are cleaned up afterwards.
+  await page.waitForFunction(() => document.querySelectorAll('.coin-fly').length > 0, null, { timeout: 3000 });
+  await landed(page);
+  await expect(page.locator('#fever')).toBeVisible();
+  const fever = await snapshot(page); expect(fever.fever).toBeGreaterThan(10); expect(fever.score).toBe(15);
+  await page.screenshot({ path: info.outputPath('fever.png') });
+  await fish(page, 'clownfish'); await reel(page); await landed(page);
+  const doubled = await snapshot(page);
+  expect(doubled.landing).toMatchObject({ id: 'clownfish', points: 16, multiplier: 2, extras: [] });
+  expect(doubled.score).toBe(31);
+  await page.waitForFunction(() => document.querySelectorAll('.coin-fly').length === 0, null, { timeout: 5000 });
+  expect(errors).toEqual([]);
+});
+
+test('power-ups: the net scoops a neighbour, turbo halves taps, the spyglass shows deep colours, the golden hook grows', async ({ page }, info) => {
+  test.setTimeout(150_000); const errors = await boot(page);
+  await fish(page, 'net'); await reel(page); await landed(page);
+  expect((await snapshot(page)).powers.net).toBe(1);
+  await expect(page.locator('#powers .power')).toHaveCount(1);
+  await fish(page, 'goldfish', ['clownfish']);
+  const netted = await snapshot(page);
+  expect(netted.extras).toEqual(['clownfish']); expect(netted.netted).toBe(1);
+  await page.screenshot({ path: info.outputPath('net.png') });
+  await reel(page); await landed(page);
+  const afterNet = await snapshot(page);
+  expect(afterNet.landing.extras).toEqual(['clownfish']); expect(afterNet.catches.slice(-2)).toEqual(['goldfish', 'clownfish']);
+  expect(afterNet.powers.net).toBe(0);
+  await fish(page, 'turbo-reel'); await reel(page); await landed(page);
+  await fish(page, 'shark'); expect((await snapshot(page)).requiredTaps).toBe(8); await reel(page); await landed(page);
+  await fish(page, 'spyglass'); await reel(page); await landed(page);
+  await page.evaluate(() => window.__FISHING_QA__.arrange('grouper'));
+  await page.waitForTimeout(150);
+  const seen = (await snapshot(page)).fishes.find((f) => f.id === 'grouper');
+  expect(seen.reveal).toBe(1); expect(seen.shadowAlpha).toBe(0);
+  await page.locator('#cast').click();
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'reeling');
+  await expect(page.locator('#caught-name')).toHaveText('ปลาเก๋ายักษ์');
+  await reel(page); await landed(page);
+  await fish(page, 'gold-hook'); await reel(page); await landed(page);
+  const gold = await snapshot(page); expect(gold.powers.goldHook).toBeGreaterThan(10); expect(gold.powers.bigHook).toBe(true);
+  // The turbo reel was used up by the catches after it; spyglass and golden hook are still running.
+  await expect(page.locator('#powers .power')).toHaveCount(2);
+  await page.screenshot({ path: info.outputPath('powers.png') });
+  expect(errors).toEqual([]);
+});
+
+test('four map pieces on an even turn start the pirate battle: aim, fire, hit, ten balls, back to fishing', async ({ page }, info) => {
+  test.setTimeout(150_000); const errors = await boot(page); await page.locator('#arcade').click();
+  await page.evaluate(() => { window.__FISHING_QA__.setMaps(3); window.__FISHING_QA__.setBonusTurn(0); });
+  await fish(page, 'map'); await reel(page);
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'pirate', null, { timeout: 5000 });
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tap-tap-fishing-v1')).bonusTurn)).toBe(1);
+  await expect(page.locator('#bonus')).toContainText('ยิงเรือโจรสลัด');
+  await expect(page.locator('#cast')).toContainText('ยิงปืนใหญ่');
+  await expect(page.locator('#reel')).toBeDisabled();
+  const clock = (await snapshot(page)).remaining;
+  await page.evaluate(() => window.__FISHING_QA__.freezeShips());
+  const ship = (await snapshot(page)).battle.ships.find((s) => !s.leaving);
+  await page.evaluate((x) => window.__FISHING_QA__.aimAt(x), ship.x);
+  await page.waitForTimeout(150);
+  await page.screenshot({ path: info.outputPath('pirate-aim.png') });
+  const before = (await snapshot(page)).score;
+  await page.locator('#cast').click();
+  await page.waitForFunction(() => !window.__FISHING_QA__.snapshot().pirate.ball, null, { timeout: 3000 });
+  const hit = await snapshot(page);
+  expect(hit.pirate.hits).toBe(1); expect(hit.score).toBeGreaterThan(before); expect(hit.pirate.shots).toBe(9);
+  await page.screenshot({ path: info.outputPath('pirate-hit.png') });
+  // Aim far away from the ship for the rest: misses splash, the battle ends after the tenth ball.
+  await page.evaluate((x) => window.__FISHING_QA__.aimAt(x), ship.x > 240 ? 40 : 440);
+  for (let i = 0; i < 9; i++) {
+    await page.waitForFunction(() => { const s = window.__FISHING_QA__.snapshot(); return !s.pirate || !s.pirate.ball; });
+    if (!(await snapshot(page)).pirate) break;
+    await page.locator('#cast').click();
+    await page.waitForFunction(() => { const s = window.__FISHING_QA__.snapshot(); return !s.pirate || !s.pirate.ball; }, null, { timeout: 3000 });
+  }
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'aim', null, { timeout: 5000 });
+  const done = await snapshot(page);
+  expect(done.pirate).toBe(null); expect(done.remaining).toBeGreaterThan(clock - 3);
+  await expect(page.locator('#toast')).toContainText('สมบัติจากเรือโจรสลัด');
+  await expect(page.locator('#cast')).toContainText('หย่อนเบ็ด');
   expect(errors).toEqual([]);
 });

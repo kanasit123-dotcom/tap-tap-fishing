@@ -38,6 +38,18 @@ nav { display: flex; gap: 8px; }
 @keyframes badge-pop { 50% { transform: scale(1.15); } }
 .bonus-banner { flex-basis: 100%; white-space: nowrap; justify-content: center; display: flex; align-items: center; gap: 7px; padding: 6px 12px; margin-bottom: 4px; border-radius: 22px; background: linear-gradient(#ffe68a, #f5b52e); border: 2px solid #fff6cf; color: #6b3d00; font-weight: 800; font-size: 18px; box-shadow: 0 4px 14px #8a5a0055; pointer-events: none; animation: bonus-glow 1.2s ease-in-out infinite; }
 .bonus-banner svg { width: 20px; height: 20px; }
+.fever-banner { flex-basis: 100%; white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 6px 12px; margin-bottom: 4px; border-radius: 22px; background: linear-gradient(#ff9a5a, #e8432f); border: 2px solid #ffe2b8; color: #fff; font-weight: 900; font-size: 18px; letter-spacing: 0.5px; box-shadow: 0 4px 14px #a8240f66; pointer-events: none; animation: fever-pulse 0.6s ease-in-out infinite; }
+.fever-banner strong { min-width: 26px; padding: 0 6px; border-radius: 10px; background: #fff3e2; color: #b2321c; text-align: center; font-variant-numeric: tabular-nums; }
+@keyframes fever-pulse { 50% { transform: scale(1.05); box-shadow: 0 4px 22px #ff7a3dcc; } }
+.coin-fly { position: fixed; z-index: 60; width: 18px; height: 18px; border-radius: 50%; pointer-events: none; background: #ffd34d center / contain no-repeat; box-shadow: 0 1px 3px #6b450b66; transition: transform 0.7s cubic-bezier(0.55, -0.25, 0.75, 0.6); }
+.score.bump { animation: score-bump 0.35s ease-out; }
+.powers { position: absolute; left: 0; top: calc(100% + 6px); display: flex; gap: 5px; pointer-events: none; }
+
+.power { display: flex; align-items: center; gap: 2px; padding: 2px 6px 2px 3px; border-radius: 14px; background: #fff9e6ee; border: 2px solid #f3cf71; box-shadow: 0 2px 0 #ba922940; font-size: 13px; color: #7a4b12; font-variant-numeric: tabular-nums; }
+.power img { width: 24px; height: 24px; object-fit: contain; }
+.cast-button.fire { background: #b8452c; box-shadow: 0 6px 0 #7c2a19, 0 8px 16px #064c6940; }
+.cast-button.fire:disabled { background: #8a6d66; box-shadow: 0 6px 0 #5d4741; }
+@keyframes score-bump { 40% { transform: scale(1.14); } }
 .bonus-banner strong { min-width: 26px; padding: 0 6px; border-radius: 10px; background: #fff8de; text-align: center; font-variant-numeric: tabular-nums; }
 @keyframes bonus-glow { 50% { box-shadow: 0 4px 22px #ffd34dcc; } }
 .toast { position: absolute; left: 50%; top: calc(var(--scene-top) + 118px); transform: translateX(-50%); max-width: calc(var(--scene-width) - 40px); padding: 8px 16px; border-radius: 10px; background: #0b4f5fe6; color: #fff; font-weight: 700; font-size: 16px; text-align: center; pointer-events: none; white-space: nowrap; }
@@ -165,4 +177,4 @@ dialog p { font-size: 15px; color: #537577; }
 @media (max-height: 540px) and (min-width: 650px) {
   .phase-label { left: 24px; width: 180px; max-width: 180px; bottom: 30px; }
 }
-@media (prefers-reduced-motion: reduce) { #reel.active, #reel.tapped { animation: none; } .wheel { transition: none; } }
+@media (prefers-reduced-motion: reduce) { #reel.active, #reel.tapped, .fever-banner, .score.bump { animation: none; } .wheel { transition: none; } }
