@@ -56,6 +56,9 @@ special items **with effects + bonus stage**; **sea ambience + soft music** with
   (`sheet-f-pirate.png`, already in docs/ART-PROMPTS.md and `SHEETS`); then boss fish, lucky wheel at trip end, unlockable boat/hook
   skins from book zones, day/sunset/night. Power-up and pirate design notes are under prompt I in ART-PROMPTS.md.
   When sheet I arrives, `tests/assets.test.mjs` must allow the non-catalog prop ids (pirate ships, cannon, coin...).
+- **v0.5.0 LIVE (2026-10-05):** commit e646e00, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37304838992 —
+  Fever/effects, power-ups, pirate battle. Still to do from the agreed roadmap: boss fish event, lucky wheel at trip end,
+  unlockable boat/hook looks from book zones, day/sunset/night (the last needs 2 more background images).
 - **Power-ups + pirate battle (2026-10-05, from prompt I `sheet-f-pirate.png`):**
   - Catalog items (book zone "treasure"): `net` (lane 2) -> `netCharges`; the next catch also scoops up to 2 creatures within
     80x60 world px of the hook (taps = the toughest one; all recorded, all count for the trip). `turbo-reel` (lane 2) -> next 3 catches

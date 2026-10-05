@@ -4,6 +4,9 @@ Date: 2026-10-04
 
 ## Latest: v0.5.0 — Power-Ups And Pirate Battle (2026-10-05)
 
+- Deployed (user: "deploy ทีเดียวหลังทำเสร็จ"): commit e646e00, Pages Actions run 37304838992 succeeded; live bundle matches the
+  local Pages build (index-jccIFepN.js); pirate/net/coin sprites 200; live smoke passed (50 entries, no errors).
+
 - Includes the combo/Fever and effects round below. Sheet I checked (12 subjects, order, ships bow right, coin-emblem flags,
   no skulls) and cut cleanly.
 - `npm test`: 64 passed (net scoop/taps/points/one charge, turbo 3 catches + faster drop, golden hook/spyglass timers paused with
