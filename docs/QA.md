@@ -2,7 +2,11 @@
 
 Date: 2026-10-04
 
-## Latest: Sunset/Night Art, Bosses, Crank Reeling, Snapshot Tests (2026-10-05, not yet deployed)
+## Latest: v0.6.0 — Wheel, Looks, Day/Sunset/Night, Bosses, Crank Reeling (deployed 2026-10-06)
+
+- Deployed at the user's request: commit 9bc2575, Pages run 37373626821 succeeded; live bundle = local Pages build
+  (index-CXk9MCNM.js); boss/sunset/night images 200; live smoke passed (53 entries, no errors). Build 5.1 MB.
+- Includes everything below (sunset/night art, bosses, crank reeling, snapshot runner).
 
 - Prompts J/K delivered: sunset/night repaints keep the day lines (waterline/sand within 0.4%), bosses cut cleanly.
   Screenshots inspected: night (moon, glowing corals, lanterns) and sunset (golden rays) with a whale/kraken crossing.

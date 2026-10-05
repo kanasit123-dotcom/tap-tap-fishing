@@ -56,7 +56,10 @@ special items **with effects + bonus stage**; **sea ambience + soft music** with
   (`sheet-f-pirate.png`, already in docs/ART-PROMPTS.md and `SHEETS`); then boss fish, lucky wheel at trip end, unlockable boat/hook
   skins from book zones, day/sunset/night. Power-up and pirate design notes are under prompt I in ART-PROMPTS.md.
   When sheet I arrives, `tests/assets.test.mjs` must allow the non-catalog prop ids (pirate ships, cannon, coin...).
-- **Crank reeling + snapshot tests (2026-10-05, not deployed):** `createCrank` in src/input.js (120 deg per pull, dead zone
+- **v0.6.0 LIVE (2026-10-06):** commit 9bc2575, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37373626821 —
+  everything in the roadmap items below. Open ideas: playtest balance on a real iPad (boss frequency, wheel odds, pirate difficulty,
+  crank step 120 deg), two-player, recorded Thai voice, offline/PWA service worker.
+- **Crank reeling + snapshot tests (2026-10-05, deployed in v0.6.0):** `createCrank` in src/input.js (120 deg per pull, dead zone
   near the hub, a reversal restarts the count); `bindTapControl(..., { onRotate })` enables it only for the reel (touch on the
   stationary wrapper, mouse drag with the button held); the wheel follows the finger (`turnWheel`), hint toast/speech mention
   both ways. `npm run test:e2e:snapshot` = tools/e2e-snapshot.mjs copies index.html/src/public/tests to `.e2e-snapshot/` and runs
