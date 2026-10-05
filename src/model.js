@@ -16,10 +16,12 @@ export const FEVER_SECONDS = 15;
 export const NET_EXTRA = 2;
 export const TURBO_CATCHES = 3;
 export const POWER_SECONDS = 20;
-// Pirate mini-game (every other completed map): fire PIRATE_SHOTS cannonballs at pirate ships for treasure.
-export const PIRATE_SHOTS = 10;
-export const PIRATE_HIT = { small: 15, medium: 20, large: 25 };
-export const PIRATE_DEFEAT = { small: 25, medium: 50, large: 100 };
+// Pirate mini-game (every other completed map), like the cabinet: unlimited cannonballs for PIRATE_SECONDS,
+// then back to fishing. A short reload keeps the fire rate (and the points) sensible.
+export const PIRATE_SECONDS = 30;
+export const PIRATE_RELOAD = 0.45;
+export const PIRATE_HIT = { small: 5, medium: 7, large: 9 };
+export const PIRATE_DEFEAT = { small: 15, medium: 30, large: 60 };
 export const PIRATE_HP = { small: 1, medium: 2, large: 3 };
 
 export class FishingRound {
@@ -60,7 +62,7 @@ export class FishingRound {
     this.turbo = 0;
     this.goldHook = 0;
     this.spyglass = 0;
-    this.pirate = null;          // { shots, ball, streak, loot, hits } while the battle runs
+    this.pirate = null;          // { time, cooldown, flying, shots, streak, loot, hits } while the battle runs
     this.pirateQueued = false;
     if (startPowers.net) this.netCharges = 1;
     if (startPowers.turbo) this.turbo = TURBO_CATCHES;
@@ -113,17 +115,18 @@ export class FishingRound {
   // ---- pirate battle ----
   fire() {
     const p = this.pirate;
-    if (this.paused || this.phase !== 'pirate' || !p || p.ball || p.shots <= 0) return false;
-    p.shots--;
-    p.ball = true;
+    if (this.paused || this.phase !== 'pirate' || !p || p.time <= 0 || p.cooldown > 0) return false;
+    p.cooldown = PIRATE_RELOAD;
+    p.flying++;
+    p.shots++;
     return true;
   }
 
   // The scene reports where the cannonball landed: { hit, kind, sunk }.
   resolveShot({ hit = false, kind = 'small', sunk = false } = {}) {
     const p = this.pirate;
-    if (!p || !p.ball) return null;
-    p.ball = false;
+    if (!p || p.flying <= 0) return null;
+    p.flying--;
     let points = 0;
     if (hit && PIRATE_HIT[kind]) {
       p.streak++;
@@ -133,13 +136,16 @@ export class FishingRound {
       this.score += points;
       p.loot += points;
     } else p.streak = 0;
-    const ended = p.shots <= 0;
+    // The battle ends when the time is up and the last ball has landed.
+    const ended = p.time <= 0 && p.flying === 0;
     const result = { points, streak: p.streak, ended, loot: p.loot, hits: p.hits };
     if (ended) this.endPirate();
     return result;
   }
 
   endPirate() {
+    const p = this.pirate;
+    this.pirateResult = p ? { loot: p.loot, hits: p.hits, shots: p.shots } : null;
     this.pirate = null;
     this.phase = this.goalReached || (this.mode === 'arcade' && this.remaining === 0) ? 'complete' : 'aim';
   }
@@ -170,6 +176,11 @@ export class FishingRound {
     }
     if (this.phase === 'aim' && this.bonus === 0 && this.goalReached) { this.phase = 'complete'; return; }
     if (this.phase === 'aim' || this.phase === 'pirate') this.swingAim(dt);
+    if (this.phase === 'pirate' && this.pirate) {
+      this.pirate.time = Math.max(0, this.pirate.time - dt);
+      this.pirate.cooldown = Math.max(0, this.pirate.cooldown - dt);
+      if (this.pirate.time <= 0 && this.pirate.flying === 0) this.endPirate();
+    }
     if (this.phase === 'casting') {
       this.length += 245 * (this.turbo > 0 ? 1.6 : 1) * dt;
       const h = this.hook;
@@ -242,7 +253,7 @@ export class FishingRound {
     this.requiredTaps = 0;
     if (this.pirateQueued) {
       this.pirateQueued = false;
-      this.pirate = { shots: PIRATE_SHOTS, ball: false, streak: 0, loot: 0, hits: 0 };
+      this.pirate = { time: PIRATE_SECONDS, cooldown: 0, flying: 0, shots: 0, streak: 0, loot: 0, hits: 0 };
       this.phase = 'pirate';
       return;
     }

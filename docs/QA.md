@@ -2,7 +2,19 @@
 
 Date: 2026-10-04
 
-## Latest: v0.6.0 — Wheel, Looks, Day/Sunset/Night, Bosses, Crank Reeling (deployed 2026-10-06)
+## Latest: Feedback Round After v0.6.0 (2026-10-06, not yet deployed)
+
+- User (iPhone): wheel dialog needed scrolling; wanted the cabinet's unlimited 30 s cannon battle; bosses too rare; crank slightly too
+  easy (taps are fine).
+- `npm test`: 72 passed (timed battle: reload, several balls, streak/sink points, 30+ shots, ends after the last ball, idle battle ends;
+  bosses: 6-14 per 15 min, first 15-30 s, one at a time, nearly every 75 s trip meets one; crank 180 deg).
+- Full suite via snapshot (`test-results/r2-full/`): 76 passed, 2 skipped, 0 failed (27 min). New e2e: the trip-end dialog at 390x664,
+  375x560, 430x740, 844x390 and 1024x768 needs no scrolling, play-again stays in view before and after a spin; the pirate battle test
+  fires 14+ shots, ends on the clock and shows the loot toast (a bug found by the test: the loot message only appeared when a hit ended it).
+- Screenshots inspected: dialog at 390x664 and 844x390, wheel labels after shortening "ตะขอทอง" on the wheel.
+- Not verified on a real iPhone: dialog height with Safari's toolbars, how hard the half-turn crank feels, boss cadence in play.
+
+## Previous: v0.6.0 — Wheel, Looks, Day/Sunset/Night, Bosses, Crank Reeling (deployed 2026-10-06)
 
 - Deployed at the user's request: commit 9bc2575, Pages run 37373626821 succeeded; live bundle = local Pages build
   (index-CXk9MCNM.js); boss/sunset/night images 200; live smoke passed (53 entries, no errors). Build 5.1 MB.

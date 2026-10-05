@@ -7,8 +7,8 @@ export const SWIM_PACE = 1.12;   // overall swimming speed (user: "a little fast
 export const LANE_GAPS = [4.25, 4.25, 3.8, 4.2, 5, 5.8, 5].map((gap) => gap / SWIM_PACE);
 export const MIN_GAP_PX = 36;
 export const RARE_COOLDOWN = 60;
-export const BOSS_FIRST = [70, 100];   // seconds until the first boss of a trip
-export const BOSS_EVERY = [120, 180];  // seconds between bosses
+export const BOSS_FIRST = [15, 30];    // seconds until the first boss of a trip
+export const BOSS_EVERY = [35, 55];    // seconds of open sea between one boss leaving and the next arriving
 export const BOSS_LANE = 3;
 export const STRAY_SHARE = 0.15;  // relative chance of a neighbouring lane's animal straying into a lane
 export const REPEAT_SHARE = 0.4;  // the species that arrived two groups ago is this much less likely to come next
@@ -127,9 +127,11 @@ export class Spawner {
     return orders;
   }
 
-  // A boss (with artwork) crosses the middle of the sea every two to three minutes, never during the treasure rain.
+  // A boss (with artwork) crosses the middle of the sea about once a minute and a half, never during the treasure rain.
   bossTick(dt, lanes) {
     if (this.bonus) return null;
+    // One boss at a time: the countdown only runs while the sea is free of them.
+    if ((lanes[BOSS_LANE]?.bosses ?? 0) > 0) return null;
     this.bossIn -= dt;
     if (this.bossIn > 0) return null;
     const bosses = this.species.filter((s) => s.boss && this.available.has(s.id));
@@ -190,4 +192,4 @@ export class Spawner {
   }
 }
 
-export const emptyLane = (span = 600) => ({ count: 0, span, sides: { 1: { tailGap: Infinity, tailSpeed: 0 }, [-1]: { tailGap: Infinity, tailSpeed: 0 } } });
+export const emptyLane = (span = 600) => ({ count: 0, bosses: 0, span, sides: { 1: { tailGap: Infinity, tailSpeed: 0 }, [-1]: { tailGap: Infinity, tailSpeed: 0 } } });

@@ -491,6 +491,7 @@ export class CoveScene extends Phaser.Scene {
       if (d.caught) continue;
       const state = states[d.lane];
       state.count++;
+      if (d.species.boss) state.bosses++;
       const side = state.sides[d.dir];
       const gap = d.dir > 0 ? fish.x - d.w / 2 - this.view.left : this.view.right - (fish.x + d.w / 2);
       if (gap < side.tailGap) { side.tailGap = gap; side.tailSpeed = d.speed; }
@@ -744,7 +745,7 @@ export class CoveScene extends Phaser.Scene {
     if (before === 'aim' && round.phase === 'casting') this.castRipple(round.angle);
     const pirate = round.phase === 'pirate';
     if (pirate && !this.pirate.active) { this.pirate.start(this.controller.rng); this.controller.onPirateStart?.(); }
-    if (!pirate && this.pirate.active) this.pirate.end();
+    if (!pirate && this.pirate.active) { this.pirate.end(); this.controller.onPirateEnd?.(); }
     this.controller.audio.setFever?.(round.fever > 0);
     if ((round.bonus > 0) !== this.bonusActive) this.setBonus(round.bonus > 0);
     this.controller.audio.setBonus(round.bonus > 0 || pirate);

@@ -9,7 +9,7 @@ export const WHEEL = [
   { id: 'p100', label: '+100', points: 100, weight: 1 },
   { id: 'turbo', label: 'รอกเร็ว', power: 'turbo', art: 'turbo-reel', weight: 2 },
   { id: 'p30', label: '+30', points: 30, weight: 3 },
-  { id: 'goldhook', label: 'ตะขอทอง', power: 'goldhook', art: 'gold-hook', weight: 2 },
+  { id: 'goldhook', label: 'ตะขอทอง', short: 'ตะขอ', power: 'goldhook', art: 'gold-hook', weight: 2 },
 ];
 
 export function spinWheel(rng = Math.random) {

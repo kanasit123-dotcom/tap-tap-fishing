@@ -47,15 +47,16 @@ nav { display: flex; gap: 8px; }
 
 .power { display: flex; align-items: center; gap: 2px; padding: 2px 6px 2px 3px; border-radius: 14px; background: #fff9e6ee; border: 2px solid #f3cf71; box-shadow: 0 2px 0 #ba922940; font-size: 13px; color: #7a4b12; font-variant-numeric: tabular-nums; }
 .power img { width: 24px; height: 24px; object-fit: contain; }
-.lucky { margin: 6px 0 2px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.lucky-box { position: relative; width: 190px; height: 190px; }
+.lucky { --wheel: clamp(112px, 25dvh, 190px); margin: 4px 0 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.lucky-box { position: relative; width: var(--wheel); height: var(--wheel); }
 .lucky-wheel { position: absolute; inset: 0; border-radius: 50%; border: 5px solid #fff6d6; box-shadow: 0 0 0 3px #b07a12, 0 6px 16px #3a250040; transition: transform 3.2s cubic-bezier(0.17, 0.67, 0.18, 1); }
-.lucky-wheel .seg { position: absolute; left: 50%; top: 50%; width: 52px; margin-left: -26px; margin-top: -86px; height: 74px; transform-origin: 26px 86px; transform: rotate(var(--a)); display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 13px; font-weight: 800; color: #3b2400; text-shadow: 0 1px 0 #fff8; pointer-events: none; }
-.lucky-wheel .seg img { width: 26px; height: 22px; object-fit: contain; }
-.lucky-hub { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6c0, #e2a321); border: 3px solid #b07a12; }
-.lucky-pointer { position: absolute; z-index: 2; left: 50%; top: -10px; margin-left: -12px; width: 0; height: 0; border-left: 12px solid transparent; border-right: 12px solid transparent; border-top: 22px solid #e8433a; filter: drop-shadow(0 2px 1px #0005); }
-.spin { min-height: 46px; }
-.prize { min-height: 22px; margin: 0; font-weight: 800; color: #b2321c; }
+.lucky-wheel .seg { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform: rotate(var(--a)) translateY(calc(var(--wheel) * -0.35)); pointer-events: none; }
+.lucky-wheel .seg > span { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: calc(var(--wheel) * 0.068); font-weight: 800; line-height: 1.1; white-space: nowrap; color: #3b2400; text-shadow: 0 1px 0 #fff8; }
+.lucky-wheel .seg img { width: calc(var(--wheel) * 0.15); height: calc(var(--wheel) * 0.12); object-fit: contain; }
+.lucky-hub { position: absolute; left: 50%; top: 50%; width: calc(var(--wheel) * 0.16); height: calc(var(--wheel) * 0.16); margin: calc(var(--wheel) * -0.08) 0 0 calc(var(--wheel) * -0.08); border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6c0, #e2a321); border: 3px solid #b07a12; }
+.lucky-pointer { position: absolute; z-index: 2; left: 50%; top: -10px; margin-left: -11px; width: 0; height: 0; border-left: 11px solid transparent; border-right: 11px solid transparent; border-top: 20px solid #e8433a; filter: drop-shadow(0 2px 1px #0005); }
+.spin { min-height: 44px; padding: 8px 16px; }
+.prize { min-height: 20px; margin: 0; font-size: 15px; font-weight: 800; color: #b2321c; }
 .looks { text-align: left; margin-top: 6px; }
 .look-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0; }
 .look-part { width: 64px; font-size: 13px; font-weight: 800; color: #2b6f6c; }
@@ -129,6 +130,28 @@ dialog p { font-size: 15px; color: #537577; }
 .catch-strip { display: flex; justify-content: center; flex-wrap: wrap; }
 .catch-strip .species-art { width: 65px; height: 70px; }
 .catch-strip .species-art.emoji { font-size: 40px; }
+/* Trip-end dialog: everything (score, wheel, buttons) must fit one phone screen without scrolling. */
+.reward { display: flex; flex-direction: column; }
+.reward .dialog-actions { margin-top: 10px; }
+.catch-strip { flex-wrap: nowrap; overflow: hidden; }
+.catch-strip .species-art { flex: 0 1 65px; min-width: 0; }
+@media (max-width: 600px), (max-height: 760px) {
+  dialog:has(.reward) { padding: 12px 14px; }
+  .reward .dialog-emblem { display: none; }
+  .reward h2 { margin: 0 0 4px; font-size: 21px; }
+  .reward-score { font-size: 40px; line-height: 1.1; }
+  .reward-score span { font-size: 13px; }
+  .reward p { margin: 2px 0 4px; font-size: 13px; }
+  .catch-strip .species-art { height: 46px; flex-basis: 46px; }
+  .reward .dialog-actions { gap: 8px; }
+  .reward .dialog-actions button { min-height: 44px; padding: 8px 14px; font-size: 15px; }
+}
+@media (max-height: 540px) and (min-width: 600px) {
+  .reward { flex-direction: row; align-items: center; gap: 16px; }
+  .reward-main, .reward-side { flex: 1; min-width: 0; }
+  .lucky { --wheel: clamp(104px, 52dvh, 170px); }
+  dialog:has(.reward) { width: min(720px, calc(100% - 24px)); }
+}
 @media (min-width: 1000px) { .topbar { padding-left: 40px; padding-right: 40px; } }
 @media (max-width: 600px) {
   .topbar { min-height: 105px; padding: max(8px, env(safe-area-inset-top)) 12px 8px; gap: 8px; flex-wrap: wrap; }

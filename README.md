@@ -28,6 +28,11 @@ npm run build
 npm run preview -- --port 5194
 ```
 
+## Version 0.6.1
+
+The trip-end wheel fits one phone screen; the pirate battle is 30 s of unlimited cannon fire; giant bosses come about
+once a minute and a half; the crank needs half a turn per pull.
+
 ## Version 0.6.0
 
 Lucky wheel at the end of a trip, boat looks unlocked from the book, day/sunset/night trips, giant boss fish every 2-3

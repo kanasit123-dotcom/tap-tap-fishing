@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FishingRound, WORLD, GOAL, BONUS_SECONDS, MAP_PIECES, TIME_BONUS, COMBO_FOR_FEVER, FEVER_SECONDS, TURBO_CATCHES, POWER_SECONDS, PIRATE_SHOTS, PIRATE_HIT, PIRATE_DEFEAT } from '../src/model.js';
+import { FishingRound, WORLD, GOAL, BONUS_SECONDS, MAP_PIECES, TIME_BONUS, COMBO_FOR_FEVER, FEVER_SECONDS, TURBO_CATCHES, POWER_SECONDS, PIRATE_SECONDS, PIRATE_RELOAD, PIRATE_HIT, PIRATE_DEFEAT } from '../src/model.js';
 import { SPECIES } from '../src/species.js';
 
 function tick(round, seconds) { for (let i = 0; i < Math.ceil(seconds * 60); i++) round.tick(1 / 60); }
@@ -200,25 +200,37 @@ test('completed maps alternate: the pirate battle, then the treasure rain', () =
   const r = new FishingRound('arcade', () => {}, { maps: 3 });
   catchFish(r, 'map'); land(r);
   assert.equal(r.landing.bonusKind, 'pirate'); assert.equal(r.bonus, 0); assert.equal(r.bonusTurn, 1);
-  tick(r, 2); assert.equal(r.phase, 'pirate'); assert.equal(r.pirate.shots, PIRATE_SHOTS);
+  tick(r, 2); assert.equal(r.phase, 'pirate'); assert.ok(r.pirate.time > PIRATE_SECONDS - 3 && r.pirate.time <= PIRATE_SECONDS);
   const clock = r.remaining; const angle = r.angle; tick(r, 1);
   assert.equal(r.remaining, clock, 'the arcade clock waits'); assert.notEqual(r.angle, angle, 'the cannon swings');
   assert.equal(r.cast(), false, 'no casting during the battle');
   r.maps = 3; r.pirate = null; r.phase = 'aim';
   catchFish(r, 'map'); land(r); assert.equal(r.landing.bonusKind, 'rain'); assert.ok(r.bonus > 0);
 });
-test('cannon shots: one ball at a time, streak bonus, sinking bonus, battle ends after the last ball', () => {
+test('pirate battle: unlimited shots for 30 seconds with a reload, streak and sinking points, then back to fishing', () => {
   const r = new FishingRound('relaxed', () => {}, { maps: 3 });
   catchFish(r, 'map'); land(r); tick(r, 2);
   const start = r.score;
-  assert.equal(r.fire(), true); assert.equal(r.fire(), false, 'wait for the ball to land');
+  assert.equal(r.fire(), true); assert.equal(r.fire(), false, 'reloading');
+  tick(r, PIRATE_RELOAD + 0.05); assert.equal(r.fire(), true, 'a second ball while the first is still flying'); assert.equal(r.pirate.flying, 2);
   assert.equal(r.resolveShot({ hit: true, kind: 'medium' }).points, PIRATE_HIT.medium);
-  r.fire(); assert.equal(r.resolveShot({ hit: true, kind: 'medium', sunk: true }).points, Math.round((PIRATE_HIT.medium + PIRATE_DEFEAT.medium) * 1.5));
-  r.fire(); assert.equal(r.resolveShot({ hit: true, kind: 'small', sunk: true }).points, (PIRATE_HIT.small + PIRATE_DEFEAT.small) * 2);
-  r.fire(); assert.equal(r.resolveShot({ hit: false }).points, 0); assert.equal(r.pirate.streak, 0);
+  assert.equal(r.resolveShot({ hit: true, kind: 'medium', sunk: true }).points, Math.round((PIRATE_HIT.medium + PIRATE_DEFEAT.medium) * 1.5));
+  assert.equal(r.resolveShot({ hit: true }), null, 'no ball left in the air');
+  tick(r, PIRATE_RELOAD + 0.05); r.fire();
+  assert.equal(r.resolveShot({ hit: true, kind: 'small', sunk: true }).points, (PIRATE_HIT.small + PIRATE_DEFEAT.small) * 2);
+  tick(r, PIRATE_RELOAD + 0.05); r.fire(); assert.equal(r.resolveShot({ hit: false }).points, 0); assert.equal(r.pirate.streak, 0);
   assert.equal(r.score - start, r.pirate.loot);
-  let last;
-  while (r.pirate && r.fire()) last = r.resolveShot({ hit: false });
+  // Many more shots than the old ten, all allowed within the half minute.
+  let fired = 4;
+  while (r.pirate.time > 1) { tick(r, PIRATE_RELOAD + 0.02); if (r.fire()) { fired++; r.resolveShot({ hit: false }); } }
+  assert.ok(fired > 30, `${fired} shots in 30 s`);
+  // Time up with a ball still flying: the battle waits for it, then ends and fishing resumes.
+  tick(r, PIRATE_RELOAD + 0.02); assert.equal(r.fire(), true);
+  tick(r, 2); assert.equal(r.pirate.time, 0); assert.equal(r.phase, 'pirate'); assert.equal(r.fire(), false, 'no new shots after the time is up');
+  const last = r.resolveShot({ hit: true, kind: 'large' });
   assert.equal(last.ended, true); assert.equal(r.pirate, null); assert.equal(r.phase, 'aim');
   assert.equal(r.resolveShot({ hit: true }), null);
+  const idle = new FishingRound('relaxed', () => {}, { maps: 3 });
+  catchFish(idle, 'map'); land(idle); tick(idle, 2); tick(idle, PIRATE_SECONDS + 1);
+  assert.equal(idle.phase, 'aim', 'a battle without a single shot still ends by itself');
 });

@@ -56,6 +56,17 @@ special items **with effects + bonus stage**; **sea ambience + soft music** with
   (`sheet-f-pirate.png`, already in docs/ART-PROMPTS.md and `SHEETS`); then boss fish, lucky wheel at trip end, unlockable boat/hook
   skins from book zones, day/sunset/night. Power-up and pirate design notes are under prompt I in ART-PROMPTS.md.
   When sheet I arrives, `tests/assets.test.mjs` must allow the non-catalog prop ids (pirate ships, cannon, coin...).
+- **Feedback round after v0.6.0 (2026-10-06, user played on iPhone; not deployed):**
+  - Trip-end dialog scrolled on iPhone (play-again button fell off): `.reward` = `reward-main` + `reward-side`; wheel size `--wheel`
+    = clamp(112px, 25dvh, 190px) with all geometry relative to it; compact rules under (max-width 600 | max-height 760); two columns
+    when short and wide (844x390). Tested at 390x664, 375x560, 430x740, 844x390, 1024x768 (no scrolling, button in view, also after a spin).
+  - Pirate battle follows the cabinet: unlimited balls, 30 s (`PIRATE_SECONDS`), reload 0.45 s, several balls may fly; points scaled
+    down (hit 5/7/9, sink bonus 15/30/60, streak x1.5/x2); up to 3 ships, faster spawns; ends when time is up and the last ball landed
+    (`onPirateEnd` toasts the loot, from `round.pirateResult`).
+  - Bosses were too rare (a trip of 8 catches ends in ~1-1.5 min): first boss 15-30 s, then 35-55 s of boss-free sea after the previous
+    one leaves (one at a time, `lanes[3].bosses`); about one per 90 s, nearly every short trip meets one.
+  - Crank: `CRANK_STEP` 180 (half a turn per pull); taps unchanged (user: taps are good).
+  - Research on the real cabinet (public pages only; videos could not be read): `docs/CABINET-IDEAS.md`.
 - **v0.6.0 LIVE (2026-10-06):** commit 9bc2575, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37373626821 —
   everything in the roadmap items below. Open ideas: playtest balance on a real iPad (boss frequency, wheel odds, pirate difficulty,
   crank step 120 deg), two-player, recorded Thai voice, offline/PWA service worker.

@@ -11,7 +11,7 @@ const SHIPS = {
 };
 const FLIGHT_MS = 750;
 const AIM_SPAN = 0.42;     // the target swings over this share of the visible width on each side
-const MAX_SHIPS = 2;
+const MAX_SHIPS = 3;
 const HIT_SHARE = 0.42;    // a ball within this share of the ship's width from its centre is a hit
 
 export class PirateBattle {
@@ -68,7 +68,7 @@ export class PirateBattle {
       this.spawnIn -= dt;
       if (this.spawnIn <= 0 && this.ships.filter((ship) => !ship.leaving).length < MAX_SHIPS) {
         this.spawnShip();
-        this.spawnIn = 1.6 + this.rng() * 2.2;
+        this.spawnIn = 1 + this.rng() * 1.6;
       }
     }
     for (const ship of [...this.ships]) {

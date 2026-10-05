@@ -464,13 +464,14 @@ test('power-ups: the net scoops a neighbour, turbo halves taps, the spyglass sho
   expect(errors).toEqual([]);
 });
 
-test('four map pieces on an even turn start the pirate battle: aim, fire, hit, ten balls, back to fishing', async ({ page }, info) => {
+test('four map pieces on an even turn start the 30 second pirate battle: aim, fire without limit, hit, back to fishing', async ({ page }, info) => {
   test.setTimeout(150_000); const errors = await boot(page); await page.locator('#arcade').click();
   await page.evaluate(() => { window.__FISHING_QA__.setMaps(3); window.__FISHING_QA__.setBonusTurn(0); });
   await fish(page, 'map'); await reel(page);
   await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'pirate', null, { timeout: 5000 });
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tap-tap-fishing-v1')).bonusTurn)).toBe(1);
   await expect(page.locator('#bonus')).toContainText('ยิงเรือโจรสลัด');
+  await expect(page.locator('#bonus-time')).toContainText('วิ');
   await expect(page.locator('#cast')).toContainText('ยิงปืนใหญ่');
   await expect(page.locator('#reel')).toBeDisabled();
   const clock = (await snapshot(page)).remaining;
@@ -481,23 +482,47 @@ test('four map pieces on an even turn start the pirate battle: aim, fire, hit, t
   await page.screenshot({ path: info.outputPath('pirate-aim.png') });
   const before = (await snapshot(page)).score;
   await page.locator('#cast').click();
-  await page.waitForFunction(() => !window.__FISHING_QA__.snapshot().pirate.ball, null, { timeout: 3000 });
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().pirate.flying === 0, null, { timeout: 3000 });
   const hit = await snapshot(page);
-  expect(hit.pirate.hits).toBe(1); expect(hit.score).toBeGreaterThan(before); expect(hit.pirate.shots).toBe(9);
+  expect(hit.pirate.hits).toBe(1); expect(hit.score).toBeGreaterThan(before);
   await page.screenshot({ path: info.outputPath('pirate-hit.png') });
-  // Aim far away from the ship for the rest: misses splash, the battle ends after the tenth ball.
+  // No ball limit: far more than ten shots are accepted (aimed at open water).
   await page.evaluate((x) => window.__FISHING_QA__.aimAt(x), ship.x > 240 ? 40 : 440);
-  for (let i = 0; i < 9; i++) {
-    await page.waitForFunction(() => { const s = window.__FISHING_QA__.snapshot(); return !s.pirate || !s.pirate.ball; });
-    if (!(await snapshot(page)).pirate) break;
-    await page.locator('#cast').click();
-    await page.waitForFunction(() => { const s = window.__FISHING_QA__.snapshot(); return !s.pirate || !s.pirate.ball; }, null, { timeout: 3000 });
-  }
-  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'aim', null, { timeout: 5000 });
+  for (let i = 0; i < 14; i++) { await page.locator('#cast').click(); await page.waitForTimeout(500); }
+  expect((await snapshot(page)).pirate.shots).toBeGreaterThan(12);
+  // Run the clock down: the battle ends by itself and fishing resumes with the arcade clock untouched.
+  await page.evaluate(() => window.__FISHING_QA__.setPirateTime(1.2));
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'aim', null, { timeout: 8000 });
   const done = await snapshot(page);
-  expect(done.pirate).toBe(null); expect(done.remaining).toBeGreaterThan(clock - 3);
+  expect(done.pirate).toBe(null); expect(done.remaining).toBeGreaterThan(clock - 4);
   await expect(page.locator('#toast')).toContainText('สมบัติจากเรือโจรสลัด');
   await expect(page.locator('#cast')).toContainText('หย่อนเบ็ด');
+  expect(errors).toEqual([]);
+});
+
+test('the trip-end dialog with the lucky wheel fits one phone screen: no scrolling, the play-again button in view', async ({ page }, info) => {
+  const errors = await boot(page);
+  for (const [width, height] of [[390, 664], [375, 560], [430, 740], [844, 390], [1024, 768]]) {
+    await page.setViewportSize({ width, height }); await page.waitForTimeout(250);
+    await page.evaluate(() => window.__FISHING_QA__.finishTrip(['goldfish', 'clownfish', 'turtle', 'shark', 'chest', 'net', 'goldfish', 'sardine']));
+    await expect(page.locator('#again')).toBeVisible();
+    const fit = await page.evaluate(() => {
+      const modal = document.querySelector('#modal'); const again = document.querySelector('#again').getBoundingClientRect();
+      const wheel = document.querySelector('#lucky-wheel').getBoundingClientRect();
+      return { overflow: modal.scrollHeight - modal.clientHeight, againBottom: again.bottom, againTop: again.top, wheel: wheel.width, inner: innerHeight, innerWidth, right: Math.max(again.right, wheel.right) };
+    });
+    expect(fit.overflow, `${width}x${height} dialog needs no scrolling`).toBeLessThanOrEqual(1);
+    expect(fit.againTop).toBeGreaterThanOrEqual(0); expect(fit.againBottom, `${width}x${height}: play again in view`).toBeLessThanOrEqual(fit.inner);
+    expect(fit.right).toBeLessThanOrEqual(fit.innerWidth);
+    expect(fit.wheel).toBeGreaterThanOrEqual(100);
+    await page.screenshot({ path: info.outputPath(`reward-${width}x${height}.png`) });
+    // After a spin the prize line appears and the button must still be in view.
+    await page.locator('#spin').click();
+    await expect(page.locator('#prize')).not.toHaveText('', { timeout: 6000 });
+    const after = await page.evaluate(() => ({ again: document.querySelector('#again').getBoundingClientRect().bottom, inner: innerHeight, overflow: document.querySelector('#modal').scrollHeight - document.querySelector('#modal').clientHeight }));
+    expect(after.again).toBeLessThanOrEqual(after.inner); expect(after.overflow).toBeLessThanOrEqual(1);
+    await page.locator('#again').click();
+  }
   expect(errors).toEqual([]);
 });
 
@@ -596,8 +621,8 @@ test('the reel can also be cranked: turning around the wheel pulls the line, hol
     await send('touchEnd', 720);
   }
   const s = await snapshot(page);
-  // One pull for the first touch, plus one per 120 degrees: 1 + 6.
-  expect(s.taps).toBe(7);
+  // One pull for the first touch, plus one per 180 degrees (half a turn): 1 + 4 for two turns.
+  expect(s.taps).toBe(5);
   const angleAfter = await page.locator('#reel').evaluate((el) => parseFloat(el.style.getPropertyValue('--wheel-angle')) || 0);
   expect(angleAfter - angleBefore).toBeGreaterThan(600);
   expect(await page.evaluate(() => visualViewport.scale)).toBe(1);

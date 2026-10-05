@@ -91,8 +91,8 @@ test('the reel binding pulls once on touch and once per crank step while the fin
   touch('touchstart', at(0));
   for (let a = 15; a <= 360; a += 15) assert.equal(touch('touchmove', at(a)).defaultPrevented, true);
   touch('touchend');
-  assert.deepEqual(pulls, ['tap', 'crank', 'crank', 'crank']); assert.ok(Math.abs(rotated - 360) < 1e-6);
-  touch('touchmove', at(30)); assert.equal(pulls.length, 4, 'no crank after the finger lifts');
+  assert.deepEqual(pulls, ['tap', ...Array(360 / CRANK_STEP).fill('crank')]); assert.ok(Math.abs(rotated - 360) < 1e-6);
+  touch('touchmove', at(30)); assert.equal(pulls.length, 1 + 360 / CRANK_STEP, 'no crank after the finger lifts');
   const cast = new EventTarget(); cast.disabled = false; cast.getBoundingClientRect = () => box;
   const castSurface = new EventTarget(); let casts = 0;
   bindTapControl(cast, () => casts++, castSurface);

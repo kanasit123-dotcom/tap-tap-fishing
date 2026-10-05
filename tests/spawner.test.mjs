@@ -21,13 +21,14 @@ function simulate({ seconds = 900, mode = 'relaxed', seed = 1, bonusAt = Infinit
     for (const f of swimmers) {
       const lane = lanes[f.lane];
       lane.count++;
+      if (f.boss) lane.bosses++;
       const side = lane.sides[f.dir];
       const gap = f.distance - f.width;
       if (gap < side.tailGap) { side.tailGap = gap; side.tailSpeed = f.speed; }
     }
     for (const order of spawner.tick(0.1, lanes)) {
       spawns.push({ time: t, order });
-      for (const m of order.members) swimmers.push({ lane: order.lane, dir: order.dir, speed: order.speed * m.speedMul, group: spawns.length, width: order.species.size, distance: -m.offset });
+      for (const m of order.members) swimmers.push({ lane: order.lane, dir: order.dir, speed: order.speed * m.speedMul, group: spawns.length, width: order.species.size, distance: -m.offset, boss: Boolean(order.boss) });
     }
     for (const f of swimmers) f.distance += f.speed * 0.1;
     // Groups from the same side must not swim through each other while both are on screen.
@@ -183,19 +184,26 @@ test('creatures still waiting for artwork leave their slot empty instead of crow
   assert.ok(perMinute(all, 'crown') + perMinute(all, 'lobster-king') < 0.4);
 });
 
-test('a boss crosses the middle every two to three minutes, never during the treasure rain, and only with artwork', () => {
+test('a boss crosses the middle about every minute and a half, one at a time, never in the rain, only with artwork', () => {
   const { spawns } = simulate({ seconds: 900, seed: 6 });
   const bosses = spawns.filter((s) => s.order.boss);
-  assert.ok(bosses.length >= 4 && bosses.length <= 7, `${bosses.length} bosses in 15 minutes`);
-  assert.ok(bosses[0].time >= BOSS_FIRST[0] - 0.11);
+  assert.ok(bosses.length >= 6 && bosses.length <= 14, `${bosses.length} bosses in 15 minutes`);
+  assert.ok(bosses[0].time >= BOSS_FIRST[0] - 0.11 && bosses[0].time <= BOSS_FIRST[1] + 5, `first boss at ${bosses[0].time.toFixed(0)} s: a short trip still meets one`);
   bosses.slice(1).forEach((b, i) => assert.ok(b.time - bosses[i].time >= BOSS_EVERY[0] - 0.11));
   for (const b of bosses) {
     assert.equal(b.order.lane, BOSS_LANE); assert.ok(b.order.species.boss); assert.equal(b.order.members.length, 1);
   }
   bosses.slice(1).forEach((b, i) => assert.notEqual(b.order.species.id, bosses[i].order.species.id, 'a different boss each time'));
   assert.ok(!spawns.some((s) => !s.order.boss && s.order.species.boss), 'bosses never come in the normal mix');
+  // One at a time: a boss only enters once the previous one has swum off (distance travelled > crossing + its length).
+  bosses.slice(1).forEach((b, i) => {
+    const prev = bosses[i]; const crossing = (600 + prev.order.species.size) / prev.order.speed;
+    assert.ok(b.time - prev.time >= crossing - 0.5, `boss ${i + 1} entered ${(b.time - prev.time).toFixed(0)} s after the previous one; it needs ${crossing.toFixed(0)} s to leave`);
+  });
   const rain = simulate({ seconds: 400, seed: 6, bonusAt: 0 }).spawns;
   assert.equal(rain.filter((s) => s.order.boss).length, 0);
   const noArt = simulate({ seconds: 400, seed: 6, species: SPECIES.filter((s) => !s.boss) }).spawns;
   assert.equal(noArt.filter((s) => s.order.boss).length, 0);
+  const trips = [1, 2, 3, 4, 5, 6, 7, 8].map((seed) => simulate({ seconds: 75, seed }).spawns.some((s) => s.order.boss));
+  assert.ok(trips.filter(Boolean).length >= 7, 'nearly every short trip (75 s) meets a boss');
 });

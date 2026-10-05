@@ -1,6 +1,6 @@
-// Turning a finger (or a held mouse button) around the reel like a real crank: every CRANK_STEP degrees of
-// steady turning counts as one reel pull. Holding still never pulls; wiggling back and forth restarts the turn.
-export const CRANK_STEP = 120;
+// Turning a finger (or a held mouse button) around the reel like a real crank: every CRANK_STEP degrees (half a
+// turn) of steady turning counts as one reel pull. Holding still never pulls; wiggling back and forth restarts the turn.
+export const CRANK_STEP = 180;
 
 export function createCrank({ step = CRANK_STEP, deadZone = 0.22 } = {}) {
   let center = null;
