@@ -2,7 +2,11 @@
 
 Date: 2026-10-04
 
-## Latest (NOT deployed yet, would be v0.9.2): messages off the water, ten catches, arcade without a limit
+## Latest: v0.9.2 — messages off the water, ten catches, arcade without a limit (deployed 2026-10-07)
+
+- LIVE: commit f64af3c, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37546712844 (success). Live bundle `index-CMnoGk7g.js` + `index-NEWGLoFz.css` equal the local Pages build, `sw.js` returns 200;
+  `npm run test:pages -- https://kanasit123-dotcom.github.io/tap-tap-fishing/`: passed, 66 entries, colored and moving canvas, offline reload ok, no errors. The same smoke passed on the local production preview first.
+  Before the push: `npm run check` (116 unit tests, build, offline copy 112 files / 7.3 MB).
 
 - User (after v0.9.1): the captions still covered the water even when small; asked to move them (on the boat or on the screen), and: arcade should have no 8-catch limit
   (as many as possible before the clock ends), or the normal mode should go from 8 to 10 catches. Both were done.
