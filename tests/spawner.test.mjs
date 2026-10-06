@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Spawner, MIN_GAP_PX, RARE_COOLDOWN, SWIM_PACE, BOSS_FIRST, BOSS_EVERY, BOSS_LANE, emptyLane } from '../src/spawner.js';
+import { Spawner, MIN_GAP_PX, RARE_COOLDOWN, SWIM_PACE, BOSS_FIRST, BOSS_EVERY, BOSS_LANE, GUEST_FIRST, GUEST_EVERY, emptyLane } from '../src/spawner.js';
 import { SPECIES, LANE_COUNT, SEABED } from '../src/species.js';
 
 function seeded(seed) {
@@ -10,8 +10,8 @@ function seeded(seed) {
 const zone = (lane) => lane <= 3 ? 'upper' : lane < SEABED ? 'deep' : 'seabed';
 
 // Minimal sea: creatures cross a 600px lane from either side like the Phaser scene, and report room per side.
-function simulate({ seconds = 900, mode = 'relaxed', seed = 1, bonusAt = Infinity, span = 600, species = SPECIES } = {}) {
-  const spawner = new Spawner({ species, mode, rng: seeded(seed) });
+function simulate({ seconds = 900, mode = 'relaxed', seed = 1, bonusAt = Infinity, span = 600, species = SPECIES, wanted = () => [] } = {}) {
+  const spawner = new Spawner({ species, mode, rng: seeded(seed), wanted });
   const swimmers = [];
   const spawns = [];
   let overlaps = 0;
@@ -179,9 +179,12 @@ test('creatures still waiting for artwork leave their slot empty instead of crow
   assert.ok(perMinute(few, 'chest') > 0.05 && perMinute(few, 'chest') < 1.5, `chests stay special (${perMinute(few, 'chest')}/min)`);
   assert.ok(few.filter((s) => s.order.lane === 6).length < all.filter((s) => s.order.lane === 6).length / 3);
   // With every artwork in place, treasure and map pieces arrive regularly but jackpots stay rare.
-  assert.ok(perMinute(all, 'map') > 0.3 && perMinute(all, 'map') < 1.2, `maps ${perMinute(all, 'map')}/min`);
-  assert.ok(perMinute(all, 'chest') > 0.15, `chests ${perMinute(all, 'chest')}/min`);
-  assert.ok(perMinute(all, 'crown') + perMinute(all, 'lobster-king') < 0.4);
+  // One 25-minute run swings a lot (maps are rare, ~0.4/min with a 30 s cooldown), so average a few seeds.
+  const runs = [8, 9, 10, 11, 12, 13].map((seed) => simulate({ seconds: 1500, seed }).spawns);
+  const mean = (id) => runs.reduce((sum, list) => sum + perMinute(list, id), 0) / runs.length;
+  assert.ok(mean('map') > 0.3 && mean('map') < 1.2, `maps ${mean('map').toFixed(2)}/min`);
+  assert.ok(mean('chest') > 0.15, `chests ${mean('chest').toFixed(2)}/min`);
+  assert.ok(mean('crown') + mean('lobster-king') < 0.4);
 });
 
 test('a boss crosses the middle about every minute and a half, one at a time, never in the rain, only with artwork', () => {
@@ -206,4 +209,89 @@ test('a boss crosses the middle about every minute and a half, one at a time, ne
   assert.equal(noArt.filter((s) => s.order.boss).length, 0);
   const trips = [1, 2, 3, 4, 5, 6, 7, 8].map((seed) => simulate({ seconds: 75, seed }).spawns.some((s) => s.order.boss));
   assert.ok(trips.filter(Boolean).length >= 7, 'nearly every short trip (75 s) meets a boss');
+});
+
+test('bosses swim at their own full pace and wait for a clear road instead of crawling behind slower fish', () => {
+  for (const seed of [1, 2, 3, 6, 9]) {
+    const { spawns, overlaps } = simulate({ seconds: 900, seed });
+    assert.equal(overlaps, 0, `seed ${seed}: nothing swims through anything`);
+    const bosses = spawns.filter((s) => s.order.boss);
+    assert.ok(bosses.length >= 6, `seed ${seed}: ${bosses.length} bosses`);
+    for (const b of bosses) assert.ok(Math.abs(b.order.speed - b.order.species.speed * SWIM_PACE) < 1e-9, `${b.order.species.id} keeps its own speed`);
+  }
+  // A giant takes about half a minute to cross a phone-sized sea (480 px) - it used to need almost a minute.
+  for (const s of SPECIES.filter((x) => x.boss)) {
+    const mean = s.motion === 'pulse' ? 0.69 : 1;
+    assert.ok((480 + s.size) / (s.speed * SWIM_PACE * mean) < 42, `${s.id} crosses in ${((480 + s.size) / (s.speed * SWIM_PACE * mean)).toFixed(0)} s`);
+  }
+  // A slow fish right at the entrance keeps the boss waiting, and nothing new enters that lane meanwhile.
+  const spawner = new Spawner({ species: SPECIES, rng: seeded(4) });
+  spawner.bossIn = 0; spawner.wait.fill(0);
+  const slow = Array.from({ length: LANE_COUNT }, () => emptyLane());
+  const dir = spawner.dir[BOSS_LANE];
+  slow[BOSS_LANE].sides[dir] = { tailGap: 60, tailSpeed: 12 };
+  const waiting = spawner.tick(0.1, slow);
+  assert.ok(!waiting.some((o) => o.boss), 'the boss waits behind a slow fish');
+  assert.ok(!waiting.some((o) => o.lane === BOSS_LANE), 'no newcomer enters the boss lane while it waits');
+  const clear = Array.from({ length: LANE_COUNT }, () => emptyLane());
+  assert.ok(spawner.tick(0.1, clear).some((o) => o.boss), 'the road is clear, the boss enters');
+});
+
+test('creatures the player has never caught visit regularly, rare ones included, and stop once they are caught', () => {
+  const wanted = ['lobster-king', 'crown', 'whale-shark', 'dolphin'];
+  for (const seed of [1, 2, 3, 4, 5, 6]) {
+    const { spawns } = simulate({ seconds: 90, seed, wanted: () => wanted });
+    const guests = spawns.filter((s) => wanted.includes(s.order.species.id));
+    assert.ok(guests.length >= 2, `seed ${seed}: ${guests.length} visitors from the wish list in a 90 s trip`);
+    assert.ok(guests[0].time <= GUEST_FIRST[1] + 6, `seed ${seed}: the first visitor arrives by ${guests[0].time.toFixed(0)} s`);
+    for (const g of guests) if (g.order.species.id === 'lobster-king' || g.order.species.id === 'crown') assert.equal(g.order.members.length, 1, 'a visitor swims alone');
+    guests.slice(1).forEach((g, i) => assert.ok(g.time - guests[i].time >= 0.5));
+  }
+  // The rarest are seen far more often than their natural odds (a jackpot lobster almost never shows up by chance).
+  let lobsters = 0; let plain = 0;
+  for (let seed = 1; seed <= 20; seed++) {
+    lobsters += simulate({ seconds: 90, seed, wanted: () => ['lobster-king', 'crown', 'dolphin', 'whale-shark', 'sardine', 'crab'] }).spawns.filter((s) => s.order.species.id === 'lobster-king').length;
+    plain += simulate({ seconds: 90, seed }).spawns.filter((s) => s.order.species.id === 'lobster-king').length;
+  }
+  assert.ok(lobsters >= 6 && lobsters > plain * 3, `lobster king: ${lobsters} visits on the wish list vs ${plain} by chance in 20 trips`);
+  // Nothing wanted: no extra visitors, the sea is the ordinary mix.
+  const none = new Spawner({ species: SPECIES, rng: seeded(3), wanted: () => [] });
+  for (let t = 0; t < 120; t += 0.1) assert.equal(none.guestTick(0.1, Array.from({ length: LANE_COUNT }, () => emptyLane())), null);
+  // Never during the treasure rain, never an arcade-only item in the relaxed mode.
+  const rain = simulate({ seconds: 60, seed: 2, bonusAt: 0, wanted: () => ['lobster-king'] }).spawns;
+  assert.ok(!rain.some((s) => s.order.species.id === 'lobster-king'));
+  const relaxed = simulate({ seconds: 300, seed: 2, wanted: () => ['watch'] }).spawns;
+  assert.ok(!relaxed.some((s) => s.order.species.id === 'watch'));
+  assert.ok(GUEST_EVERY[0] >= 20 && GUEST_FIRST[0] >= 8);
+});
+
+test('a boss the player has not caught yet is favoured, and no boss repeats back to back', () => {
+  const ids = SPECIES.filter((s) => s.boss).map((s) => s.id);
+  const caught = ids.slice(1);   // only the first boss is still wanted
+  let wantedPicks = 0; let total = 0;
+  for (let seed = 1; seed <= 12; seed++) {
+    const bosses = simulate({ seconds: 600, seed, wanted: () => [ids[0]] }).spawns.filter((s) => s.order.boss);
+    bosses.slice(1).forEach((b, i) => assert.notEqual(b.order.species.id, bosses[i].order.species.id));
+    for (const b of bosses) { total++; if (b.order.species.id === ids[0]) wantedPicks++; }
+  }
+  assert.ok(wantedPicks / total > 0.28, `the wanted boss comes ${(100 * wantedPicks / total).toFixed(0)}% of the time (an even share would be ${(100 / ids.length).toFixed(0)}%)`);
+  assert.equal(caught.length, ids.length - 1);
+});
+
+test('the fog horn calls the next boss at once, but only when the sea is free of the current one', () => {
+  const spawner = new Spawner({ species: SPECIES, rng: seeded(5) });
+  assert.ok(spawner.bossIn > 5, 'the boss would normally still be far off');
+  spawner.callBoss();
+  const clear = Array.from({ length: LANE_COUNT }, () => emptyLane());
+  const orders = spawner.tick(0.1, clear);
+  assert.ok(orders.some((o) => o.boss), 'a boss is sent straight away');
+  // A giant is still swimming: the countdown waits and the next one follows as soon as it has left.
+  const busy = Array.from({ length: LANE_COUNT }, () => emptyLane());
+  busy[BOSS_LANE].bosses = 1;
+  spawner.callBoss();
+  assert.ok(!spawner.tick(0.1, busy).some((o) => o.boss));
+  assert.ok(spawner.tick(0.1, clear).some((o) => o.boss), 'and now it arrives');
+  // Never in the treasure rain.
+  spawner.setBonus(true); spawner.callBoss();
+  assert.ok(!spawner.tick(0.1, clear).some((o) => o.boss));
 });

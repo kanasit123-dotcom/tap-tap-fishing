@@ -15,7 +15,7 @@ function setup() {
 
 test('one touch activates once, suppresses compatibility events, and holding does not reel', () => {
   const s = setup();
-  assert.equal(s.fire(s.surface, 'touchstart', { touches: [{}] }).defaultPrevented, true);
+  assert.equal(s.fire(s.surface, 'touchstart', { touches: [{}], targetTouches: [{}] }).defaultPrevented, true);
   s.fire(s.button, 'pointerdown', { pointerType: 'touch', button: 0 });
   s.fire(s.surface, 'touchmove'); s.fire(s.surface, 'touchend');
   s.fire(s.button, 'pointerdown', { pointerType: 'mouse', button: 0 });
@@ -26,17 +26,17 @@ test('one touch activates once, suppresses compatibility events, and holding doe
 test('stationary parent cancels Safari gestures even after the reel becomes disabled', () => {
   const s = setup(); s.button.disabled = true;
   for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel', 'gesturestart', 'gesturechange', 'gestureend', 'dblclick']) {
-    assert.equal(s.fire(s.surface, type, { touches: [{}] }).defaultPrevented, true, type);
+    assert.equal(s.fire(s.surface, type, { touches: [{}], targetTouches: [{}] }).defaultPrevented, true, type);
   }
   assert.equal(s.count(), 0);
 });
 
 test('each new single touch reels once; a second finger does not add a tap', () => {
   const s = setup();
-  s.fire(s.surface, 'touchstart', { touches: [{}] });
-  s.fire(s.surface, 'touchstart', { touches: [{}, {}] });
+  s.fire(s.surface, 'touchstart', { touches: [{}], targetTouches: [{}] });
+  s.fire(s.surface, 'touchstart', { touches: [{}, {}], targetTouches: [{}, {}] });
   s.fire(s.surface, 'touchend');
-  s.fire(s.surface, 'touchstart', { touches: [{}] });
+  s.fire(s.surface, 'touchstart', { touches: [{}], targetTouches: [{}] });
   assert.equal(s.count(), 2);
 });
 
@@ -56,7 +56,7 @@ test('mouse, pen and keyboard stay usable without click double-counting or key r
 
 test('gesture protection does not disable zoom or scrolling on unrelated page surfaces', () => {
   const s = setup(); const header = new EventTarget();
-  assert.equal(s.fire(header, 'touchstart', { touches: [{}] }).defaultPrevented, false);
+  assert.equal(s.fire(header, 'touchstart', { touches: [{}], targetTouches: [{}] }).defaultPrevented, false);
   assert.equal(s.fire(header, 'gesturestart').defaultPrevented, false);
 });
 
@@ -87,7 +87,7 @@ test('the reel binding pulls once on touch and once per crank step while the fin
   button.getBoundingClientRect = () => box;
   const surface = new EventTarget(); const pulls = []; let rotated = 0;
   bindTapControl(button, (source) => pulls.push(source), surface, { onRotate: (d) => { rotated += d; } });
-  const touch = (type, point) => { const e = new Event(type, { cancelable: true }); e.touches = point ? [{ clientX: point.x, clientY: point.y }] : []; surface.dispatchEvent(e); return e; };
+  const touch = (type, point) => { const e = new Event(type, { cancelable: true }); e.touches = point ? [{ clientX: point.x, clientY: point.y }] : []; e.targetTouches = e.touches; surface.dispatchEvent(e); return e; };
   touch('touchstart', at(0));
   for (let a = 15; a <= 360; a += 15) assert.equal(touch('touchmove', at(a)).defaultPrevented, true);
   touch('touchend');
@@ -96,7 +96,18 @@ test('the reel binding pulls once on touch and once per crank step while the fin
   const cast = new EventTarget(); cast.disabled = false; cast.getBoundingClientRect = () => box;
   const castSurface = new EventTarget(); let casts = 0;
   bindTapControl(cast, () => casts++, castSurface);
-  const e = new Event('touchstart', { cancelable: true }); e.touches = [{ clientX: 120, clientY: 70 }]; castSurface.dispatchEvent(e);
-  for (let a = 15; a <= 360; a += 15) { const m = new Event('touchmove', { cancelable: true }); const p = at(a); m.touches = [{ clientX: p.x, clientY: p.y }]; castSurface.dispatchEvent(m); }
+  const e = new Event('touchstart', { cancelable: true }); e.touches = [{ clientX: 120, clientY: 70 }]; e.targetTouches = e.touches; castSurface.dispatchEvent(e);
+  for (let a = 15; a <= 360; a += 15) { const m = new Event('touchmove', { cancelable: true }); const p = at(a); m.touches = [{ clientX: p.x, clientY: p.y }]; m.targetTouches = m.touches; castSurface.dispatchEvent(m); }
   assert.equal(casts, 1, 'the cast button cannot be cranked');
+});
+
+test('two players can hold their own controls at the same time: only fingers on a control count for that control', () => {
+  const a = setup(); const b = setup();
+  // Player 1's finger is down; player 2's finger lands on another control: the page now has two touches, each control has one.
+  a.fire(a.surface, 'touchstart', { touches: [{}], targetTouches: [{}] });
+  b.fire(b.surface, 'touchstart', { touches: [{}, {}], targetTouches: [{}] });
+  assert.equal(a.count(), 1); assert.equal(b.count(), 1);
+  // Two fingers on the SAME control (a pinch) still do not add a tap.
+  a.fire(a.surface, 'touchstart', { touches: [{}, {}, {}], targetTouches: [{}, {}] });
+  assert.equal(a.count(), 1);
 });

@@ -1,10 +1,12 @@
 import { createIcons, Anchor, BookOpen, Volume2, VolumeX, Pause, Play, Fish, Trophy, Timer, X, RotateCcw, ArrowRight, Check, Music, Map as MapIcon, Sparkles } from 'lucide';
 import { createGame } from './scene.js';
-import { FishingRound, GOAL, MAP_PIECES } from './model.js';
+import { FishingRound, GOAL, MAP_PIECES, TIME_BONUS, BONUS_KINDS } from './model.js';
+import { Match, TEAM_GOAL, originFor } from './match.js';
 import { SPECIES_BY_ID, ZONES, speciesWithArt } from './species.js';
-import { loadProgress, saveProgress, recordCatch, recordTrip } from './progress.js';
+import { loadProgress, saveProgress, recordCatch, recordTrip, recordMatch } from './progress.js';
 import { FishingAudio } from './audio.js';
 import { bindTapControl } from './input.js';
+import { STOP_SEGMENTS, STOP_SPINS, SEGMENT_DEGREES, segmentAt } from './stopwheel.js';
 import { WHEEL, spinWheel, applyPrize, LOOKS, isUnlocked, zoneProgress, timeOfDay, TIME_NAMES } from './extras.js';
 import './style.css';
 
@@ -27,11 +29,37 @@ function seeded(seed) {
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 
+// Wheel of the stop-the-wheel stage: tiers of colour by prize, the golden jackpot stands out.
+function stopWheelHtml() {
+  const tint = (p) => p >= 100 ? '#ffd34d' : p >= 50 ? '#b69af0' : p >= 30 ? '#ff9d6e' : p >= 15 ? '#7fd48a' : '#9fd8e8';
+  const gradient = STOP_SEGMENTS.map((seg, i) => `${tint(seg.points)} ${i * SEGMENT_DEGREES}deg ${(i + 1) * SEGMENT_DEGREES}deg`).join(', ');
+  const labels = STOP_SEGMENTS.map((seg, i) => `<span class="seg" data-index="${i}" style="--a:${i * SEGMENT_DEGREES + SEGMENT_DEGREES / 2}deg"><span><b>${seg.jackpot ? '★' : ''}${seg.points}</b></span></span>`).join('');
+  return `<div class="stopwheel-box lucky-box"><div class="lucky-pointer"></div><div id="sw-wheel" class="lucky-wheel" style="background: conic-gradient(${gradient})">${labels}<span class="lucky-hub"></span></div></div><div class="stopwheel-info"><b><span id="sw-owner"></span>ด่านวงล้อ <span id="sw-count">1/${STOP_SPINS}</span></b><strong id="sw-result" class="stopwheel-result"></strong></div>`;
+}
+
+// Everything that belongs to one player exists twice (ids of the second player end in 2); the second set is hidden
+// until two players are playing. The first player's ids and look are exactly those of the one-player game.
+const sfx = (i) => i ? '2' : '';
+const scoreHtml = (i) => `<div class="score${i ? ' p2 p2only' : ''}" id="score-box${sfx(i)}"><span class="score-icon">${icon('trophy')}</span><div><small>คะแนน</small><strong id="score${sfx(i)}">0</strong></div><span id="double${sfx(i)}" class="double-badge" hidden>x2</span><span class="pmaps">${icon('map')}<b id="pmaps${sfx(i)}">0/${MAP_PIECES}</b></span></div><div id="powers${sfx(i)}" class="powers${i ? ' p2 p2only' : ''}" aria-label="ไอเทมที่ใช้ได้"></div>`;
+const labelHtml = (i) => `<div class="phase-label${i ? ' p2 p2only' : ''}"><div id="bonus${sfx(i)}" class="bonus-banner" role="status" hidden>${icon('sparkles')}<span id="bonus-label${sfx(i)}">ฝนสมบัติ!</span><strong id="bonus-time${sfx(i)}">20</strong></div><div id="fever${sfx(i)}" class="fever-banner" role="status" hidden><span>FEVER x2</span><strong id="fever-time${sfx(i)}">15</strong></div><span id="phase-text${sfx(i)}" class="phase-text" role="status" aria-live="polite">ออกทะเลกัน!</span><span id="caught-name${sfx(i)}" class="caught-name"></span></div>`;
+const dockHtml = (i) => `<button id="cast${sfx(i)}" class="cast-button${i ? ' p2 p2only' : ''}" disabled>${icon('anchor')}<span>หย่อนเบ็ด</span></button>
+      <div id="reel-wrap${sfx(i)}" class="reel-wrap${i ? ' p2 p2only' : ''}">
+        <output id="tap-count${sfx(i)}" class="tap-count" aria-live="off"></output>
+        <button id="reel${sfx(i)}" class="reel" aria-label="รอกดึงปลา${i ? ' ผู้เล่น 2' : ''}" data-tip="รอกดึงปลา" disabled>
+          <span class="reel-progress"></span><span class="wheel"><span class="spoke s1"></span><span class="spoke s2"></span><span class="hub"></span><span class="handle"></span></span>
+        </button>
+      </div>`;
+
 $('#app').innerHTML = `
   <header class="topbar">
     <div class="brand">${icon('anchor')}<div><h1>อ่าวสมบัติ</h1><span>TAP TAP FISHING</span></div></div>
-    <div class="modes" role="group" aria-label="รูปแบบการเล่น">
-      <button id="relaxed" aria-pressed="true">เล่นสบาย</button><button id="arcade" aria-pressed="false">อาร์เคด</button>
+    <div class="mode-row">
+      <div class="modes" role="group" aria-label="รูปแบบการเล่น">
+        <button id="relaxed" aria-pressed="true">เล่นสบาย</button><button id="arcade" aria-pressed="false">อาร์เคด</button>
+      </div>
+      <div class="modes players" role="group" aria-label="จำนวนผู้เล่น">
+        <button id="solo" aria-pressed="true">1 คน</button><button id="duo" aria-pressed="false">2 คน</button>
+      </div>
     </div>
     <nav aria-label="เครื่องมือเกม">
       <button id="collection" class="icon-button" aria-label="สมุดสะสม" data-tip="สมุดสะสม">${icon('book-open')}</button>
@@ -44,25 +72,23 @@ $('#app').innerHTML = `
     <div id="sea" role="img" aria-label="เรือตกปลาและสัตว์ทะเลว่ายหลายชั้น"></div>
     <div class="loading" role="status">กำลังออกเรือ…</div>
     <section class="hud" aria-label="ผลการเล่น">
-      <div class="score"><span class="score-icon">${icon('trophy')}</span><div><small>คะแนน</small><strong id="score">0</strong></div><span id="double" class="double-badge" hidden>x2</span></div>
-      <div id="powers" class="powers" aria-label="ไอเทมที่ใช้ได้"></div>
+      ${scoreHtml(0)}
       <div class="hud-right">
+        <span id="kind-chip" class="kind-chip p2only"></span>
         <div id="timer" class="timer" hidden>${icon('timer')}<strong>1:30</strong></div>
         <div class="catch-count">${icon('fish')}<strong id="caught-count">0 / ${GOAL}</strong></div>
         <div class="maps" aria-label="แผนที่สมบัติ">${icon('map')}<strong id="maps">0/${MAP_PIECES}</strong></div>
       </div>
+      ${scoreHtml(1)}
     </section>
     <div id="edge" class="edge-flash" hidden></div>
+    <div id="stopwheel" class="stopwheel" hidden aria-live="polite">${stopWheelHtml()}</div>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-    <div class="phase-label"><div id="bonus" class="bonus-banner" role="status" hidden>${icon('sparkles')}<span id="bonus-label">ฝนสมบัติ!</span><strong id="bonus-time">20</strong></div><div id="fever" class="fever-banner" role="status" hidden><span>FEVER x2</span><strong id="fever-time">15</strong></div><span id="phase-text" role="status" aria-live="polite">ออกทะเลกัน!</span><span id="caught-name"></span></div>
+    ${labelHtml(0)}
+    ${labelHtml(1)}
     <div class="dock">
-      <button id="cast" class="cast-button" disabled>${icon('anchor')}<span>หย่อนเบ็ด</span></button>
-      <div class="reel-wrap">
-        <output id="tap-count" aria-live="off"></output>
-        <button id="reel" aria-label="รอกดึงปลา" data-tip="รอกดึงปลา" disabled>
-          <span class="reel-progress"></span><span class="wheel"><span class="spoke s1"></span><span class="spoke s2"></span><span class="hub"></span><span class="handle"></span></span>
-        </button>
-      </div>
+      ${dockHtml(0)}
+      ${dockHtml(1)}
     </div>
     <div id="save-warning" class="save-warning" role="status" hidden>เครื่องนี้ยังบันทึกของสะสมไม่ได้</div>
   </main>
@@ -79,9 +105,12 @@ class FishingApp {
     this.rng = QA && params.has('seed') ? seeded(Number(params.get('seed'))) : Math.random;
     this.dpr = this.pixelRatio();
     this.audio = new FishingAudio(this.progress.sound, { music: this.progress.music });
-    this.round = this.makeRound('relaxed');
+    this.mode = 'relaxed';
+    this.players = 1;
+    this.matchKind = 'coop';
+    this.rounds = this.makeRounds('relaxed', 1, 'coop');
     this.scene = null;
-    this.wheelAngle = 0;
+    this.wheelAngles = [0, 0];
     this.lastHUD = '';
     this.lastSecond = null;
     this.resumeOnClose = false;
@@ -100,45 +129,76 @@ class FishingApp {
 
   now() { return performance.now(); }
 
-  makeRound(mode) {
-    // Powers won on the lucky wheel are used up by the trip they start.
+  // Player 1's round (the one-player game, and what the single-player tests read).
+  get round() { return this.rounds[0]; }
+  get wheelAngle() { return this.wheelAngles[0]; }
+  get twoPlayers() { return this.players === 2; }
+
+  // Creatures not caught yet: the sea sends these as visitors, so a rare one is not left to luck in a short trip.
+  wantedIds() { return this.species.filter((s) => !this.progress.collection[s.id]).map((s) => s.id); }
+
+  // One round per player. Two players share one Match (one goal, bonus stages in turns); each keeps a rod tip of their own.
+  makeRounds(mode, players, kind) {
+    // Powers won on the lucky wheel are used up by the trip they start (both boats carry them).
     const startPowers = this.progress.startPowers ?? {};
     this.progress.startPowers = {};
     if (Object.keys(startPowers).length) this.persist?.();
     this.startPowers = startPowers;
-    return new FishingRound(mode, (species, round) => this.landed(species, round), { maps: this.progress.maps, bonusTurn: this.progress.bonusTurn, startPowers, rng: this.rng });
+    this.mode = mode === 'arcade' ? 'arcade' : 'relaxed';
+    this.players = players === 2 ? 2 : 1;
+    this.matchKind = kind === 'versus' ? 'versus' : 'coop';
+    const rounds = Array.from({ length: this.players }, (_, i) => new FishingRound(this.mode, (species, round) => this.landed(species, round), {
+      // Only the one-player game carries its map pieces from trip to trip.
+      maps: this.players === 1 ? this.progress.maps : 0,
+      bonusTurn: (this.progress.bonusTurn + i) % BONUS_KINDS.length,
+      startPowers, rng: this.rng, originX: originFor(this.players, i),
+    }));
+    this.match = this.players === 2 ? new Match(rounds, this.matchKind) : null;
+    return rounds;
   }
 
   landed(species, round) {
     const landing = round.landing;
+    const player = this.rounds.indexOf(round);
+    // With two players every message says whose it is.
+    const say = (text) => this.toast(this.twoPlayers ? `ผู้เล่น ${player + 1}: ${text}` : text);
     for (const s of landing.all) recordCatch(this.progress, s.id);
-    this.progress.maps = round.maps;
-    this.progress.bonusTurn = round.bonusTurn;
+    if (!this.twoPlayers) { this.progress.maps = round.maps; this.progress.bonusTurn = round.bonusTurn; }
     this.persist();
     this.audio.stop();
     this.audio.play(species.jackpot ? 'jackpot' : species.kind === 'item' ? 'treasure' : species.kind === 'junk' ? 'junk' : 'land');
     // Lower-priority messages first; item and jackpot messages below replace them.
-    if (landing.combo >= 2) { this.audio.play('combo', { combo: landing.combo }); this.toast(`คอมโบ ${landing.combo}! อีกตัวเดียวได้ FEVER`); }
-    if (species.prizes) this.toast(`เปิดหีบได้ ${landing.base} คะแนน!`);
-    if (landing.feverStarted) { this.flashEdges('fever'); this.audio.play('fever'); this.toast('FEVER! คะแนน x2 อยู่ 15 วินาที'); }
-    if (landing.extras.length) this.toast(`แหจับได้ ${landing.all.length} ตัว! ${landing.all.map((s) => s.name).join(' ')}`);
+    if (landing.combo >= 2) { this.audio.play('combo', { combo: landing.combo }); say(`คอมโบ ${landing.combo}! อีกตัวเดียวได้ FEVER`); }
+    if (species.prizes) say(`เปิดหีบได้ ${landing.base} คะแนน!`);
+    if (landing.feverStarted) { this.flashEdges('fever'); this.audio.play('fever'); say('FEVER! คะแนน x2 อยู่ 15 วินาที'); }
+    if (landing.extras.length) say(`แหจับได้ ${landing.all.length} ตัว! ${landing.all.map((s) => s.name).join(' ')}`);
     const powerText = { net: 'ได้แห! ทอดครั้งต่อไปจับตัวข้างๆ ได้ด้วย', turbo: 'รอกเร็ว! 3 ครั้งถัดไปดึงง่ายขึ้น', goldhook: 'ตะขอทอง! ตะขอใหญ่ขึ้น 20 วินาที', spyglass: 'กล้องส่องทางไกล! เห็นสัตว์ลึกลับ 20 วินาที' };
-    for (const power of landing.powers) { this.audio.play('powerup'); this.toast(powerText[power]); }
-    if (species.effect === 'double') { this.audio.play('double'); this.toast('ครั้งต่อไปได้คะแนน x2!'); }
-    if (species.effect === 'time' && round.mode === 'arcade') { this.audio.play('time'); this.toast('เวลา +10 วินาที!'); }
+    for (const power of landing.powers) {
+      if (power === 'horn') {
+        this.audio.play('horn');
+        if (this.scene?.hornCall()) say('แตรหมอกดังก้อง! ปลายักษ์ตัวต่อไปจะตามมาทันที');
+      } else { this.audio.play('powerup'); say(powerText[power]); }
+    }
+    if (species.effect === 'double') { this.audio.play('double'); say('ครั้งต่อไปได้คะแนน x2!'); }
+    if (species.effect === 'time' && round.mode === 'arcade') {
+      // One shared clock for two players: the watch gives both boats the extra time.
+      for (const other of this.rounds) if (other !== round) other.remaining += TIME_BONUS;
+      this.audio.play('time'); say('เวลา +10 วินาที!');
+    }
     if (species.effect === 'map') {
       this.audio.play('map');
-      this.toast(landing.bonusStarted ? 'แผนที่ครบ 4 ชิ้น!' : `ได้แผนที่ ${round.maps}/${MAP_PIECES} ชิ้น`);
+      say(landing.bonusStarted ? 'แผนที่ครบ 4 ชิ้น!' : `ได้แผนที่ ${round.maps}/${MAP_PIECES} ชิ้น`);
     }
-    if (landing.multiplier > 1) this.toast(`คะแนน x${landing.multiplier} ได้ ${landing.points} คะแนน!`);
-    if (species.kind === 'junk') this.toast('ได้รองเท้าเก่ามา ลองใหม่นะ!');
-    if (species.jackpot) this.toast(`แจ็กพอต! ${species.name}`);
+    if (landing.multiplier > 1) say(`คะแนน x${landing.multiplier} ได้ ${landing.points} คะแนน!`);
+    if (species.kind === 'junk') say('ได้รองเท้าเก่ามา ลองใหม่นะ!');
+    if (species.jackpot) say(`แจ็กพอต! ${species.name}`);
     if (landing.bonusStarted && landing.bonusKind === 'rain') {
       this.audio.play('bonus');
       this.audio.say('แผนที่ครบแล้ว ฝนสมบัติมาแล้ว');
     }
-    if (landing.bonusStarted && landing.bonusKind === 'pirate') this.toast('แผนที่ครบ! เรือโจรสลัดกำลังมา');
-    this.scene?.celebrate(species, landing);
+    if (landing.bonusStarted && landing.bonusKind === 'pirate') say('แผนที่ครบ! เรือโจรสลัดกำลังมา');
+    if (landing.bonusStarted && this.twoPlayers) setTimeout(() => this.toast(`ผู้เล่น ${player + 1} เล่นด่านโบนัส อีกคนรอสักครู่นะ`), 1700);
+    this.scene?.celebrate(this.scene.rigs[player], species, landing);
   }
 
   ready(scene) {
@@ -151,21 +211,22 @@ class FishingApp {
     if (QA) {
       window.__FISHING_QA__ = {
         snapshot: () => this.scene.snapshot(),
-        arrange: (id, extras) => this.scene.arrangeForTest(id, extras),
-        setBonusTurn: (n) => { this.round.bonusTurn = n; },
-        setPower: (name, value) => { this.round[name] = value; },
-        setPirateTime: (seconds) => { if (this.round.pirate) this.round.pirate.time = seconds; },
-        finishTrip: (ids) => { this.round.catches.push(...ids); this.round.tripCatches = 8; this.round.score += 123; this.round.phase = 'complete'; },
+        arrange: (id, extras, player = 0, keep = false) => this.scene.arrangeForTest(id, extras, player, keep),
+        setBonusTurn: (n, player = 0) => { this.rounds[player].bonusTurn = n; },
+        setPower: (name, value, player = 0) => { this.rounds[player][name] = value; },
+        setPirateTime: (seconds, player = 0) => { if (this.rounds[player].pirate) this.rounds[player].pirate.time = seconds; },
+        finishTrip: (ids, player = 0) => { const r = this.rounds[player]; r.catches.push(...ids); r.tripCatches = 8; r.score += 123; r.phase = 'complete'; },
         setTimeOfDay: (time) => this.scene.setTimeOfDay(time),
         setLooks: (looks) => { this.progress.looks = { ...this.progress.looks, ...looks }; this.persist(); },
         spawnBoss: (id) => this.scene.spawnBossForTest(id),
         edgeVisible: () => !$('#edge').hidden,
+        stopWheelVisible: () => !$('#stopwheel').hidden,
         setCollection: (ids) => { for (const id of ids) this.progress.collection[id] = Math.max(1, this.progress.collection[id] ?? 0); this.persist(); },
         freezeShips: () => this.scene.pirate.freeze(),
         aimAt: (x) => { this.scene.pirate.testAimX = x; },
         release: () => this.scene.releaseTest(),
-        expire: () => { this.round.remaining = 0.01; },
-        setMaps: (n) => { this.round.maps = n; },
+        expire: (player = 0) => { this.rounds[player].remaining = 0.01; },
+        setMaps: (n, player = 0) => { this.rounds[player].maps = n; },
         scene: () => this.scene,
       };
     }
@@ -179,7 +240,7 @@ class FishingApp {
   // Top of the cast/reel controls, in CSS px from the top of the sea.
   dockTop() {
     const stage = $('.stage').getBoundingClientRect();
-    const top = Math.min($('#cast').getBoundingClientRect().top, $('#reel').getBoundingClientRect().top);
+    const top = Math.min($('#cast').getBoundingClientRect().top, $('#reel').getBoundingClientRect().top);   // the second player's controls sit on the same rows
     return top - stage.top;
   }
 
@@ -222,8 +283,10 @@ class FishingApp {
   persist() { $('#save-warning').hidden = saveProgress(this.storage, this.progress); }
 
   bindControls() {
-    bindTapControl($('#cast'), () => this.round.phase === 'complete' ? this.startRound(this.round.mode) : this.cast());
-    bindTapControl($('#reel'), (source) => this.reel(source), $('.reel-wrap'), { onRotate: (degrees) => this.turnWheel(degrees) });
+    for (let i = 0; i < 2; i++) {
+      bindTapControl($(`#cast${sfx(i)}`), () => this.castPress(i));
+      bindTapControl($(`#reel${sfx(i)}`), (source) => this.reel(source, i), $(`#reel-wrap${sfx(i)}`), { onRotate: (degrees) => this.turnWheel(degrees, i) });
+    }
     $('#pause').onclick = () => this.pause();
     $('#collection').onclick = () => { this.audio.unlock(); this.openCollection(); };
     $('#sound').onclick = () => {
@@ -234,9 +297,11 @@ class FishingApp {
       this.progress.music = this.audio.toggleMusic(); this.persist(); this.syncSound();
     };
     for (const mode of ['relaxed', 'arcade']) $(`#${mode}`).onclick = () => this.changeMode(mode);
+    $('#solo').onclick = () => { this.audio.unlock(); this.changePlayers(1); };
+    $('#duo').onclick = () => { this.audio.unlock(); this.openDuoChooser(); };
     $('.stage').addEventListener('contextmenu', (event) => event.preventDefault());
     $('#modal').addEventListener('close', () => {
-      if (this.resumeOnClose && this.round.phase !== 'complete') this.round.pause(false);
+      if (this.resumeOnClose) for (const round of this.rounds) if (round.phase !== 'complete') round.pause(false);
       this.resumeOnClose = false;
       this.audio.duck(false);
       this.lastHUD = ''; this.renderHUD();
@@ -253,19 +318,35 @@ class FishingApp {
     updateIcons();
   }
 
-  cast() {
-    if (!this.scene || this.failed || $('#modal').open) return;
-    this.audio.unlock();
-    if (this.round.phase === 'pirate') { this.fire(); return; }
-    if (this.round.cast()) { this.audio.stop(); this.audio.play('cast'); this.renderHUD(); }
+  // The big button: start another trip when this player is done and the whole trip is over, else cast / fire / stop.
+  castPress(i) {
+    const round = this.rounds[i];
+    if (round.phase === 'complete') {
+      if (!this.twoPlayers || this.match.finished) this.startRound(this.mode);
+      return;
+    }
+    this.cast(i);
   }
 
-  fire() {
-    if (!this.round.fire()) return;
+  // A tap on the sea: player 1's boat on the left half, player 2's on the right half when two are playing.
+  seaTap(worldX) { this.cast(this.twoPlayers && worldX >= 240 ? 1 : 0); }
+
+  cast(i = 0) {
+    if (!this.scene || this.failed || $('#modal').open) return;
+    const round = this.rounds[i];
+    this.audio.unlock();
+    if (round.phase === 'pirate') { this.fire(i); return; }
+    if (round.phase === 'wheel') { if (round.stopTheWheel()) { this.audio.play('hit'); this.renderHUD(); } return; }
+    if (round.cast()) { this.audio.stop(); this.audio.play('cast'); this.renderHUD(); }
+  }
+
+  fire(i = 0) {
+    const round = this.rounds[i];
+    if (!round.fire()) return;
     this.audio.play('cannon');
-    this.scene.pirate.fire(this.round.angle, (shot) => {
-      const result = this.round.resolveShot(shot);
-      this.onShot(result, shot);
+    this.scene.pirate.fire(round.angle, (shot) => {
+      const result = round.resolveShot(shot);
+      this.onShot(result, shot, i);
       return result;
     });
     this.renderHUD();
@@ -294,9 +375,9 @@ class FishingApp {
   }
 
   // A heavy fish fights back: the wheel and its ring shake (decorative parts only), with a thump and a buzz.
-  onTug(level) {
+  onTug(level, i = 0) {
     this.tugs = (this.tugs ?? 0) + 1;
-    const reel = $('#reel');
+    const reel = $(`#reel${sfx(i)}`);
     reel.classList.remove('tug'); void reel.offsetWidth; reel.classList.add('tug');
     this.audio.play('tug', { level });
     if (navigator.vibrate) navigator.vibrate(level > 1 ? [30, 40, 30, 40, 30] : [30, 40, 30]);
@@ -310,17 +391,18 @@ class FishingApp {
     this.audio.say('ปลายักษ์กำลังมา');
   }
 
-  onPirateStart() {
+  onPirateStart(i = 0) {
     this.audio.play('pirate');
     this.audio.say('เรือโจรสลัดมาแล้ว แตะเพื่อยิงปืนใหญ่ มีเวลา 30 วินาที');
-    this.toast('เรือโจรสลัด! เล็งแล้วแตะยิงปืนใหญ่ให้ได้มากที่สุดใน 30 วินาที');
+    this.toast(`${this.twoPlayers ? `ผู้เล่น ${i + 1}: ` : ''}เรือโจรสลัด! เล็งแล้วแตะยิงปืนใหญ่ให้ได้มากที่สุดใน 30 วินาที`);
   }
 
   // The battle is over (time up and the last ball landed): sum up the loot.
-  onPirateEnd() {
-    const result = this.round.pirateResult;
+  onPirateEnd(i = 0) {
+    const result = this.rounds[i]?.pirateResult;
     this.audio.play(result?.loot ? 'treasure' : 'miss');
-    setTimeout(() => this.toast(result?.loot ? `ได้สมบัติจากเรือโจรสลัด ${result.loot} คะแนน!` : 'เรือโจรสลัดแล่นไปแล้ว ไว้ลองใหม่นะ'), 400);
+    const who = this.twoPlayers ? `ผู้เล่น ${i + 1}: ` : '';
+    setTimeout(() => this.toast(result?.loot ? `${who}ได้สมบัติจากเรือโจรสลัด ${result.loot} คะแนน!` : 'เรือโจรสลัดแล่นไปแล้ว ไว้ลองใหม่นะ'), 400);
     this.lastHUD = '';
     this.renderHUD();
   }
@@ -337,24 +419,27 @@ class FishingApp {
   }
 
   // The wheel follows a cranking finger; a tap gives it a quick 55 degree spin.
-  turnWheel(degrees) {
-    if (this.round.phase !== 'reeling') return;
-    this.wheelAngle += degrees;
-    $('#reel').classList.add('cranking');
-    $('#reel').style.setProperty('--wheel-angle', `${this.wheelAngle}deg`);
-    clearTimeout(this.crankTimer);
-    this.crankTimer = setTimeout(() => $('#reel').classList.remove('cranking'), 150);
+  turnWheel(degrees, i = 0) {
+    if (this.rounds[i].phase !== 'reeling') return;
+    this.wheelAngles[i] += degrees;
+    const reel = $(`#reel${sfx(i)}`);
+    reel.classList.add('cranking');
+    reel.style.setProperty('--wheel-angle', `${this.wheelAngles[i]}deg`);
+    clearTimeout(this.crankTimers?.[i]);
+    (this.crankTimers ??= [])[i] = setTimeout(() => reel.classList.remove('cranking'), 150);
   }
 
-  reel(source = 'tap') {
+  reel(source = 'tap', i = 0) {
+    const round = this.rounds[i];
     this.audio.unlock();
-    if (!this.round.reel(performance.now())) return;
-    if (source !== 'crank') this.wheelAngle += 55;
-    $('#reel').style.setProperty('--wheel-angle', `${this.wheelAngle}deg`);
-    $('#reel').classList.remove('tapped');
-    void $('#reel').offsetWidth;
-    $('#reel').classList.add('tapped');
-    this.audio.play('tap', { progress: this.round.taps / this.round.requiredTaps });
+    if (!round.reel(performance.now())) return;
+    if (source !== 'crank') this.wheelAngles[i] += 55;
+    const reel = $(`#reel${sfx(i)}`);
+    reel.style.setProperty('--wheel-angle', `${this.wheelAngles[i]}deg`);
+    reel.classList.remove('tapped');
+    void reel.offsetWidth;
+    reel.classList.add('tapped');
+    this.audio.play('tap', { progress: round.taps / round.requiredTaps });
     if (navigator.vibrate) navigator.vibrate(8);
     this.renderHUD();
   }
@@ -368,19 +453,20 @@ class FishingApp {
 
   onMiss() { this.audio.play('miss'); }
 
-  // Gold coins fly from a point in the sea (world coordinates) to the score box, which then bumps.
-  flyCoins(worldX, worldY, count) {
+  // Gold coins fly from a point in the sea (world coordinates) to that player's score box, which then bumps.
+  flyCoins(worldX, worldY, count, i = 0) {
     if (!this.scene || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
     const sea = $('#sea').getBoundingClientRect();
     const cam = this.scene.cameras.main;
     const k = cam.zoom / this.dpr;
     const sx = sea.left + (worldX - cam.worldView.x) * k;
     const sy = sea.top + (worldY - cam.worldView.y) * k;
-    const target = $('.score-icon').getBoundingClientRect();
+    const box = $(`#score-box${sfx(i)}`);
+    const target = box.querySelector('.score-icon').getBoundingClientRect();
     const tx = target.left + target.width / 2;
     const ty = target.top + target.height / 2;
     let arrived = 0;
-    for (let i = 0; i < count; i++) {
+    for (let n = 0; n < count; n++) {
       const coin = document.createElement('span');
       coin.className = 'coin-fly';
       coin.style.backgroundImage = `url(${assetUrl('sprites/coin.webp')})`;
@@ -388,19 +474,18 @@ class FishingApp {
       const y = sy + (Math.random() - 0.5) * 24;
       coin.style.left = `${x - 8}px`;
       coin.style.top = `${y - 8}px`;
-      coin.style.transitionDelay = `${i * 45}ms`;
+      coin.style.transitionDelay = `${n * 45}ms`;
       document.body.append(coin);
       requestAnimationFrame(() => requestAnimationFrame(() => { coin.style.transform = `translate(${tx - x}px, ${ty - y}px) scale(0.7)`; }));
       const done = () => {
         coin.remove();
         if (++arrived === count) {
           this.audio.play('coins', { count });
-          const box = $('.score');
           box.classList.remove('bump'); void box.offsetWidth; box.classList.add('bump');
         }
       };
       coin.addEventListener('transitionend', done, { once: true });
-      setTimeout(() => { if (coin.isConnected) done(); }, 1500 + i * 45);
+      setTimeout(() => { if (coin.isConnected) done(); }, 1500 + n * 45);
     }
   }
 
@@ -413,91 +498,186 @@ class FishingApp {
     this.toastTimer = setTimeout(() => { toast.hidden = true; }, 2200);
   }
 
+  hudSignature(r, i) {
+    const mystery = r.phase === 'reeling' && this.scene.rigs[i].caught?.getData('reveal') < 0.85;
+    const wheel = r.phase === 'wheel' ? r.stopWheel : null;
+    const powers = `${r.netCharges},${r.turbo},${Math.ceil(r.goldHook)},${Math.ceil(r.spyglass)}`;
+    return `${r.phase}/${r.paused}/${r.waiting}/${r.score}/${r.tripCatches}/${r.catchId}/${r.taps}/${Math.ceil(r.remaining)}/${mystery}/${r.maps}/${r.doubleNext}/${Math.ceil(r.bonus)}/${Math.ceil(r.fever)}/${powers}/${r.pirate ? Math.ceil(r.pirate.time) : ''}/${wheel ? `${wheel.spin}${wheel.state}` : ''}`;
+  }
+
   renderHUD() {
     if (!this.scene || this.failed) return;
-    const r = this.round;
-    const mystery = r.phase === 'reeling' && this.scene.caught?.getData('reveal') < 0.85;
-    const seconds = Math.ceil(r.remaining);
-    const bonus = Math.ceil(r.bonus);
-    const fever = Math.ceil(r.fever);
-    const pirate = r.pirate;
-    const powers = `${r.netCharges},${r.turbo},${Math.ceil(r.goldHook)},${Math.ceil(r.spyglass)}`;
-    const signature = `${r.phase}/${r.paused}/${r.score}/${r.tripCatches}/${r.catchId}/${r.taps}/${seconds}/${mystery}/${r.maps}/${r.doubleNext}/${bonus}/${fever}/${powers}/${pirate ? Math.ceil(pirate.time) : ''}`;
+    const signature = `${this.players}/${this.matchKind}/${this.match?.catches ?? ''}/${this.match?.bonusPoints ?? ''}/${this.rounds.map((r, i) => this.hudSignature(r, i)).join('|')}`;
     if (signature === this.lastHUD) return;
     this.lastHUD = signature;
-    $('#score').textContent = r.score;
-    $('#caught-count').textContent = `${Math.min(r.tripCatches, GOAL)} / ${GOAL}`;
+    this.rounds.forEach((r, i) => this.renderPlayer(r, i));
+    // Shared parts of the HUD.
+    const r = this.round;
+    const seconds = Math.ceil(r.remaining);
+    $('#caught-count').textContent = this.twoPlayers ? `${Math.min(this.match.catches, TEAM_GOAL)} / ${TEAM_GOAL}` : `${Math.min(r.tripCatches, GOAL)} / ${GOAL}`;
     $('#maps').textContent = `${r.maps}/${MAP_PIECES}`;
-    $('#double').hidden = !r.doubleNext;
-    $('#bonus').hidden = bonus <= 0 && !pirate;
-    $('#bonus-label').textContent = pirate ? 'ยิงเรือโจรสลัด!' : 'ฝนสมบัติ!';
-    $('#bonus-time').textContent = pirate ? `${Math.ceil(pirate.time)} วิ` : bonus;
-    this.renderPowers(r);
-    $('#fever').hidden = fever <= 0;
-    $('#fever-time').textContent = fever;
+    $('#kind-chip').textContent = this.matchKind === 'versus' ? 'แข่งกัน' : 'ช่วยกัน';
     $('#timer').hidden = r.mode !== 'arcade';
     $('#timer strong').textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
     $('#timer').classList.toggle('urgent', seconds <= 15);
-    if (r.mode === 'arcade' && seconds <= 10 && seconds > 0 && !r.paused && bonus <= 0 && this.lastSecond !== seconds && r.phase !== 'complete') this.audio.play('tick');
+    const busy = this.rounds.some((x) => x.bonus > 0 || x.phase === 'pirate' || x.phase === 'wheel' || x.waiting);
+    if (r.mode === 'arcade' && seconds <= 10 && seconds > 0 && !r.paused && !busy && this.lastSecond !== seconds && !this.rounds.every((x) => x.phase === 'complete')) this.audio.play('tick');
     this.lastSecond = seconds;
-    const labels = { aim: 'ออกทะเลกัน!', casting: 'เบ็ดกำลังลง…', reeling: 'ติดเบ็ดแล้ว!', returning: 'ลองอีกครั้งได้เลย', celebrate: 'เยี่ยมเลย!', complete: 'กลับถึงฝั่งแล้ว', pirate: 'เล็งเป้าแล้วแตะยิง!' };
-    $('#phase-text').textContent = labels[r.phase];
-    $('#caught-name').textContent = r.catchId ? (mystery ? 'สัตว์ลึกลับ' : SPECIES_BY_ID[r.catchId].name) : '';
-    $('#cast').disabled = r.paused || !(['aim', 'complete'].includes(r.phase) || (pirate && pirate.time > 0));
-    $('#cast span').textContent = r.phase === 'complete' ? 'ออกเรืออีกครั้ง' : pirate ? 'ยิงปืนใหญ่' : 'หย่อนเบ็ด';
-    $('#cast').classList.toggle('fire', Boolean(pirate));
-    $('#reel').disabled = r.paused || r.phase !== 'reeling';
-    $('#reel').classList.toggle('active', r.phase === 'reeling');
-    $('#tap-count').textContent = r.phase === 'reeling' ? `${r.taps} / ${r.requiredTaps}` : '';
-    $('#reel').style.setProperty('--progress', `${r.requiredTaps ? r.taps / r.requiredTaps * 100 : 0}%`);
-    if (r.phase === 'complete' && recordTrip(this.progress, r)) { this.persist(); this.openReward(); }
+    if (this.match) { if (this.match.finished && recordMatch(this.progress, this.match)) { this.persist(); this.openMatchReward(); } }
+    else if (r.phase === 'complete' && recordTrip(this.progress, r)) { this.persist(); this.openReward(); }
+  }
+
+  // One player's score, banners, labels and controls.
+  renderPlayer(r, i) {
+    const q = (id) => $(`#${id}${sfx(i)}`);
+    const mystery = r.phase === 'reeling' && this.scene.rigs[i].caught?.getData('reveal') < 0.85;
+    const bonus = Math.ceil(r.bonus);
+    const fever = Math.ceil(r.fever);
+    const pirate = r.pirate;
+    const wheel = r.phase === 'wheel' ? r.stopWheel : null;
+    q('score').textContent = r.score;
+    q('pmaps').textContent = `${r.maps}/${MAP_PIECES}`;
+    q('double').hidden = !r.doubleNext;
+    q('bonus').hidden = bonus <= 0 && !pirate && !wheel;
+    q('bonus-label').textContent = pirate ? 'ยิงเรือโจรสลัด!' : wheel ? 'วงล้อนำโชค!' : 'ฝนสมบัติ!';
+    q('bonus-time').textContent = pirate ? `${Math.ceil(pirate.time)} วิ` : wheel ? `${wheel.spin + 1}/${STOP_SPINS}` : bonus;
+    this.renderPowers(r, i);
+    q('fever').hidden = fever <= 0;
+    q('fever-time').textContent = fever;
+    const labels = { aim: 'ออกทะเลกัน!', casting: 'เบ็ดกำลังลง…', reeling: 'ติดเบ็ดแล้ว!', returning: 'ลองอีกครั้งได้เลย', celebrate: 'เยี่ยมเลย!', complete: 'กลับถึงฝั่งแล้ว', pirate: 'เล็งเป้าแล้วแตะยิง!', wheel: 'กดหยุดให้ตรงช่องรางวัลใหญ่!' };
+    const finishedAlone = r.phase === 'complete' && this.twoPlayers && !this.match.finished;
+    q('phase-text').textContent = r.waiting ? 'รอเพื่อนเล่นด่านโบนัส…' : finishedAlone ? 'ครบแล้ว รอเพื่อน…' : labels[r.phase];
+    q('caught-name').textContent = r.catchId ? (mystery ? 'สัตว์ลึกลับ' : SPECIES_BY_ID[r.catchId].name) : '';
+    const canAct = ['aim'].includes(r.phase) || (r.phase === 'complete' && !finishedAlone) || (pirate && pirate.time > 0) || wheel?.state === 'spinning';
+    q('cast').disabled = r.paused || r.waiting || !canAct;
+    q('cast').querySelector('span').textContent = r.waiting || finishedAlone ? 'รอเพื่อน…' : r.phase === 'complete' ? 'ออกเรืออีกครั้ง' : pirate ? 'ยิงปืนใหญ่' : wheel ? 'หยุด!' : 'หย่อนเบ็ด';
+    q('cast').classList.toggle('fire', Boolean(pirate) || Boolean(wheel));
+    q('reel').disabled = r.paused || r.waiting || r.phase !== 'reeling';
+    q('reel').classList.toggle('active', r.phase === 'reeling');
+    q('tap-count').textContent = r.phase === 'reeling' ? `${r.taps} / ${r.requiredTaps}` : '';
+    q('reel').style.setProperty('--progress', `${r.requiredTaps ? r.taps / r.requiredTaps * 100 : 0}%`);
+  }
+
+  // The stop-the-wheel stage lives in a DOM overlay: follow the rules' wheel every frame, with ticks, results and messages.
+  // (Two players: only the one who completed the map plays it.)
+  frameStopWheel() {
+    const index = this.rounds.findIndex((x) => x.phase === 'wheel' && x.stopWheel);
+    const r = this.rounds[index] ?? null;
+    const w = r?.stopWheel ?? null;
+    const box = $('#stopwheel');
+    const who = (text) => this.twoPlayers ? `ผู้เล่น ${(index >= 0 ? index : this.wheelOwner ?? 0) + 1}: ${text}` : text;
+    if (!w) {
+      if (!box.hidden) {
+        box.hidden = true;
+        const result = this.rounds[this.wheelOwner ?? 0].wheelResult;
+        this.audio.play(result?.total ? 'treasure' : 'miss');
+        setTimeout(() => this.toast(result?.total ? who(`ได้ ${result.total} คะแนนจากวงล้อนำโชค!`) : 'ไว้ลองใหม่นะ'), 300);
+        this.lastHUD = ''; this.renderHUD();
+      }
+      return;
+    }
+    if (box.hidden) {
+      box.hidden = false;
+      this.wheelOwner = index;
+      this.wheelSeen = 0; this.wheelSegment = -1;
+      this.audio.play('bonus');
+      this.toast(who('ด่านวงล้อ! แตะ หยุด! ให้ตรงช่องรางวัลใหญ่ มี 3 รอบ'));
+      this.audio.say('แผนที่ครบแล้ว กดหยุดวงล้อให้ตรงช่องรางวัลใหญ่');
+    }
+    $('#sw-wheel').style.transform = `rotate(${w.angle}deg)`;
+    $('#sw-count').textContent = `${w.spin + 1}/${STOP_SPINS}`;
+    $('#sw-owner').textContent = this.twoPlayers ? `ผู้เล่น ${index + 1} · ` : '';
+    const segment = segmentAt(w.angle);
+    if (segment !== this.wheelSegment) {
+      this.wheelSegment = segment;
+      if (w.state !== 'show' && performance.now() - (this.lastWheelTick ?? 0) > 70) { this.lastWheelTick = performance.now(); this.audio.play('tick'); }
+    }
+    const out = $('#sw-result');
+    if (w.results.length > this.wheelSeen) {
+      this.wheelSeen = w.results.length;
+      const last = w.results.at(-1);
+      out.textContent = last.jackpot ? `แจ็กพอต! +${last.points}` : `+${last.points}`;
+      out.classList.toggle('jackpot', last.jackpot);
+      this.audio.play(last.jackpot ? 'jackpot' : last.points >= 30 ? 'treasure' : 'land');
+      for (const el of document.querySelectorAll('#sw-wheel .seg')) el.classList.toggle('win', Number(el.dataset.index) === last.index);
+    }
+    if (w.state === 'spinning') { out.textContent = ''; out.classList.remove('jackpot'); for (const el of document.querySelectorAll('#sw-wheel .seg.win')) el.classList.remove('win'); }
+    this.lastHUD = ''; this.renderHUD();
   }
 
   // Small icons under the score for the power-ups that are ready or running.
-  renderPowers(r) {
+  renderPowers(r, i = 0) {
     const items = [
       ['net', r.netCharges, `x${r.netCharges}`, 'แห'],
       ['turbo-reel', r.turbo, `x${r.turbo}`, 'รอกเร็ว'],
       ['gold-hook', r.goldHook, `${Math.ceil(r.goldHook)}`, 'ตะขอทอง'],
       ['spyglass', r.spyglass, `${Math.ceil(r.spyglass)}`, 'กล้องส่องทางไกล'],
     ].filter(([, value]) => value > 0);
-    $('#powers').innerHTML = items.map(([id, , label, name]) => `<span class="power" title="${name}"><img src="${assetUrl(`sprites/${id}.webp`)}" alt="${name}"><b>${label}</b></span>`).join('');
+    $(`#powers${sfx(i)}`).innerHTML = items.map(([id, , label, name]) => `<span class="power" title="${name}"><img src="${assetUrl(`sprites/${id}.webp`)}" alt="${name}"><b>${label}</b></span>`).join('');
   }
 
-  startRound(mode) {
+  // Starts a trip. The mode, the number of players and the kind of two-player game default to what is selected now.
+  startRound(mode = this.mode, players = this.players, kind = this.matchKind) {
     this.resumeOnClose = false;
     if ($('#modal').open) $('#modal').close();
     this.audio.stop();
-    this.round = this.makeRound(mode);
+    this.rounds = this.makeRounds(mode, players, kind);
+    document.body.classList.toggle('two-players', this.twoPlayers);
     this.scene?.setTimeOfDay(timeOfDay(this.progress.trips));
     this.scene?.resetRound();
     this.announceTrip();
-    this.wheelAngle = 0;
-    $('#reel').style.setProperty('--wheel-angle', '0deg');
-    for (const m of ['relaxed', 'arcade']) $(`#${m}`).setAttribute('aria-pressed', String(m === mode));
+    this.wheelAngles = [0, 0];
+    for (let i = 0; i < 2; i++) $(`#reel${sfx(i)}`).style.setProperty('--wheel-angle', '0deg');
+    for (const m of ['relaxed', 'arcade']) $(`#${m}`).setAttribute('aria-pressed', String(m === this.mode));
+    $('#score-box small').textContent = this.twoPlayers ? 'ผู้เล่น 1' : 'คะแนน';
+    $('#score-box2 small').textContent = 'ผู้เล่น 2';
+    if (this.twoPlayers) setTimeout(() => this.toast('เล่น 2 คน: ผู้เล่น 1 ซ้ายสีแดง · ผู้เล่น 2 ขวาสีน้ำเงิน · ใครได้แผนที่ครบเล่นด่านโบนัส อีกคนรอ'), 500);
+    $('#solo').setAttribute('aria-pressed', String(!this.twoPlayers));
+    $('#duo').setAttribute('aria-pressed', String(this.twoPlayers));
     this.lastHUD = ''; this.renderHUD();
   }
 
+  // A trip is under way (something was cast and it is not over): changing it asks first.
+  tripUnderway() { return this.rounds.some((r) => r.casts) && !this.rounds.every((r) => r.phase === 'complete'); }
+
   changeMode(mode) {
-    if (mode === this.round.mode) return;
+    if (mode === this.mode) return;
     this.audio.unlock();
-    if (this.round.casts && this.round.phase !== 'complete') {
+    this.confirmNewTrip(() => this.startRound(mode));
+  }
+
+  changePlayers(players, kind = this.matchKind) {
+    if (players === this.players && (players === 1 || kind === this.matchKind)) { if ($('#modal').open) $('#modal').close(); return; }
+    this.confirmNewTrip(() => this.startRound(this.mode, players, kind));
+  }
+
+  confirmNewTrip(go) {
+    if (this.tripUnderway()) {
       this.showDialog(`<h2 id="dialog-title">ออกเรือรอบใหม่?</h2><p>ของสะสมที่นำขึ้นเรือแล้วจะยังอยู่</p><div class="dialog-actions"><button id="keep" class="secondary">${icon('play')}เล่นต่อ</button><button id="new-mode" class="primary">${icon('rotate-ccw')}รอบใหม่</button></div>`);
       $('#keep').onclick = () => $('#modal').close();
-      $('#new-mode').onclick = () => this.startRound(mode);
-    } else this.startRound(mode);
+      $('#new-mode').onclick = go;
+    } else go();
+  }
+
+  // Two players: choose to help each other (one team score) or to race (the higher score wins).
+  openDuoChooser() {
+    this.showDialog(`<div class="dialog-emblem">${icon('anchor')}</div><h2 id="dialog-title">เล่น 2 คน</h2><p>ใช้เครื่องเดียวกัน คนละฝั่ง ผลัดกันเล่นด่านโบนัส</p><div class="dialog-actions duo-choice"><button id="pick-coop" class="primary">ช่วยกัน<small>คะแนนรวมเป็นของทีม</small></button><button id="pick-versus" class="primary versus">แข่งกัน<small>ใครได้คะแนนมากกว่าชนะ</small></button></div><div class="dialog-actions"><button id="pick-cancel" class="secondary">${icon('x')}ยกเลิก</button></div>`);
+    $('#pick-coop').onclick = () => this.changePlayers(2, 'coop');
+    $('#pick-versus').onclick = () => this.changePlayers(2, 'versus');
+    $('#pick-cancel').onclick = () => $('#modal').close();
   }
 
   pause() {
-    if (!this.scene || $('#modal').open || this.round.phase === 'complete') return;
+    if (!this.scene || $('#modal').open || this.rounds.every((r) => r.phase === 'complete')) return;
     this.showDialog(`<div class="dialog-emblem">${icon('anchor')}</div><h2 id="dialog-title">พักที่ท่าเรือ</h2><div class="dialog-actions"><button id="resume" class="primary">${icon('play')}เล่นต่อ</button><button id="restart" class="secondary">${icon('rotate-ccw')}เริ่มรอบใหม่</button></div>`);
     $('#resume').onclick = () => $('#modal').close();
-    $('#restart').onclick = () => this.startRound(this.round.mode);
+    $('#restart').onclick = () => this.startRound();
   }
 
   showDialog(html) {
-    if (!$('#modal').open) this.resumeOnClose = !this.round.paused && this.round.phase !== 'complete';
-    this.round.pause(true); this.audio.stop(); this.audio.duck(true);
+    if (!$('#modal').open) this.resumeOnClose = !this.round.paused && !this.rounds.every((r) => r.phase === 'complete');
+    for (const round of this.rounds) round.pause(true);
+    this.audio.stop(); this.audio.duck(true);
     $('#modal-content').innerHTML = html;
     updateIcons();
     if (!$('#modal').open) $('#modal').showModal();
@@ -545,6 +725,22 @@ class FishingApp {
     $('#spin').onclick = () => this.spin();
   }
 
+  // The end of a two-player trip: team score (co-op) or the two scores with the winner (race), then one wheel spin for the team / winner.
+  openMatchReward() {
+    const m = this.match;
+    const unique = [...new Set(this.rounds.flatMap((r) => r.catches))].map((id) => SPECIES_BY_ID[id]);
+    const total = this.rounds.reduce((sum, r) => sum + r.catches.length, 0);
+    const versus = m.kind === 'versus';
+    const title = !versus ? 'ทีมนักสำรวจอ่าวสมบัติ!' : m.winner < 0 ? 'เสมอกัน! เก่งทั้งคู่' : `ผู้เล่น ${m.winner + 1} ชนะ!`;
+    const duo = m.scores.map((score, i) => `<div class="duo p${i + 1}${versus && m.winner === i ? ' winner' : ''}"><small>ผู้เล่น ${i + 1}${versus && m.winner === i ? ' 👑' : ''}</small><strong id="duo-score${i}">${score}</strong></div>`).join('');
+    const teamScore = !versus ? `<div class="reward-score" id="team-score">${m.total}<span>คะแนนทีม</span></div>` : '';
+    const note = versus ? 'ผู้ชนะได้หมุนวงล้อนำโชค' : 'ทีมได้หมุนวงล้อนำโชค';
+    this.showDialog(`<div class="reward"><div class="reward-main"><div class="dialog-emblem gold">${icon('trophy')}</div><h2 id="dialog-title">${title}</h2>${teamScore}<div class="duo-scores">${duo}</div><p>นำขึ้นเรือ ${total} รายการ · ${note}</p><div class="catch-strip">${unique.map((s) => art(s)).join('')}</div></div><div class="reward-side">${this.wheelHtml()}<div class="dialog-actions"><button id="again" class="primary">${icon('anchor')}ออกเรืออีกครั้ง</button><button id="reward-book" class="secondary">${icon('book-open')}สมุดสะสม</button></div></div></div>`);
+    $('#again').onclick = () => this.startRound();
+    $('#reward-book').onclick = () => this.openCollection();
+    $('#spin').onclick = () => this.spin();
+  }
+
   wheelHtml() {
     const step = 360 / WHEEL.length;
     const colors = ['#ffd34d', '#4fb3e8', '#ff8a5c', '#7fd48a', '#e8433a', '#9b7be0', '#ffb347', '#3fc1b0'];
@@ -571,11 +767,26 @@ class FishingApp {
     const finish = () => {
       clearTimeout(this.wheelTimer);
       const prize = WHEEL[index];
-      const message = applyPrize(this.progress, this.round, prize);
+      let message;
+      if (this.match) {
+        // Two players: the prize is the team's (or the winner's); points are not a personal best, so they stay out of the records.
+        const pseudo = { score: 0, mode: this.mode };
+        message = applyPrize(this.progress, pseudo, prize, { record: false });
+        this.match.bonusPoints += pseudo.score;
+        if (pseudo.score) {
+          const spinner = this.match.spinner;
+          const shown = $(`#duo-score${spinner}`);
+          if (shown) shown.textContent = this.match.scores[spinner] + this.match.bonusPoints;
+          const team = $('#team-score');
+          if (team) team.firstChild.textContent = this.match.total;
+        }
+      } else {
+        message = applyPrize(this.progress, this.round, prize);
+        $('.reward-score').firstChild.textContent = this.round.score;
+      }
       this.persist();
       this.audio.play(prize.points >= 100 ? 'jackpot' : 'treasure');
       $('#prize').textContent = message;
-      $('.reward-score').firstChild.textContent = this.round.score;
       button.innerHTML = `${icon('check')}หมุนแล้ว`;
       updateIcons();
       this.lastHUD = ''; this.renderHUD();
@@ -590,4 +801,12 @@ class FishingApp {
   }
 }
 
-new FishingApp();
+const app = new FishingApp();
+
+// Offline play: a production build keeps the whole game on the device (tools/sw.template.js).
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.type === 'offline-ready') app.toast('เกมนี้เล่นได้แม้ไม่มีอินเทอร์เน็ตแล้ว');
+  });
+  window.addEventListener('load', () => navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {}));
+}

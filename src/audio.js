@@ -463,6 +463,14 @@ const EFFECTS = {
     for (const [at, f] of [[0, 98], [0.55, 98], [1.1, 131]]) this.tone({ freq: f, type: 'sawtooth', at, dur: 0.5, vol: 0.09, lowpass: 600 });
     this.noise({ dur: 1.4, vol: 0.06, type: 'lowpass', freq: 300, end: 120 });
   },
+  // A ship's fog horn: two long, low blasts.
+  horn() {
+    for (const [at, f, dur] of [[0, 98, 0.95], [1.25, 87, 1.2]]) {
+      this.tone({ freq: f, type: 'sawtooth', at, dur, vol: 0.12, lowpass: 420 });
+      this.tone({ freq: f * 2, type: 'triangle', at, dur, vol: 0.04, lowpass: 700 });
+    }
+    this.noise({ dur: 2.2, vol: 0.05, type: 'lowpass', freq: 380, end: 140 });
+  },
   powerup() { this.arpeggio([76, 83, 88, 95], 0, 0.05, 0.09); this.shimmer(8, 0.15); },
   coins({ count = 6 } = {}) {
     for (let i = 0; i < Math.min(count, 8); i++) this.tone({ freq: 2600 + i * 140, at: i * 0.045, dur: 0.07, vol: 0.05 });

@@ -1,5 +1,5 @@
 import { SPECIES } from './species.js';
-import { MAP_PIECES } from './model.js';
+import { MAP_PIECES, BONUS_KINDS } from './model.js';
 import { sanitizeLooks, defaultLooks } from './extras.js';
 
 export const STORAGE_KEY = 'tap-tap-fishing-v1';
@@ -16,7 +16,7 @@ export function loadProgress(storage) {
       best: { relaxed: count(raw.best?.relaxed), arcade: count(raw.best?.arcade) },
       trips: count(raw.trips), sound: raw.sound !== false, music: raw.music !== false,
       maps: count(raw.maps) % MAP_PIECES,
-      bonusTurn: count(raw.bonusTurn) % 2,
+      bonusTurn: count(raw.bonusTurn) % BONUS_KINDS.length,
       startPowers: Object.fromEntries(['net', 'turbo', 'goldhook'].filter((k) => raw.startPowers?.[k] === true).map((k) => [k, true])),
       looks: sanitizeLooks(raw.looks),
     };
@@ -31,6 +31,14 @@ export function saveProgress(storage, progress) {
 export function recordCatch(progress, id) {
   if (!SPECIES.some((s) => s.id === id)) return;
   progress.collection[id] = count(progress.collection[id]) + 1;
+}
+
+// A finished two-player trip counts as one trip (the clock moves on) but is not a personal best.
+export function recordMatch(progress, match) {
+  if (match.recorded || !match.finished) return false;
+  match.recorded = true;
+  progress.trips++;
+  return true;
 }
 
 export function recordTrip(progress, round) {

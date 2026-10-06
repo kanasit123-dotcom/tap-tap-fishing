@@ -286,6 +286,27 @@ LAYOUT: exactly 2 separate giant prehistoric fish stacked in 2 rows (one per row
 
 ---
 
+## M — `sheet-i-horn.png` แตรหมอก 1 ชิ้น (2026-10-06)
+
+> ไอเทมใหม่ "แตรหมอก" ลอยมาในทะเลลึก จับได้แล้วเป่าเรียกปลายักษ์ตัวต่อไปทันที ในเกมตั้งชื่อว่า `horn`
+> ทำในแชตเดิมที่ทำแผ่น I (ไอเทมช่วยจับ) แล้วพิมพ์เพิ่มท้าย prompt ว่า `Match the exact art style of the earlier sheets.`
+
+```text
+Create a 1536x1024 landscape PNG with a TRANSPARENT background (real alpha, no checkerboard pattern drawn in).
+
+ART STYLE: semi-realistic painted illustration for a premium mobile fishing game, the same style as the earlier item sheets. Realistic materials (polished brass, aged copper, rope, leather strap), real-world colours, soft daylight from above with a gentle rim light. NOT cartoon: no face on the object, no thick outlines. Friendly for children.
+
+LAYOUT: exactly 1 subject, centred, about 60% of the image width, with empty transparent space all around. Nothing touches the image edge. No water, no mist, no shadows, no glow, no sound waves, no text, no letters, no numbers, no frame.
+
+1) an antique ship's fog horn: a large flared brass horn shaped like a trumpet bell, with a short curved mouthpiece on the left, a rubber air bulb attached behind the mouthpiece, a few darker copper bands around the horn, a small coil of rope hanging from it, shown from the side, the wide bell opening pointing to the RIGHT
+```
+
+ชื่อชิ้นตอนตัด: `horn`
+หลังได้รูป: `python tools/sprites.py sheet-i-horn` (ไอเทม `horn` อยู่ในแคตตาล็อกแล้ว ตอนนี้ซ่อนในเกมจริงจนกว่าจะมีรูป)
+ผลในเกม: ปลาลอยในเลก 4 หายาก ติดเบ็ดแล้วเสียงแตรหมอกดังและหมอกบางๆ ลอยผ่านจอ ปลายักษ์ตัวถัดไปเข้ามาทันที (ถ้ามีตัวอยู่ในทะเล ตัวถัดไปตามมาทันทีที่ตัวนั้นว่ายผ่านไป) ไม่ทำงานตอนฝนสมบัติ
+
+---
+
 ## สำหรับ AI ที่ทำงานต่อ
 
 - `python tools/sprites.py [ชื่อแผ่น]` อ่านไฟล์ตามชื่อในตารางจาก `art/incoming/` (ไฟล์ดิบไม่ถูก commit) → เขียน `public/assets/sprites/<id>.webp`,

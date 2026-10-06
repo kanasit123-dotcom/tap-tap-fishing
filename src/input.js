@@ -62,16 +62,17 @@ export function bindTapControl(button, activate, surface = button, { onRotate } 
   surface.addEventListener('touchstart', (event) => {
     cancel(event);
     lastTouch = performance.now();
-    if (event.touches.length !== 1 || button.disabled) return;
+    // targetTouches: only the fingers on this control, so a second player's finger elsewhere does not count as a pinch.
+    if (event.targetTouches.length !== 1 || button.disabled) return;
     activate('tap');
     const rect = box();
-    const t = event.touches[0];
+    const t = event.targetTouches[0];
     if (rect && t) crank.begin({ x: t.clientX, y: t.clientY }, rect);
   }, { passive: false });
   surface.addEventListener('touchmove', (event) => {
     cancel(event);
-    const t = event.touches?.[0];
-    if (t && event.touches.length === 1 && !button.disabled) turn({ x: t.clientX, y: t.clientY });
+    const t = event.targetTouches?.[0];
+    if (t && event.targetTouches.length === 1 && !button.disabled) turn({ x: t.clientX, y: t.clientY });
   }, { passive: false });
   for (const type of ['touchend', 'touchcancel']) surface.addEventListener(type, (event) => { cancel(event); crank.end(); }, { passive: false });
   for (const type of ['gesturestart', 'gesturechange', 'gestureend', 'dblclick']) {

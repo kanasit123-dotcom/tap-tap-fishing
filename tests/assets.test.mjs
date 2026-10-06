@@ -40,8 +40,8 @@ test('catalog keeps every saved collection id and describes each creature comple
 });
 
 test('every creature, the boat and both seas have processed artwork that exists with the recorded size', () => {
-  // Only the bosses may still be waiting for their sheet (prompt K); production hides a creature without art.
-  for (const s of SPECIES) assert.ok(s.art || s.boss, `${s.id} has a sprite in the manifest`);
+  // Only creatures still waiting for their sheet may lack a sprite (the fog horn, prompt M); production hides them.
+  for (const s of SPECIES) assert.ok(s.art || s.id === 'horn', `${s.id} has a sprite in the manifest`);
   assert.equal(speciesWithArt(false).length, SPECIES.filter((s) => s.art).length);
   assert.ok(speciesWithArt(false).every((s) => s.art));
   assert.ok(manifest.sprites.boat && manifest.backgrounds.portrait && manifest.backgrounds.landscape);
@@ -79,7 +79,7 @@ test('display sizes keep the artwork proportions and fit the lane height', () =>
 test('every creature stays readable at its smallest on-screen size', () => {
   // Natural proportions: nothing is so tall or so wide that the lane clamp makes it tiny.
   for (const s of SPECIES) {
-    if (s.boss) continue;
+    if (s.boss || !s.art) continue;
     const size = displaySize(s, s.art, 0.8, 52);
     assert.ok(size.width >= 22 && size.height >= 16, `${s.id} shows ${size.width.toFixed(0)}x${size.height.toFixed(0)}`);
   }

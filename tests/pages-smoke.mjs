@@ -9,7 +9,8 @@ const url = process.argv[2];
 if (!url || !/^https?:\/\//.test(url)) throw new Error('Usage: npm run test:pages -- <site-url>');
 const browser = await chromium.launch();
 try {
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('response', (r) => { if (r.status() >= 400) errors.push(`${r.status()} ${r.url()}`); });
@@ -51,7 +52,20 @@ try {
   await page.locator('#cast').click();
   await expect(page.locator('#phase-text')).toHaveText(/เบ็ดกำลังลง|ติดเบ็ดแล้ว/);
   expect(errors).toEqual([]);
-  console.log(JSON.stringify({ url: page.url(), status: 'passed', collectionEntries: BOOK.length, canvas: 'colored and moving', errors }));
+  // Offline play: the service worker keeps the game on the device, so it still starts with the network cut.
+  const worker = await page.evaluate(async () => { const reg = await navigator.serviceWorker.ready; return { scope: reg.scope, active: Boolean(reg.active) }; });
+  expect(worker.active).toBe(true);
+  await expect.poll(() => page.evaluate(async () => { const keys = await caches.keys(); return keys.length ? (await (await caches.open(keys[0])).keys()).length : 0; })).toBeGreaterThan(50);
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.locator('#cast')).toBeEnabled();
+  const offline = await pixels();
+  expect(offline.colors).toBeGreaterThan(80);
+  await expect.poll(async () => (await pixels()).hash).not.toBe(offline.hash);
+  await page.locator('#collection').click();
+  await page.waitForFunction(() => [...document.querySelectorAll('img.species-art')].every((img) => img.complete && img.naturalWidth > 0), null, { timeout: 15_000 });
+  await context.setOffline(false);
+  console.log(JSON.stringify({ url: page.url(), status: 'passed', collectionEntries: BOOK.length, canvas: 'colored and moving', offline: 'starts and shows every picture with no network', errors }));
 } finally {
   await browser.close();
 }

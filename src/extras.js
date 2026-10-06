@@ -20,10 +20,11 @@ export function spinWheel(rng = Math.random) {
 }
 
 // Applies a prize after the trip was recorded. Returns a short Thai message.
-export function applyPrize(progress, round, prize) {
+// record: false keeps the points out of the personal best (a two-player prize belongs to the team).
+export function applyPrize(progress, round, prize, { record = true } = {}) {
   if (prize.points) {
     round.score += prize.points;
-    progress.best[round.mode] = Math.max(progress.best[round.mode], round.score);
+    if (record) progress.best[round.mode] = Math.max(progress.best[round.mode], round.score);
     return `ได้ ${prize.points} คะแนน!`;
   }
   if (prize.map) {

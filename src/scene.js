@@ -4,6 +4,7 @@ import { computeLayout, backgroundPlacement, BG_EDGE, WATERLINE } from './layout
 import { Spawner, emptyLane } from './spawner.js';
 import { WORLD, NET_EXTRA } from './model.js';
 import { PirateBattle } from './pirate.js';
+import { originFor } from './match.js';
 import manifest from './art-manifest.js';
 
 const asset = (file) => `${import.meta.env.BASE_URL}assets/${file}`;
@@ -11,11 +12,11 @@ const asset = (file) => `${import.meta.env.BASE_URL}assets/${file}`;
 // ROD_BUTT is where the drawn boat's holder goes; a boat image moves it to its own holder tube.
 const ROD_BUTT = { x: 196, y: 108 };
 const BOAT_WIDTH = 180;
-const BOAT_HOLDER_X = 204;
-const ROD_TIP = { x: WORLD.originX, y: WORLD.originY };
+const ROD_REACH = 36;      // the rod tip is this far from the holder, out over the sea
 const SURFACE_Y = WORLD.originY + WORLD.rest;
 const WARM_UP_SECONDS = 26;
 const BOSS_WARNING_SECONDS = 3.2;
+const BOSS_LANE_INDEX = 3;
 // Colour washes over the day painting when no sunset/night painting is available (multiplied, fish stay bright).
 const TINTS = { sunset: { color: 0xffa36b, alpha: 0.55 }, night: { color: 0x34508f, alpha: 0.75 } };
 // Rod colours for the unlockable looks: [main, highlight, grip].
@@ -25,10 +26,12 @@ export class CoveScene extends Phaser.Scene {
   constructor(controller) {
     super('cove');
     this.controller = controller;
-    this.caught = null;
     this.bonusActive = false;
     this.qaHold = false;
   }
+
+  // Player 1's catch (the HUD and the single-player tests ask for it).
+  get caught() { return this.rigs?.[0].caught ?? null; }
 
   preload() {
     for (const [name, bg] of Object.entries(manifest.backgrounds ?? {})) this.load.image(`bg-${name}`, asset(bg.file));
@@ -45,40 +48,66 @@ export class CoveScene extends Phaser.Scene {
     this.sky = this.add.image(240, 0, 'sky').setOrigin(0.5, 0).setDepth(-4);
     this.bgTiles = [];
     this.tint = this.add.rectangle(240, 380, 480, 760, 0xffffff, 0).setDepth(-2.5).setBlendMode(Phaser.BlendModes.MULTIPLY).setVisible(false);
-    this.decor = this.add.graphics().setDepth(16.15);
-    this.lanternGlow = this.add.graphics().setDepth(16.16).setBlendMode(Phaser.BlendModes.ADD);
     this.registerArt();
     this.makeHookTexture();
     this.makeGlintTexture();
+    this.makeRedBoatTexture();
     this.rays = Array.from({ length: 5 }, (_, i) => this.add.graphics().setDepth(-1).setBlendMode(Phaser.BlendModes.ADD).setData('phase', i * 1.7));
     this.plankton = Array.from({ length: 26 }, (_, i) => this.add.circle(0, 0, 0.8 + (i % 3) * 0.5, 0xe9fbff, 0.32).setDepth(1).setData('seed', i));
     this.bubbles = Array.from({ length: 16 }, (_, i) => this.add.circle(0, 0, 1.4 + i % 3, 0xffffff, 0.16).setStrokeStyle(1, 0xffffff, 0.35).setDepth(2).setData('seed', i));
     this.bonusGlow = this.add.rectangle(240, 380, 480, 760, 0xffd34d, 0.1).setDepth(3).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.fishes = this.physics.add.group();
-    // Line, hook and a hooked catch are drawn in front of the boat so they never vanish behind the hull.
-    this.line = this.add.graphics().setDepth(16.5);
-    this.boat = this.makeBoat();
-    this.rod = this.add.graphics().setDepth(17);
+    // Every player has a rig: boat, rod, line and hook, drawn in front of the boat so they never vanish behind the hull.
+    // The second rig stays hidden until two players are playing.
+    this.rigs = [0, 1].map((index) => this.createRig(index));
     this.water = this.add.graphics().setDepth(18);
-    this.hook = this.physics.add.image(240, SURFACE_Y, this.textures.exists('hook-art') ? 'hook-art' : 'hook').setDepth(16.6);
-    this.hook.setDisplaySize(19, 30);
-    this.hookGlow = this.add.image(240, SURFACE_Y, 'glint').setDepth(16.55).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
-    this.hook.body.setAllowGravity(false);
-    this.hookBody = [this.hook.width * 0.8, this.hook.height * 0.62];
-    this.hook.body.setSize(...this.hookBody, true);
-    this.bigHook = false;
-    this.netted = [];
-    this.netMesh = this.add.graphics().setDepth(16.45);
     this.pirate = new PirateBattle(this);
-    this.physics.add.overlap(this.hook, this.fishes, (_hook, fish) => this.hooked(fish),
-      (_hook, fish) => !this.controller.round.paused && this.controller.round.phase === 'casting' && !fish.getData('caught'));
     this.time0 = 0;
+    this.configureRigs(this.controller.rounds.length);
     this.newSea();
     this.relayout();
     this.scale.on('resize', () => this.relayout());
     this.warmUp();
-    this.input.on('pointerdown', () => this.controller.cast());
+    this.input.on('pointerdown', (pointer) => this.controller.seaTap(pointer.worldX));
     this.controller.ready(this);
+  }
+
+  // One player's fishing gear. Rig 1 is mirrored (boat on the right of its rod) when two players share the sea.
+  createRig(index) {
+    const rig = { index, sign: 1, originX: WORLD.originX, tip: { x: WORLD.originX, y: WORLD.originY }, active: false, round: null,
+      caught: null, netted: [], bigHook: false, tugClock: undefined, testAim: false, goldHookImg: null, boatImage: null, hull: null, rodButt: ROD_BUTT };
+    rig.decor = this.add.graphics().setDepth(16.15);
+    rig.lanternGlow = this.add.graphics().setDepth(16.16).setBlendMode(Phaser.BlendModes.ADD);
+    rig.line = this.add.graphics().setDepth(16.5);
+    rig.boat = this.makeBoat(rig);
+    rig.rod = this.add.graphics().setDepth(17);
+    rig.hook = this.physics.add.image(240, SURFACE_Y, this.textures.exists('hook-art') ? 'hook-art' : 'hook').setDepth(16.6);
+    rig.hook.setDisplaySize(19, 30);
+    rig.hookGlow = this.add.image(240, SURFACE_Y, 'glint').setDepth(16.55).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
+    rig.hook.body.setAllowGravity(false);
+    rig.hookBody = [rig.hook.width * 0.8, rig.hook.height * 0.62];
+    rig.hook.body.setSize(...rig.hookBody, true);
+    rig.netMesh = this.add.graphics().setDepth(16.45);
+    this.physics.add.overlap(rig.hook, this.fishes, (_hook, fish) => this.hooked(rig, fish),
+      (_hook, fish) => rig.active && Boolean(rig.round) && !rig.round.paused && !rig.round.waiting && rig.round.phase === 'casting' && !fish.getData('caught'));
+    return rig;
+  }
+
+  // One or two players: where each rod tip hangs and which rigs are shown.
+  configureRigs(count) {
+    this.rigs.forEach((rig, i) => {
+      rig.active = i < count;
+      rig.round = this.controller.rounds[i] ?? null;
+      rig.sign = count === 2 && i === 1 ? -1 : 1;
+      rig.originX = originFor(count, i);
+      // Two players: player 1's boat is red like the red cast button, player 2's is the blue one; one player keeps the original.
+      rig.boatKey = count === 2 && i === 0 && this.textures.exists('boat-red') ? 'boat-red' : 'boat';
+      rig.tip = { x: rig.originX, y: WORLD.originY };
+      for (const o of [rig.boat, rig.rod, rig.line, rig.hook, rig.decor, rig.lanternGlow, rig.netMesh]) o.setVisible(rig.active);
+      if (!rig.active) { rig.hookGlow.setVisible(false); rig.goldHookImg?.setVisible(false); rig.hook.body.enable = false; }
+      else rig.hook.body.enable = true;
+    });
+    if (this.view) this.relayout();
   }
 
   // ---------- artwork ----------
@@ -205,6 +234,34 @@ export class CoveScene extends Phaser.Scene {
     g.generateTexture('glint', 32, 32); g.destroy();
   }
 
+  // The second player's boat: the same picture with its blues turned to red (greys, wood and the fisherman stay).
+  makeRedBoatTexture() {
+    if (!manifest.sprites?.boat?.holder || !this.textures.exists('boat')) return;
+    const source = this.textures.get('boat').getSourceImage();
+    const texture = this.textures.createCanvas('boat-red', source.width, source.height);
+    const ctx = texture.context;
+    ctx.drawImage(source, 0, 0);
+    try {
+      const image = ctx.getImageData(0, 0, source.width, source.height);
+      const d = image.data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] === 0) continue;
+        const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b), delta = max - min;
+        if (delta < 0.16 || max < 0.18) continue;
+        let h = max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4;
+        h = (h * 60 + 360) % 360;
+        if (h < 165 || h > 275) continue;
+        const nh = (4 + (h - 165) * 0.07) / 60;      // red to red-orange
+        const s = delta / max, c = max * s, x = c * (1 - Math.abs(nh % 2 - 1)), m = max - c;
+        const [nr, ng, nb] = nh < 1 ? [c, x, 0] : [x, c, 0];
+        d[i] = Math.round((nr + m) * 255); d[i + 1] = Math.round((ng + m) * 255); d[i + 2] = Math.round((nb + m) * 255);
+      }
+      ctx.putImageData(image, 0, 0);
+    } catch { /* an unreadable picture keeps its blue: the boat is still there */ }
+    texture.refresh();
+  }
+
   // Copy of the (fitted) boat image with the part under its waterline tinted like the sea.
   wetBoat(art, key) {
     const name = `${key}#wet`;
@@ -223,21 +280,18 @@ export class CoveScene extends Phaser.Scene {
   }
 
   // Boat artwork (when generated) or a drawn wooden boat with a fisherman and a rod holder.
-  makeBoat() {
-    this.rodButt = ROD_BUTT;
+  // Where it stands (and its flip for the second player) is set in layoutBoat().
+  makeBoat(rig) {
     const container = this.add.container(0, 0).setDepth(16);
     const art = manifest.sprites?.boat;
     if (art?.holder && art.waterline && this.textures.exists('boat')) {
-      // Fixed on-screen width; the hull's waterline sits on the sea surface and the holder tube sets the rod butt.
-      const scale = BOAT_WIDTH / art.w;
-      const top = WATERLINE + 3 - art.waterline * scale;
-      // The picture itself is fitted to the zoom in layoutBoat().
-      this.boatImage = this.add.image(BOAT_HOLDER_X - art.holder[0] * scale, top, 'boat').setOrigin(0, 0).setDisplaySize(BOAT_WIDTH, art.h * scale);
-      this.rodButt = { x: BOAT_HOLDER_X, y: top + art.holder[1] * scale };
-      container.add(this.boatImage);
-      this.hull = null;
+      rig.drawn = false;
+      rig.boatKey = 'boat';
+      rig.boatImage = this.add.image(0, 0, rig.boatKey).setOrigin(0, 0);
+      container.add(rig.boatImage);
       return container;
     }
+    rig.drawn = true;
     const g = this.add.graphics();
     container.add(g);
     // Hull: planked wood, red stripe and a cream gunwale. Below WATERLINE it is tinted by the water overlay.
@@ -245,7 +299,7 @@ export class CoveScene extends Phaser.Scene {
     g.fillPoints([{ x: 88, y: 106 }, { x: 238, y: 97 }, { x: 224, y: 130 }, { x: 198, y: 146 }, { x: 110, y: 146 }, { x: 93, y: 134 }], true);
     g.lineStyle(1.4, 0x55311b, 0.9);
     for (const dy of [9, 18, 27]) g.lineBetween(91, 106 + dy, 232 - dy * 0.45, 98 + dy);
-    g.fillStyle(0xbd3b33); g.fillPoints([{ x: 89, y: 108 }, { x: 236, y: 99 }, { x: 234, y: 104 }, { x: 90, y: 113 }], true);
+    g.fillStyle(rig.index ? 0x2f7fc4 : 0xbd3b33); g.fillPoints([{ x: 89, y: 108 }, { x: 236, y: 99 }, { x: 234, y: 104 }, { x: 90, y: 113 }], true);
     g.lineStyle(4, 0xeadfc3); g.lineBetween(87, 106, 239, 96.5);
     g.lineStyle(1, 0x5a4a34, 0.7); g.lineBetween(87, 108.5, 239, 99);
     // Wheelhouse
@@ -266,7 +320,6 @@ export class CoveScene extends Phaser.Scene {
     g.fillStyle(0xdfa27a); g.fillCircle(190, 102, 2.6);
     // Rod holder
     g.lineStyle(4.5, 0x2c393f); g.lineBetween(191, 114, 197, 105);
-    this.hull = { left: 88, right: 238 };
     return container;
   }
 
@@ -285,11 +338,11 @@ export class CoveScene extends Phaser.Scene {
     this.view = computeLayout({ width, height, dockTop: Number.isFinite(dock) && dock > 0 ? dock * dpr / zoom : height });
     this.view.zoom = zoom;
     this.view.dpr = dpr;
-    this.controller.round.setBounds(this.view);
+    for (const round of this.controller.rounds) round.setBounds(this.view);
     this.layoutBackground();
     this.bonusGlow.setPosition(240, height / 2).setSize(width + 4, height);
     this.layoutRays();
-    this.layoutBoat();
+    for (const rig of this.rigs) this.layoutBoat(rig);
     // Creatures already swimming take the new lane heights and sizes.
     for (const fish of this.fishes.getChildren()) if (!fish.getData('caught')) this.resize(fish);
   }
@@ -301,13 +354,27 @@ export class CoveScene extends Phaser.Scene {
     if (this.view) { this.layoutBackground(); this.layoutRays(); }
   }
 
-  // The boat picture is re-fitted to the zoom (sharp on every screen, no shimmer while it bobs).
-  layoutBoat() {
+  // Puts a player's boat where its rod tip is (mirrored for the second player) and fits the picture to the zoom
+  // (sharp on every screen, no shimmer while it bobs). The hull's waterline sits on the sea surface, the holder tube sets the rod butt.
+  layoutBoat(rig) {
     const art = manifest.sprites?.boat;
-    if (!this.boatImage || !art) return;
-    const key = this.wetBoat(art, this.fitted('boat', BOAT_WIDTH));
-    if (this.boatImage.texture.key !== key) this.boatImage.setTexture(key);
-    this.boatImage.setDisplaySize(BOAT_WIDTH, BOAT_WIDTH * art.h / art.w);
+    if (rig.drawn || !rig.boatImage || !art) {
+      // The drawn boat is made around the single-player tip (x 240); slide it, mirrored when needed.
+      const at = rig.sign > 0 ? rig.originX - WORLD.originX : rig.originX + WORLD.originX;
+      rig.boat.setScale(rig.sign, 1).setPosition(at, 0);
+      const map = (x) => rig.sign > 0 ? x + rig.originX - WORLD.originX : rig.originX + WORLD.originX - x;
+      rig.rodButt = { x: map(ROD_BUTT.x), y: ROD_BUTT.y };
+      rig.hull = { left: Math.min(map(88), map(238)), right: Math.max(map(88), map(238)) };
+      return;
+    }
+    const scale = BOAT_WIDTH / art.w;
+    const top = WATERLINE + 3 - art.waterline * scale;
+    rig.rodButt = { x: rig.originX - rig.sign * ROD_REACH, y: top + art.holder[1] * scale };
+    const holder = art.holder[0] * scale;
+    const left = rig.sign > 0 ? rig.rodButt.x - holder : rig.rodButt.x + holder - BOAT_WIDTH;
+    const key = this.wetBoat(art, this.fitted(rig.boatKey, BOAT_WIDTH));
+    if (rig.boatImage.texture.key !== key) rig.boatImage.setTexture(key);
+    rig.boatImage.setPosition(left, top).setFlipX(rig.sign < 0).setDisplaySize(BOAT_WIDTH, BOAT_WIDTH * art.h / art.w);
   }
 
   layoutBackground() {
@@ -406,15 +473,15 @@ export class CoveScene extends Phaser.Scene {
 
   newSea() {
     this.clearSea();
-    const round = this.controller.round;
-    this.spawner = new Spawner({ species: this.controller.species, mode: round.mode, rng: this.controller.rng });
+    const round = this.controller.rounds[0];
+    this.spawner = new Spawner({ species: this.controller.species, mode: round.mode, rng: this.controller.rng, wanted: () => this.controller.wantedIds() });
     this.bonusActive = false;
     this.bonusGlow.setVisible(false);
   }
 
   clearSea() {
     for (const fish of [...(this.fishes?.getChildren() ?? [])]) this.removeCreature(fish);
-    this.caught = null;
+    for (const rig of this.rigs ?? []) { rig.caught = null; rig.netted = []; }
   }
 
   warmUp() {
@@ -437,6 +504,16 @@ export class CoveScene extends Phaser.Scene {
     this.bossShadowImage = shadow;
     this.tweens.add({ targets: shadow, x: to, duration: (BOSS_WARNING_SECONDS + 1.5) * 1000, ease: 'Sine.easeInOut',
       onComplete: () => { shadow.destroy(); if (this.bossShadowImage === shadow) this.bossShadowImage = null; } });
+  }
+
+  // The fog horn is blown: a pale fog rolls over the sea and the next giant is called at once.
+  // Returns true when a giant is already here or on its way (the next one then follows it straight away).
+  hornCall() {
+    const giantHere = this.laneStates()[BOSS_LANE_INDEX].bosses > 0 || Boolean(this.bossQueue?.length);
+    this.spawner.callBoss();
+    const fog = this.add.rectangle(240, this.view.height / 2, this.view.width + 4, this.view.height + 4, 0xe8f3f6, 0).setDepth(4.2);
+    this.tweens.add({ targets: fog, fillAlpha: 0.32, duration: 700, yoyo: true, hold: 500, onComplete: () => fog.destroy() });
+    return giantHere;
   }
 
   // The sea darkens for a moment and a horn sounds before a giant swims in.
@@ -531,7 +608,7 @@ export class CoveScene extends Phaser.Scene {
       const d = fish.data.values;
       if (d.caught) continue;
       if (!d.frozen) this.swim(fish, d, dt, t);
-      if (isMystery(d.species)) d.reveal = this.controller.round.spyglass > 0 ? 1 : 0;
+      if (isMystery(d.species)) d.reveal = this.controller.rounds.some((r) => r.spyglass > 0) ? 1 : 0;
       if (d.species.rare || d.species.points >= 45) this.trail(fish, d, dt);
       const gone = d.dir > 0 ? fish.x - d.w / 2 > this.view.right + 40 : fish.x + d.w / 2 < this.view.left - 40;
       if (gone) { this.removeCreature(fish); continue; }
@@ -588,16 +665,16 @@ export class CoveScene extends Phaser.Scene {
   }
 
   // Rings where the line meets the water as the hook drops.
-  castRipple(angle) {
-    const x = WORLD.originX + Math.tan(angle) * (WATERLINE - WORLD.originY);
+  castRipple(rig, angle) {
+    const x = rig.originX + Math.tan(angle) * (WATERLINE - WORLD.originY);
     for (const [delay, size] of [[0, 1], [140, 0.7]]) {
       const ring = this.add.ellipse(x, WATERLINE + 1, 8, 2.5).setStrokeStyle(1.6, 0xffffff, 0.85).setDepth(19);
       this.tweens.add({ targets: ring, scaleX: 5 * size, scaleY: 2.5 * size, alpha: 0, delay, duration: 600, onComplete: () => ring.destroy() });
     }
   }
 
-  hooked(fish) {
-    const round = this.controller.round;
+  hooked(rig, fish) {
+    const round = rig.round;
     const species = fish.getData('species');
     const h = round.hook;
     // A net also scoops up the creatures right next to the hook.
@@ -608,8 +685,8 @@ export class CoveScene extends Phaser.Scene {
     fish.setData({ caught: true, caughtY: round.hook.y });
     fish.body.enable = false;
     fish.setDepth(16.4);
-    this.caught = fish;
-    this.netted = round.extraIds.map((_id, i) => {
+    rig.caught = fish;
+    rig.netted = round.extraIds.map((_id, i) => {
       const o = nearby[i];
       o.setData({ caught: true, caughtY: round.hook.y });
       o.body.enable = false;
@@ -617,7 +694,7 @@ export class CoveScene extends Phaser.Scene {
       return { fish: o, ox: (i ? 1 : -1) * (fish.displayWidth * 0.42 + o.displayWidth * 0.3), oy: 4 + i * 10 };
     });
     this.bubbleBurst(round.hook.x, round.hook.y, 6);
-    this.controller.onHook(species);
+    this.controller.onHook(rig.index, species);
   }
 
   // ---------- effects ----------
@@ -641,53 +718,54 @@ export class CoveScene extends Phaser.Scene {
     }
   }
 
-  celebrate(species, landing) {
-    const fish = this.caught;
-    this.caught = null;
-    const x = this.controller.round.hook.x;
+  celebrate(rig, species, landing) {
+    const fish = rig.caught;
+    rig.caught = null;
+    const x = rig.round.hook.x;
+    // Lifted out of the water, a catch drops behind the gunwale: into the boat, which lies on the far side of the rod from the sea.
+    const deck = rig.rodButt.x - rig.sign * 54;
     this.splash(x);
     if (fish) {
       fish.setData('reveal', 1);
       this.syncExtras(fish);
       fish.getData('shadow')?.setAlpha(0);
-      // Lifted out of the water it drops behind the gunwale, into the boat.
       fish.setDepth(15.9);
-      this.tweens.add({ targets: fish, x: 150, y: 112, angle: 0, scale: fish.scale * 0.6, duration: 650, ease: 'Back.easeIn',
+      this.tweens.add({ targets: fish, x: deck, y: 112, angle: 0, scale: fish.scale * 0.6, duration: 650, ease: 'Back.easeIn',
         onUpdate: () => this.syncExtras(fish), onComplete: () => this.removeCreature(fish) });
     }
-    for (const { fish: o } of this.netted) {
+    for (const { fish: o } of rig.netted) {
       o.setData('reveal', 1);
       o.getData('shadow')?.setAlpha(0);
       o.setDepth(15.9);
-      this.tweens.add({ targets: o, x: 150 + (Math.random() - 0.5) * 30, y: 112, angle: 0, scale: o.scale * 0.6, duration: 700, ease: 'Back.easeIn',
+      this.tweens.add({ targets: o, x: deck + (Math.random() - 0.5) * 30, y: 112, angle: 0, scale: o.scale * 0.6, duration: 700, ease: 'Back.easeIn',
         onUpdate: () => this.syncExtras(o), onComplete: () => this.removeCreature(o) });
     }
-    this.netted = [];
-    this.netMesh.clear();
+    rig.netted = [];
+    rig.netMesh.clear();
     const text = landing.multiplier > 1 ? `+${landing.points}  x${landing.multiplier}` : `+${landing.points}`;
-    const label = this.add.text(240, 176, text, { fontFamily: 'Tahoma, sans-serif', fontSize: species.jackpot ? '40px' : '32px', fontStyle: 'bold', color: '#ffea8e', stroke: '#145466', strokeThickness: 6 }).setOrigin(0.5).setDepth(21);
+    const label = this.add.text(rig.originX, 176, text, { fontFamily: 'Tahoma, sans-serif', fontSize: species.jackpot ? '40px' : '32px', fontStyle: 'bold', color: '#ffea8e', stroke: '#145466', strokeThickness: 6 }).setOrigin(0.5).setDepth(21);
     this.tweens.add({ targets: label, y: 120, alpha: 0, delay: species.jackpot ? 600 : 250, duration: species.jackpot ? 1400 : 900, onComplete: () => label.destroy() });
     if (species.kind === 'item' || species.jackpot) this.coinBurst(x, species.jackpot ? 34 : 18);
-    if (landing.points > 1) this.controller.flyCoins?.(x, WATERLINE - 10, Math.max(3, Math.min(14, Math.ceil(landing.points / 8))));
+    if (landing.points > 1) this.controller.flyCoins?.(x, WATERLINE - 10, Math.max(3, Math.min(14, Math.ceil(landing.points / 8))), rig.index);
     const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (!calm && (species.jackpot || landing.points >= 80)) { this.cameras.main.shake(380, 0.009); this.cameras.main.flash(260, 255, 236, 170); }
     else if (!calm && landing.points >= 40) this.cameras.main.shake(200, 0.004);
     else {
       for (let i = 0; i < 15; i++) {
-        const confetti = this.add.rectangle(240, 150, 5, 8, [0xffd05b, 0xff786b, 0xffffff, 0x89e8ab][i % 4]).setDepth(20);
-        this.tweens.add({ targets: confetti, x: 120 + i * 18, y: 214 + (i % 5) * 18, angle: i * 50, alpha: 0, duration: 1000, onComplete: () => confetti.destroy() });
+        const confetti = this.add.rectangle(rig.originX, 150, 5, 8, [0xffd05b, 0xff786b, 0xffffff, 0x89e8ab][i % 4]).setDepth(20);
+        this.tweens.add({ targets: confetti, x: rig.originX - 120 + i * 18, y: 214 + (i % 5) * 18, angle: i * 50, alpha: 0, duration: 1000, onComplete: () => confetti.destroy() });
       }
     }
   }
 
   // Unlockable boat looks: a string of pennants or lanterns from the cabin roof to the bow.
-  drawDecor(bob) {
-    const g = this.decor.clear();
-    const glow = this.lanternGlow.clear();
+  drawDecor(rig, bob) {
+    const g = rig.decor.clear();
+    const glow = rig.lanternGlow.clear();
     const look = this.controller.progress?.looks?.boat ?? 'plain';
-    const img = this.boatImage;
-    if (look === 'plain' || !img) return;
-    const at = (fx, fy) => ({ x: img.x + img.displayWidth * fx, y: img.y + img.displayHeight * fy + bob });
+    const img = rig.boatImage;
+    if (look === 'plain' || !img || rig.drawn) return;
+    const at = (fx, fy) => ({ x: img.x + img.displayWidth * (rig.sign > 0 ? fx : 1 - fx), y: img.y + img.displayHeight * fy + bob });
     const from = at(0.21, 0.04);
     const to = at(0.985, 0.45);
     const point = (t) => ({ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t + Math.sin(t * Math.PI) * 7 });
@@ -718,10 +796,10 @@ export class CoveScene extends Phaser.Scene {
   }
 
   // A simple mesh bag around everything the net is bringing up.
-  drawNet() {
-    const g = this.netMesh.clear();
-    if (!this.netted.length || !this.caught) return;
-    const all = [this.caught, ...this.netted.map((n) => n.fish)];
+  drawNet(rig) {
+    const g = rig.netMesh.clear();
+    if (!rig.netted.length || !rig.caught) return;
+    const all = [rig.caught, ...rig.netted.map((n) => n.fish)];
     const x0 = Math.min(...all.map((f) => f.x - f.displayWidth / 2)) - 5;
     const x1 = Math.max(...all.map((f) => f.x + f.displayWidth / 2)) + 5;
     const y0 = Math.min(...all.map((f) => f.y - f.displayHeight / 2)) - 4;
@@ -754,88 +832,105 @@ export class CoveScene extends Phaser.Scene {
   // ---------- frame ----------
 
   update(_time, delta) {
-    if (!this.hook) return;
-    const round = this.controller.round;
-    if (round.paused) return;
+    if (!this.rigs) return;
+    const rounds = this.controller.rounds;
+    if (rounds[0].paused) return;
     const dt = Math.min(delta / 1000, 0.1);
-    const before = round.phase;
-    round.tick(dt);
-    // Position-only QA fixture: keep a vertical aim until the real button casts.
-    if (import.meta.env.DEV && this.testAim) {
-      if (round.phase === 'aim') round.angle = 0;
-      else this.testAim = false;
+    // While one player plays a bonus stage the other is held (two players take turns in the stages).
+    this.controller.match?.sync();
+    for (const rig of this.rigs) {
+      rig.round = rig.active ? rounds[rig.index] ?? null : null;
+      const round = rig.round;
+      if (!round) continue;
+      const before = round.phase;
+      round.tick(dt);
+      // Position-only QA fixture: keep a vertical aim until the real button casts.
+      if (import.meta.env.DEV && rig.testAim) {
+        if (round.phase === 'aim') round.angle = 0;
+        else rig.testAim = false;
+      }
+      if (before === 'casting' && round.phase === 'returning') this.controller.onMiss(rig.index);
+      if (before === 'aim' && round.phase === 'casting') this.castRipple(rig, round.angle);
     }
-    if (before === 'casting' && round.phase === 'returning') this.controller.onMiss();
-    if (before === 'aim' && round.phase === 'casting') this.castRipple(round.angle);
-    const pirate = round.phase === 'pirate';
-    if (pirate && !this.pirate.active) { this.pirate.start(this.controller.rng); this.controller.onPirateStart?.(); }
-    if (!pirate && this.pirate.active) { this.pirate.end(); this.controller.onPirateEnd?.(); }
-    this.controller.audio.setFever?.(round.fever > 0);
-    if ((round.bonus > 0) !== this.bonusActive) this.setBonus(round.bonus > 0);
-    this.controller.audio.setBonus(round.bonus > 0 || pirate);
-    this.controller.audio.setLine(round.phase);
+    const active = this.rigs.filter((rig) => rig.round);
+    const pirateRig = active.find((rig) => rig.round.phase === 'pirate') ?? null;
+    const pirate = Boolean(pirateRig);
+    if (pirate && !this.pirate.active) { this.pirate.start(this.controller.rng, pirateRig); this.controller.onPirateStart?.(pirateRig.index); }
+    if (!pirate && this.pirate.active) { const index = this.pirate.rigIndex; this.pirate.end(); this.controller.onPirateEnd?.(index); }
+    const audio = this.controller.audio;
+    audio.setFever?.(active.some((rig) => rig.round.fever > 0));
+    const rain = active.some((rig) => rig.round.bonus > 0);
+    if (rain !== this.bonusActive) this.setBonus(rain);
+    audio.setBonus(rain || pirate || active.some((rig) => rig.round.phase === 'wheel'));
+    audio.setLine((active.find((rig) => rig.round.phase === 'reeling') ?? active[0]).round.phase);
     this.advanceSea(dt);
-    this.pirate.update(dt, round);
+    this.pirate.update(dt, (pirateRig ?? active[0]).round);
+    for (const rig of active) this.updateRig(rig, dt, rig === pirateRig);
+    this.animateWater(dt);
+    if (this.bonusActive) this.bonusGlow.setAlpha(0.08 + Math.sin(this.time0 * 3) * 0.04);
+    this.controller.frameStopWheel?.();
+    this.controller.renderHUD();
+  }
+
+  // One player's boat, rod, line, hook and whatever hangs on it, for this frame.
+  updateRig(rig, dt, pirate) {
+    const round = rig.round;
     const h = round.hook;
-    const bob = Math.sin(round.elapsed * 2.1) * 1.2;
-    this.boat.y = bob;
+    const bob = Math.sin(this.time0 * 2.1) * 1.2;
+    rig.boat.y = bob;
     const tension = round.phase === 'reeling' ? 0.75 + 0.25 * Math.max(0, 1 - (this.controller.now() - round.lastTap) / 220) : round.phase === 'casting' ? 0.25 : 0.08;
-    const tip = this.drawRod(h, tension, bob);
-    this.hook.body.reset(h.x, h.y);
-    this.hook.setAngle(-round.angle * 180 / Math.PI);
-    this.drawLine(tip, h, round.angle, round.fever > 0);
+    const tip = this.drawRod(rig, h, tension, bob);
+    rig.hook.body.reset(h.x, h.y);
+    rig.hook.setAngle(-round.angle * 180 / Math.PI);
+    this.drawLine(rig, tip, h, round.angle, round.fever > 0);
     // Golden hook: bigger catch area and the golden hook picture.
     const gold = round.goldHook > 0;
-    if (gold !== this.bigHook) {
-      this.bigHook = gold;
-      this.hook.body.setSize(this.hookBody[0] * (gold ? 1.9 : 1), this.hookBody[1] * (gold ? 1.7 : 1), true);
-      if (gold && !this.goldHookImg && this.textures.exists('sp-gold-hook')) {
-        this.goldHookImg = this.add.image(0, 0, this.fitted('sp-gold-hook', 30)).setDepth(16.61);
-        this.goldHookImg.setDisplaySize(30, 30 * this.goldHookImg.height / this.goldHookImg.width);
-      }
+    if (gold !== rig.bigHook) {
+      rig.bigHook = gold;
+      rig.hook.body.setSize(rig.hookBody[0] * (gold ? 1.9 : 1), rig.hookBody[1] * (gold ? 1.7 : 1), true);
+      if (gold) this.ensureGoldHookImage(rig);
     }
-    const goldLook = this.controller.progress?.looks?.hook === 'golden';
-    if (goldLook && !this.goldHookImg && this.textures.exists('sp-gold-hook')) {
-      this.goldHookImg = this.add.image(0, 0, this.fitted('sp-gold-hook', 30)).setDepth(16.61);
-      this.goldHookImg.setDisplaySize(30, 30 * this.goldHookImg.height / this.goldHookImg.width);
-    }
-    const showGold = (gold || goldLook) && !pirate && Boolean(this.goldHookImg);
-    this.goldHookImg?.setVisible(showGold).setPosition(h.x - 2, h.y + 2).setAngle(-round.angle * 180 / Math.PI);
-    this.hook.setVisible(!pirate && !showGold);
-    this.rod.setVisible(!pirate);
-    this.line.setVisible(!pirate);
-    this.hookGlow.setVisible(round.fever > 0 && !pirate);
-    if (round.fever > 0) this.hookGlow.setPosition(h.x, h.y).setScale(1.6 + Math.sin(this.time0 * 8) * 0.3).setAngle(this.time0 * 60).setAlpha(0.85);
-    if (this.caught && round.phase === 'reeling') {
-      const level = tugLevel(this.caught.getData('species'));
+    if (this.controller.progress?.looks?.hook === 'golden') this.ensureGoldHookImage(rig);
+    const showGold = (gold || this.controller.progress?.looks?.hook === 'golden') && !pirate && Boolean(rig.goldHookImg);
+    rig.goldHookImg?.setVisible(showGold).setPosition(h.x - 2, h.y + 2).setAngle(-round.angle * 180 / Math.PI);
+    rig.hook.setVisible(!pirate && !showGold);
+    rig.rod.setVisible(!pirate);
+    rig.line.setVisible(!pirate);
+    rig.hookGlow.setVisible(round.fever > 0 && !pirate);
+    if (round.fever > 0) rig.hookGlow.setPosition(h.x, h.y).setScale(1.6 + Math.sin(this.time0 * 8) * 0.3).setAngle(this.time0 * 60).setAlpha(0.85);
+    if (rig.caught && round.phase === 'reeling') {
+      const level = tugLevel(rig.caught.getData('species'));
       const struggle = Math.sin(this.time0 * 15) * (9 + level * 5);
-      this.tugClock = (this.tugClock ?? 1) - dt;
-      if (level > 0 && this.tugClock <= 0) {
-        this.tugClock = (0.9 + Math.random() * 0.9) / (level > 1 ? 1.3 : 1);
-        this.controller.onTug?.(level);
+      rig.tugClock = (rig.tugClock ?? 1) - dt;
+      if (level > 0 && rig.tugClock <= 0) {
+        rig.tugClock = (0.9 + Math.random() * 0.9) / (level > 1 ? 1.3 : 1);
+        this.controller.onTug?.(level, rig.index);
       }
-      this.caught.setPosition(h.x + 4, h.y + 12 + this.caught.displayHeight * 0.25).setAngle((this.caught.flipX ? 18 : -18) + struggle);
+      rig.caught.setPosition(h.x + 4, h.y + 12 + rig.caught.displayHeight * 0.25).setAngle((rig.caught.flipX ? 18 : -18) + struggle);
       const reveal = (f) => round.spyglass > 0 ? 1 : revealForRise(f.getData('species'), h.y, f.getData('caughtY'), SURFACE_Y);
-      this.caught.setData('reveal', reveal(this.caught));
-      this.syncExtras(this.caught);
-      for (const n of this.netted) {
+      rig.caught.setData('reveal', reveal(rig.caught));
+      this.syncExtras(rig.caught);
+      for (const n of rig.netted) {
         n.fish.setPosition(h.x + n.ox, h.y + 12 + n.oy + n.fish.displayHeight * 0.2).setAngle((n.fish.flipX ? 14 : -14) + Math.sin(this.time0 * 13 + n.oy) * 7);
         n.fish.setData('reveal', reveal(n.fish));
         this.syncExtras(n.fish);
       }
-      this.drawNet();
+      this.drawNet(rig);
     }
-    this.drawDecor(bob);
-    if (!this.caught) this.tugClock = undefined;
-    this.animateWater(dt);
-    if (this.bonusActive) this.bonusGlow.setAlpha(0.08 + Math.sin(this.time0 * 3) * 0.04);
-    this.controller.renderHUD();
+    this.drawDecor(rig, bob);
+    if (!rig.caught) rig.tugClock = undefined;
   }
 
-  drawRod(hook, tension, bob) {
-    const g = this.rod.clear();
-    const butt = { x: this.rodButt.x, y: this.rodButt.y + bob };
-    const rest = { x: ROD_TIP.x, y: ROD_TIP.y + bob };
+  ensureGoldHookImage(rig) {
+    if (rig.goldHookImg || !this.textures.exists('sp-gold-hook')) return;
+    rig.goldHookImg = this.add.image(0, 0, this.fitted('sp-gold-hook', 30)).setDepth(16.61);
+    rig.goldHookImg.setDisplaySize(30, 30 * rig.goldHookImg.height / rig.goldHookImg.width);
+  }
+
+  drawRod(rig, hook, tension, bob) {
+    const g = rig.rod.clear();
+    const butt = { x: rig.rodButt.x, y: rig.rodButt.y + bob };
+    const rest = { x: rig.tip.x, y: rig.tip.y + bob };
     const dx = hook.x - rest.x, dy = hook.y - rest.y;
     const length = Math.hypot(dx, dy) || 1;
     const bend = tension * 10;
@@ -865,15 +960,15 @@ export class CoveScene extends Phaser.Scene {
     const reel = at(0.24);
     g.fillStyle(0x9aa9b0).fillCircle(reel.x, reel.y + 5, 4.6);
     g.lineStyle(1.2, 0x34434a).strokeCircle(reel.x, reel.y + 5, 4.6);
-    const turn = this.controller.wheelAngle * Math.PI / 180;
+    const turn = (this.controller.wheelAngles?.[rig.index] ?? 0) * Math.PI / 180;
     g.lineStyle(1.6, 0x34434a).lineBetween(reel.x, reel.y + 5, reel.x + Math.cos(turn) * 6, reel.y + 5 + Math.sin(turn) * 6);
     g.fillStyle(0xe8b04d).fillCircle(reel.x + Math.cos(turn) * 6, reel.y + 5 + Math.sin(turn) * 6, 1.8);
     return tip;
   }
 
-  drawLine(tip, hook, angle, fever = false) {
+  drawLine(rig, tip, hook, angle, fever = false) {
     const top = { x: hook.x - Math.sin(angle) * 11, y: hook.y - Math.cos(angle) * 11 };
-    const g = this.line.clear();
+    const g = rig.line.clear();
     g.lineStyle(2.4, 0x0b4b5c, 0.35).lineBetween(tip.x, tip.y, top.x, top.y);
     g.lineStyle(fever ? 1.6 : 1.1, fever ? 0xffd34d : 0xf4fbff, 0.95).lineBetween(tip.x, tip.y, top.x, top.y);
     // Small lead sinker just above the hook
@@ -887,7 +982,7 @@ export class CoveScene extends Phaser.Scene {
     const t = this.time0;
     // Submerged hull: tint the boat below the waterline, with a moving surface highlight.
     const g = this.water.clear();
-    if (this.hull) g.fillStyle(0x1aa0b4, 0.5).fillRect(this.hull.left - 6, WATERLINE + 1, this.hull.right - this.hull.left + 12, 19);
+    for (const rig of this.rigs) if (rig.active && rig.hull) g.fillStyle(0x1aa0b4, 0.5).fillRect(rig.hull.left - 6, WATERLINE + 1, rig.hull.right - rig.hull.left + 12, 19);
     g.lineStyle(1.6, 0xffffff, 0.55).beginPath();
     for (let x = left; x <= right; x += 12) {
       const y = WATERLINE + Math.sin(x * 0.045 + t * 1.8) * 1.2;
@@ -920,12 +1015,11 @@ export class CoveScene extends Phaser.Scene {
     this.pirate.clear();
     this.bossQueue = [];
     this.bossShadowImage?.destroy(); this.bossShadowImage = null;
-    this.netted = [];
-    this.netMesh.clear();
-    this.testAim = false;
+    for (const rig of this.rigs) { rig.caught = null; rig.netted = []; rig.netMesh.clear(); rig.testAim = false; rig.tugClock = undefined; }
     this.qaHold = false;
     this.newSea();
     this.audioBonusOff();
+    this.configureRigs(this.controller.rounds.length);
     this.relayout();
     this.warmUp();
   }
@@ -935,14 +1029,22 @@ export class CoveScene extends Phaser.Scene {
   // ---------- QA (DEV ?qa=1 only) ----------
 
   snapshot() {
-    const round = this.controller.round;
+    const round = this.controller.rounds[0];
+    const rig0 = this.rigs[0];
     return { ready: true, phase: round.phase, paused: round.paused, angle: round.angle, hook: round.hook, length: round.length, targetLength: round.targetLength,
       taps: round.taps, requiredTaps: round.requiredTaps, score: round.score, catches: [...round.catches], tripCatches: round.tripCatches, remaining: round.remaining,
       bonus: round.bonus, maps: round.maps, doubleNext: round.doubleNext, wave: this.spawner.wave.kind, time: this.time0,
       combo: round.combo, fever: round.fever, landing: round.landing ? { id: round.landing.species.id, points: round.landing.points, multiplier: round.landing.multiplier, extras: round.landing.extras.map((s) => s.id) } : null,
-      powers: { net: round.netCharges, turbo: round.turbo, goldHook: round.goldHook, spyglass: round.spyglass, bigHook: this.bigHook }, extras: [...round.extraIds], netted: this.netted.length,
+      powers: { net: round.netCharges, turbo: round.turbo, goldHook: round.goldHook, spyglass: round.spyglass, bigHook: rig0.bigHook }, extras: [...round.extraIds], netted: rig0.netted.length,
+      stopWheel: round.stopWheel ? { spin: round.stopWheel.spin, state: round.stopWheel.state, angle: round.stopWheel.angle, speed: round.stopWheel.speed, results: [...round.stopWheel.results], total: round.stopWheel.total } : null,
+      wheelResult: round.wheelResult,
       pirate: round.pirate ? { ...round.pirate } : null, battle: this.pirate.state(round), bonusTurn: round.bonusTurn,
-      bossPending: Boolean(this.bossQueue?.length), bossShadow: Boolean(this.bossShadowImage?.active), tugs: this.controller.tugs ?? 0,
+      hornCalls: round.hornCalls, bossPending: Boolean(this.bossQueue?.length), bossShadow: Boolean(this.bossShadowImage?.active), tugs: this.controller.tugs ?? 0,
+      players: this.controller.rounds.map((r, i) => ({ phase: r.phase, score: r.score, taps: r.taps, requiredTaps: r.requiredTaps, catches: [...r.catches], tripCatches: r.tripCatches,
+        maps: r.maps, bonus: r.bonus, waiting: r.waiting, hook: r.hook, angle: r.angle, originX: r.originX, remaining: r.remaining, combo: r.combo, fever: r.fever,
+        stopWheel: r.stopWheel ? { spin: r.stopWheel.spin, state: r.stopWheel.state, results: [...r.stopWheel.results] } : null, wheelResult: r.wheelResult,
+        netted: this.rigs[i].netted.length, boat: { x: this.rigs[i].boatImage?.x ?? null, flipped: this.rigs[i].boatImage?.flipX ?? null, visible: this.rigs[i].boat.visible } })),
+      twoPlayers: this.controller.rounds.length === 2, match: this.controller.match ? this.controller.match.result() : null,
       timeOfDay: this.timeOfDay ?? 'day', tint: this.tint.visible, looks: { ...this.controller.progress.looks },
       view: { x: this.cameras.main.worldView.x, y: this.cameras.main.worldView.y, zoom: this.cameras.main.zoom, ...this.view },
       audio: { state: this.controller.audio.context?.state ?? 'locked', enabled: this.controller.audio.enabled, music: this.controller.audio.musicOn, level: this.controller.audio.level() },
@@ -953,24 +1055,26 @@ export class CoveScene extends Phaser.Scene {
       }) };
   }
 
-  arrangeForTest(id = 'goldfish', extras = []) {
-    const round = this.controller.round;
+  // player: which rig the creature is put in front of; keep: leave the rest of the sea (so two rigs can be set up in turn).
+  arrangeForTest(id = 'goldfish', extras = [], player = 0, keep = false) {
+    const rig = this.rigs[player];
+    const round = this.controller.rounds[player];
     if (round.phase !== 'aim') throw new Error('Arrange only before a cast');
     const species = SPECIES_BY_ID[id];
     if (!this.controller.species.includes(species)) throw new Error(`No artwork for ${id}`);
     round.elapsed = 0;
     round.swingTime = 0;
     round.angle = 0;
-    this.testAim = true;
+    rig.testAim = true;
     this.qaHold = true;
-    this.clearSea();
-    const fish = this.addCreature(species, species.lane, WORLD.originX, 1, 0, { dy: 0, phase: 0 }, this.sizeOf(species));
+    if (!keep) this.clearSea();
+    const fish = this.addCreature(species, species.lane, round.originX, 1, 0, { dy: 0, phase: 0 }, this.sizeOf(species));
     fish.setData('frozen', true);
     // Neighbours for net tests: same depth, either side of the hook's path.
     extras.forEach((extraId, i) => {
       const extra = SPECIES_BY_ID[extraId];
       const size = this.sizeOf(extra, species.lane);
-      const other = this.addCreature(extra, species.lane, WORLD.originX + (i ? 1 : -1) * (fish.displayWidth / 2 + size.width / 2 + 4), 1, 0, { dy: 0, phase: 0 }, size);
+      const other = this.addCreature(extra, species.lane, round.originX + (i ? 1 : -1) * (fish.displayWidth / 2 + size.width / 2 + 4), 1, 0, { dy: 0, phase: 0 }, size);
       other.setData('frozen', true);
     });
   }

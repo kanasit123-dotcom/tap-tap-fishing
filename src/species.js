@@ -55,6 +55,7 @@ const catalog = [
   { id: 'watch', name: 'นาฬิกาพก', kind: 'item', effect: 'time', lane: 3, points: 10, taps: 8, size: 48, speed: 22, weight: 7, motion: 'float', cooldown: 25, arcadeOnly: true, emoji: '⏱️' },
 
   { id: 'gold-hook', name: 'ตะขอทอง', kind: 'item', effect: 'goldhook', lane: 3, points: 10, taps: 6, size: 40, speed: 20, weight: 4, motion: 'float', cooldown: 35, emoji: '🪝' },
+  { id: 'horn', name: 'แตรหมอก', kind: 'item', effect: 'horn', lane: 4, points: 10, taps: 8, size: 56, speed: 20, weight: 3, motion: 'float', cooldown: 70, emoji: '📯' },
   { id: 'spyglass', name: 'กล้องส่องทางไกล', kind: 'item', effect: 'spyglass', lane: 4, points: 10, taps: 6, size: 58, speed: 20, weight: 4, motion: 'float', cooldown: 35, emoji: '🔭' },
   { id: 'shark', name: 'ฉลาม', lane: 4, points: 34, taps: 16, size: 140, speed: 34, weight: 26, emoji: '🦈' },
   { id: 'moray', name: 'ปลาไหลมอเรย์', lane: 4, points: 36, taps: 16, size: 130, speed: 24, weight: 20, motion: 'eel', emoji: '🐍' },
@@ -71,11 +72,11 @@ const catalog = [
   { id: 'whale-shark', name: 'ฉลามวาฬ', lane: 5, points: 90, taps: 22, size: 190, speed: 22, weight: 4, cooldown: 40, emoji: '🦈' },
 
   // Bosses: never in the normal mix; the spawner sends one every two to three minutes.
-  { id: 'boss-whale', name: 'วาฬสีน้ำเงิน', lane: 3, points: 200, taps: 30, size: 300, speed: 15, weight: 1, boss: true, emoji: '🐋' },
-  { id: 'boss-kraken', name: 'คราเคน', lane: 3, points: 180, taps: 28, size: 260, speed: 13, weight: 1, boss: true, motion: 'pulse', emoji: '🐙' },
-  { id: 'boss-helicoprion', name: 'ปลาฟันก้นหอยโบราณ', lane: 3, points: 220, taps: 30, size: 250, speed: 16, weight: 1, boss: true, emoji: '🦈' },
-  { id: 'boss-dunkleosteus', name: 'ปลาเกราะยักษ์โบราณ', lane: 3, points: 240, taps: 32, size: 270, speed: 18, weight: 1, boss: true, emoji: '🐟' },
-  { id: 'boss-marlin', name: 'ราชาปลากระโทงทอง', lane: 3, points: 250, taps: 32, size: 280, speed: 22, weight: 1, boss: true, emoji: '🐟' },
+  { id: 'boss-whale', name: 'วาฬสีน้ำเงิน', lane: 3, points: 200, taps: 30, size: 300, speed: 21, weight: 1, boss: true, emoji: '🐋' },
+  { id: 'boss-kraken', name: 'คราเคน', lane: 3, points: 180, taps: 28, size: 260, speed: 27, weight: 1, boss: true, motion: 'pulse', emoji: '🐙' },
+  { id: 'boss-helicoprion', name: 'ปลาฟันก้นหอยโบราณ', lane: 3, points: 220, taps: 30, size: 250, speed: 23, weight: 1, boss: true, emoji: '🦈' },
+  { id: 'boss-dunkleosteus', name: 'ปลาเกราะยักษ์โบราณ', lane: 3, points: 240, taps: 32, size: 270, speed: 25, weight: 1, boss: true, emoji: '🐟' },
+  { id: 'boss-marlin', name: 'ราชาปลากระโทงทอง', lane: 3, points: 250, taps: 32, size: 280, speed: 30, weight: 1, boss: true, emoji: '🐟' },
 
   // Seabed: crawlers, the jackpot lobster and the odd old boot.
   { id: 'starfish', name: 'ปลาดาว', lane: 6, points: 10, taps: 7, size: 44, speed: 13, weight: 24, group: [1, 2], motion: 'spin', noFlip: true, emoji: '⭐' },

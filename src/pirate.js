@@ -25,15 +25,17 @@ export class PirateBattle {
     this.cannon = null;
   }
 
-  start(rng = Math.random) {
+  // rig: the player whose boat carries the cannon (two players take turns in the stage).
+  start(rng = Math.random, rig = this.scene.rigs[0]) {
     this.clear();
     this.active = true;
+    this.rigIndex = rig.index;
     this.rng = rng;
     this.dir = rng() < 0.5 ? 1 : -1;
     this.spawnIn = 0.2;
     const s = this.scene;
     const key = s.fitted('sp-cannon', 34);
-    const butt = s.rodButt;
+    const butt = rig.rodButt;
     this.cannon = s.add.image(butt.x - 6, butt.y + 8, key).setOrigin(0.45, 0.95).setDepth(16.2);
     this.cannon.setDisplaySize(34, 34 * this.cannon.height / this.cannon.width);
   }

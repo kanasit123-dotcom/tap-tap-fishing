@@ -42,9 +42,11 @@ test('music preference and map pieces persist and are sanitized', () => {
   }
   assert.equal(freshProgress().music, true); assert.equal(freshProgress().maps, 0);
 });
-test('the pirate/rain turn persists as 0 or 1', () => {
+test('the bonus turn (pirate, rain, wheel) persists as 0, 1 or 2', () => {
   const s = memory();
   s.setItem(STORAGE_KEY, JSON.stringify({ version: 1, bonusTurn: 1 })); assert.equal(loadProgress(s).bonusTurn, 1);
+  s.setItem(STORAGE_KEY, JSON.stringify({ version: 1, bonusTurn: 2 })); assert.equal(loadProgress(s).bonusTurn, 2);
+  s.setItem(STORAGE_KEY, JSON.stringify({ version: 1, bonusTurn: 3 })); assert.equal(loadProgress(s).bonusTurn, 0);
   s.setItem(STORAGE_KEY, JSON.stringify({ version: 1, bonusTurn: 'x' })); assert.equal(loadProgress(s).bonusTurn, 0);
   assert.equal(freshProgress().bonusTurn, 0);
 });

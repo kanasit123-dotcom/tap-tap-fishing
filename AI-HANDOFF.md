@@ -56,6 +56,31 @@ special items **with effects + bonus stage**; **sea ambience + soft music** with
   (`sheet-f-pirate.png`, already in docs/ART-PROMPTS.md and `SHEETS`); then boss fish, lucky wheel at trip end, unlockable boat/hook
   skins from book zones, day/sunset/night. Power-up and pirate design notes are under prompt I in ART-PROMPTS.md.
   When sheet I arrives, `tests/assets.test.mjs` must allow the non-catalog prop ids (pirate ships, cannon, coin...).
+- **Round 4 (2026-10-06, built and tested locally, NOT deployed; user asked for: two players, stop-the-wheel stage, offline, fog horn, rare creatures
+  never seen, slower giants):**
+  - **Giants** were slow because (a) their own speeds were 13-22 and the kraken's pulse motion averages 0.69x, and (b) the spawner slowed a boss to
+    the speed of the creature ahead. Now bosses use speeds 21-30 and *wait* for a clear road (`bossWaiting`, lane 3 holds new arrivals) instead of
+    crawling; `callBoss()` (fog horn) sets `bossIn = 0`. A boss not yet caught is 4x as likely (`isWanted`).
+  - **Never-seen creatures:** `Spawner({ wanted })` (main.js `wantedIds()` = species not in the collection). `guestTick` sends one uncollected
+    creature alone every 24-36 s (first at 12-22 s), rare ones weighted 8x, never in the treasure rain, not arcade-only items in relaxed mode.
+  - **Fog horn** (`horn`, effect 'horn', lane 4, weight 3, cooldown 70): `round.hornCalls`, scene `hornCall()` (pale fog + `spawner.callBoss()`),
+    audio `horn`. No art yet: hidden in production until `python tools/sprites.py sheet-i-horn` (prompt M in ART-PROMPTS.md); DEV shows an emoji.
+  - **Stop-the-wheel stage** (`src/stopwheel.js` pure + DOM overlay `#stopwheel` in main.js `frameStopWheel()`): third bonus kind
+    (`BONUS_KINDS = ['pirate','rain','wheel']`, `bonusTurn` 0-2, saved). Phase `'wheel'`; 10 prizes, 3 spins (150/215/285 deg/s), tap or the red
+    button stops it (`round.stopTheWheel()`), settle formula `settleAngle`, an idle spin stops after 6 s.
+  - **Offline:** `tools/sw.template.js` + `tools/make-sw.mjs` (run by `npm run build`/`build:pages`) write `dist/sw.js` listing every file with a
+    content-hash version; `main.js` registers it only in production builds. Cache lookup needs `ignoreVary` (module scripts send Origin).
+    `tests/pages-smoke.mjs` reloads offline and checks the game and all pictures. Not tested on a real iPhone/iPad (Safari treats service workers
+    per origin and may drop storage for sites unused for weeks).
+  - **Two players, one device** (`src/match.js` pure + `rigs` in scene.js + arrays in main.js): `controller.rounds` (1 or 2 `FishingRound`s, each with its own
+    `originX` 200 / 280), `controller.match` (null for one player), `get round()` = player 1 so single-player code and tests are unchanged.
+    The scene keeps two *rigs* (boat, rod, line, hook, net, gold hook; rig 2 hidden in solo); player 2's boat is mirrored (`rig.sign = -1`), player 1's is the
+    recoloured `boat-red` canvas texture, player 2's the original (button colours: red / blue). `Match.sync()` every frame holds everyone but the bonus
+    owner (`round.waiting`: no tick, no cast/reel/fire, clock stopped). Shared goal `TEAM_GOAL` 16 via `round.goalCheck`; arcade watch gives both boats +10 s.
+    Co-op = team score; versus = higher score wins and spins the trip-end wheel (points from it are not a personal best: `applyPrize(..., { record: false })`).
+    Two players do not persist maps/bonusTurn. Touch: `bindTapControl` now looks at `targetTouches`, so a finger on the other control never counts as a pinch.
+    DOM ids of player 2 end in `2` (`#cast2`, `#reel2`, `#score2`, `#phase-text2`...). The sea tap casts player 1 on the left half, player 2 on the right.
+    QA: `arrange(id, extras, player, keep)`, `setMaps/setBonusTurn/setPower/expire/finishTrip(..., player)`, snapshot `players[]`, `match`, `twoPlayers`.
 - **v0.6.1 LIVE (2026-10-06):** commit 5e91923, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37391291010
   (wheel dialog fit, 30 s pirate battle, boss cadence, harder crank).
 - **v0.7.0 LIVE (2026-10-06):** commit 6719110, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37409246010

@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { tugLevel } from '../src/species.js';
-import { FishingRound, WORLD, GOAL, BONUS_SECONDS, MAP_PIECES, TIME_BONUS, COMBO_FOR_FEVER, FEVER_SECONDS, TURBO_CATCHES, POWER_SECONDS, PIRATE_SECONDS, PIRATE_RELOAD, PIRATE_HIT, PIRATE_DEFEAT } from '../src/model.js';
+import { FishingRound, BONUS_KINDS, WORLD, GOAL, BONUS_SECONDS, MAP_PIECES, TIME_BONUS, COMBO_FOR_FEVER, FEVER_SECONDS, TURBO_CATCHES, POWER_SECONDS, PIRATE_SECONDS, PIRATE_RELOAD, PIRATE_HIT, PIRATE_DEFEAT } from '../src/model.js';
 import { SPECIES } from '../src/species.js';
+import { STOP_SPINS, STOP_SHOW, STOP_SLIDE } from '../src/stopwheel.js';
 
 function tick(round, seconds) { for (let i = 0; i < Math.ceil(seconds * 60); i++) round.tick(1 / 60); }
 function catchFish(round, id = 'goldfish', depth = 130) {
@@ -198,7 +199,7 @@ test('golden hook and spyglass run for twenty seconds, paused with the game', ()
   r.pause(); const g = r.goldHook; tick(r, 5); assert.equal(r.goldHook, g); r.pause(false);
   tick(r, POWER_SECONDS); assert.equal(r.goldHook, 0); assert.equal(r.spyglass, 0);
 });
-test('completed maps alternate: the pirate battle, then the treasure rain', () => {
+test('completed maps take turns: the pirate battle, the treasure rain, the stop-the-wheel stage', () => {
   const r = new FishingRound('arcade', () => {}, { maps: 3 });
   catchFish(r, 'map'); land(r);
   assert.equal(r.landing.bonusKind, 'pirate'); assert.equal(r.bonus, 0); assert.equal(r.bonusTurn, 1);
@@ -208,6 +209,36 @@ test('completed maps alternate: the pirate battle, then the treasure rain', () =
   assert.equal(r.cast(), false, 'no casting during the battle');
   r.maps = 3; r.pirate = null; r.phase = 'aim';
   catchFish(r, 'map'); land(r); assert.equal(r.landing.bonusKind, 'rain'); assert.ok(r.bonus > 0);
+  assert.equal(r.bonusTurn, 2); r.bonus = 0; r.phase = 'aim'; r.maps = 3;
+  catchFish(r, 'map'); land(r); assert.equal(r.landing.bonusKind, 'wheel'); assert.equal(r.bonusTurn, 0);
+  assert.deepEqual(BONUS_KINDS, ['pirate', 'rain', 'wheel']);
+});
+test('stop-the-wheel stage: three taps, points added as each spin lands, the arcade clock waits, then back to fishing', () => {
+  const r = new FishingRound('arcade', () => {}, { maps: 3, bonusTurn: 2, rng: () => 0.3 });
+  catchFish(r, 'map'); land(r);
+  assert.equal(r.landing.bonusKind, 'wheel'); assert.equal(r.phase, 'celebrate');
+  tick(r, 2); assert.equal(r.phase, 'wheel'); assert.ok(r.stopWheel);
+  const clock = r.remaining; const start = r.score;
+  assert.equal(r.cast(), false, 'no casting during the stage');
+  tick(r, 1); assert.equal(r.remaining, clock, 'the arcade clock waits');
+  for (let spin = 0; spin < STOP_SPINS; spin++) {
+    tick(r, 0.6); assert.equal(r.stopTheWheel(), true); assert.equal(r.stopTheWheel(), false);
+    const before = r.score; const wheel = r.stopWheel; tick(r, STOP_SLIDE + 0.05);
+    assert.equal(r.score - before, wheel.results.at(-1).points, 'points land when the wheel rests');
+    tick(r, STOP_SHOW + 0.05);
+  }
+  assert.equal(r.phase, 'aim'); assert.equal(r.stopWheel, null);
+  assert.equal(r.wheelResult.results.length, STOP_SPINS); assert.equal(r.score - start, r.wheelResult.total);
+  assert.equal(r.stopTheWheel(), false, 'nothing to stop any more');
+  assert.equal(r.cast(), true);
+});
+test('a stop-the-wheel stage that gets no taps still ends by itself, and a finished trip completes after it', () => {
+  const r = new FishingRound('relaxed', () => {}, { maps: 3, bonusTurn: 2 });
+  for (let i = 0; i < GOAL - 1; i++) catchAndLand(r, 'goldfish');
+  r.maps = 3; catchFish(r, 'map'); land(r); tick(r, 2);
+  assert.equal(r.tripCatches, GOAL); assert.equal(r.phase, 'wheel');
+  tick(r, 60); assert.equal(r.phase, 'complete'); assert.equal(r.wheelResult.results.length, STOP_SPINS);
+  r.pause(); r.phase = 'wheel'; r.stopWheel = null; assert.equal(r.stopTheWheel(), false);
 });
 test('pirate battle: unlimited shots for 30 seconds with a reload, streak and sinking points, then back to fishing', () => {
   const r = new FishingRound('relaxed', () => {}, { maps: 3 });
@@ -260,4 +291,11 @@ test('heavy fish fight back: tug level grows with the taps they need, bosses are
   assert.equal(tugLevel(SPECIES.find((x) => x.id === 'goldfish')), 0);
   assert.equal(tugLevel(SPECIES.find((x) => x.id === 'shark')), 1);
   assert.equal(tugLevel(SPECIES.find((x) => x.id === 'whale-shark')), 2);
+});
+
+test('the fog horn counts blows and reports the power; it is worth little and never ends the combo', () => {
+  const r = new FishingRound(); assert.equal(r.hornCalls, 0);
+  catchAndLand(r, 'horn');
+  assert.equal(r.hornCalls, 1); assert.deepEqual(r.landing.powers, ['horn']); assert.equal(r.combo, 1);
+  catchAndLand(r, 'horn'); assert.equal(r.hornCalls, 2);
 });

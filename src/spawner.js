@@ -10,6 +10,10 @@ export const RARE_COOLDOWN = 60;
 export const BOSS_FIRST = [15, 30];    // seconds until the first boss of a trip
 export const BOSS_EVERY = [35, 55];    // seconds of open sea between one boss leaving and the next arriving
 export const BOSS_LANE = 3;
+// "New faces": creatures the player has never caught visit more often, so the rare ones are not left to luck in a short trip.
+export const GUEST_FIRST = [12, 22];   // seconds until the first guest of a trip
+export const GUEST_EVERY = [24, 36];   // seconds between guests
+export const GUEST_RECENT = 45;        // a species seen this recently is not sent again as a guest
 export const STRAY_SHARE = 0.15;  // relative chance of a neighbouring lane's animal straying into a lane
 export const REPEAT_SHARE = 0.4;  // the species that arrived two groups ago is this much less likely to come next
 const WAVES = {
@@ -29,8 +33,10 @@ const zone = (lane) => lane <= 3 ? 'upper' : lane < SEABED ? 'deep' : 'seabed';
 export class Spawner {
   // species: creatures that have artwork (and may appear). Odds always come from the full catalog, so a
   // creature still waiting for its artwork leaves its slot empty instead of crowding the lane with the rest.
-  constructor({ species = SPECIES, catalog = SPECIES, mode = 'relaxed', rng = Math.random } = {}) {
+  // wanted: () => ids of creatures the player has not caught yet (they get visits from the guest rule).
+  constructor({ species = SPECIES, catalog = SPECIES, mode = 'relaxed', rng = Math.random, wanted = () => [] } = {}) {
     this.species = catalog;
+    this.wanted = wanted;
     this.available = new Set(species.map((s) => s.id));
     this.mode = mode;
     this.rng = rng;
@@ -45,6 +51,9 @@ export class Spawner {
     this.wait = LANE_GAPS.map((gap) => this.rng() * gap);
     this.wave = { kind: 'normal', until: this.between(...WAVES.normal.length), rushLane: -1 };
     this.bossIn = this.between(...BOSS_FIRST);
+    this.guestIn = this.between(...GUEST_FIRST);
+    this.bossWaiting = false;
+    this.nextBoss = null;
   }
 
   between(min, max) { return min + this.rng() * (max - min); }
@@ -109,10 +118,14 @@ export class Spawner {
     const orders = [];
     const boss = this.bossTick(dt, lanes);
     if (boss) orders.push(boss);
+    const guest = this.guestTick(dt, lanes);
+    if (guest) orders.push(guest);
     for (let lane = 0; lane < LANE_COUNT; lane++) {
       const state = lanes[lane] ?? emptyLane();
       const dir = this.dir[lane];
       if ((state.sides?.[dir]?.tailGap ?? Infinity) < MIN_GAP_PX) continue;
+      // A boss waiting for a clear road keeps its lane free of newcomers, so the road clears.
+      if (lane === BOSS_LANE && this.bossWaiting) continue;
       this.wait[lane] -= dt * this.rate(lane);
       if (this.wait[lane] > 0) continue;
       const species = this.pick(this.candidates(lane));
@@ -127,7 +140,16 @@ export class Spawner {
     return orders;
   }
 
+  // The fog horn: the next boss comes as soon as the sea is free of the current one (not during the treasure rain).
+  callBoss() { this.bossIn = 0; this.nextBoss = null; }
+
+  // Bosses and creatures that are new to the player are the visitors the player has not caught yet.
+  isWanted(species) { return this.wantedSet?.has(species.id) ?? false; }
+
+  refreshWanted() { this.wantedSet = new Set(this.wanted()); }
+
   // A boss (with artwork) crosses the middle of the sea about once a minute and a half, never during the treasure rain.
+  // It swims at its own pace: when the creature ahead is slower it waits for a clear road instead of crawling behind it.
   bossTick(dt, lanes) {
     if (this.bonus) return null;
     // One boss at a time: the countdown only runs while the sea is free of them.
@@ -137,27 +159,63 @@ export class Spawner {
     const bosses = this.species.filter((s) => s.boss && this.available.has(s.id));
     if (!bosses.length) { this.bossIn = 60; return null; }
     const dir = this.dir[BOSS_LANE];
-    if ((lanes[BOSS_LANE]?.sides?.[dir]?.tailGap ?? Infinity) < MIN_GAP_PX) return null;
-    const species = bosses.filter((s) => s.id !== this.lastBoss)[Math.floor(this.rng() * (bosses.length > 1 ? bosses.length - 1 : 1))] ?? bosses[0];
+    const state = lanes[BOSS_LANE];
+    if ((state?.sides?.[dir]?.tailGap ?? Infinity) < MIN_GAP_PX) { this.bossWaiting = true; return null; }
+    if (!this.nextBoss || !bosses.includes(this.nextBoss)) {
+      this.refreshWanted();
+      // A boss never comes twice in a row, and one the player has not caught yet is four times as likely.
+      const pool = bosses.filter((s) => s.id !== this.lastBoss);
+      const list = (pool.length ? pool : bosses).map((species) => ({ species, weight: this.isWanted(species) ? 4 : 1 }));
+      this.nextBoss = this.pick(list);
+    }
+    const species = this.nextBoss;
+    const speed = species.speed * SWIM_PACE;
+    // Faster than the creature ahead: it must be far enough ahead that the boss cannot catch it before it leaves.
+    const tail = state?.sides?.[dir];
+    if (tail && Number.isFinite(tail.tailGap) && tail.tailSpeed > 0 && speed > tail.tailSpeed) {
+      const span = state.span ?? 600;
+      const k = speed / tail.tailSpeed - 1;
+      if (tail.tailGap < (MIN_GAP_PX + k * span) / (1 + k)) { this.bossWaiting = true; return null; }
+    }
+    this.bossWaiting = false;
+    this.nextBoss = null;
     this.lastBoss = species.id;
     this.bossIn = this.between(...BOSS_EVERY);
     this.lastSeen[species.id] = this.time;
-    this.wait[BOSS_LANE] = Math.max(this.wait[BOSS_LANE], 3);
-    // Like any group, a boss never catches up with the creature that entered before it.
-    let speed = species.speed * SWIM_PACE;
-    const tail = lanes[BOSS_LANE]?.sides?.[dir];
-    if (tail && Number.isFinite(tail.tailGap) && tail.tailSpeed > 0) {
-      const room = Math.max(1, (lanes[BOSS_LANE].span ?? 600) - tail.tailGap);
-      speed = Math.min(speed, tail.tailSpeed * (1 + Math.max(0, tail.tailGap - MIN_GAP_PX) / room));
-    }
+    // Nothing follows right behind it; the creature after it would catch up with the slower ones.
+    this.wait[BOSS_LANE] = Math.max(this.wait[BOSS_LANE], 7);
     return { species, lane: BOSS_LANE, dir, speed, boss: true,
       members: [{ offset: 0, dy: 0, phase: this.rng() * Math.PI * 2, wander: 0, wanderRate: 0.2, wanderPhase: 0, speedMul: 1 }] };
   }
 
-  order(species, lane, dir, state) {
+  // Every half minute or so one creature the player has never caught swims in on its own, whatever its usual odds.
+  // Rare ones are favoured: their natural chance is so small that a short trip would otherwise never show them.
+  guestTick(dt, lanes) {
+    if (this.bonus) return null;
+    this.guestIn -= dt;
+    if (this.guestIn > 0) return null;
+    this.refreshWanted();
+    const list = this.species
+      .filter((s) => !s.boss && this.isWanted(s) && this.available.has(s.id))
+      .filter((s) => !s.arcadeOnly || this.mode === 'arcade')
+      .filter((s) => this.time - (this.lastSeen[s.id] ?? -Infinity) >= GUEST_RECENT)
+      .filter((s) => (lanes[s.lane]?.sides?.[this.dir[s.lane]]?.tailGap ?? Infinity) >= MIN_GAP_PX)
+      .map((s) => ({ species: s, weight: s.rare ? 8 : s.weight < 8 ? 4 : s.weight < 15 ? 2 : 1 }));
+    if (!list.length) { this.guestIn = 4; return null; }
+    const species = this.pick(list);
+    const lane = species.lane;
+    this.guestIn = this.between(...GUEST_EVERY);
+    this.lastSeen[species.id] = this.time;
+    this.history[lane] = [species.id, this.history[lane][0]];
+    if (species.rare) this.lastRare = this.time;
+    this.wait[lane] = Math.max(this.wait[lane], this.gap(lane));
+    return this.order(species, lane, this.dir[lane], lanes[lane] ?? emptyLane(), true);
+  }
+
+  order(species, lane, dir, state, solo = false) {
     const [min, max] = species.group;
     const extra = this.wave.kind === 'rush' && lane === this.wave.rushLane && max > 2 ? 3 : 0;
-    const count = this.bonus ? 1 : min + Math.floor(this.rng() * (max - min + 1 + extra));
+    const count = this.bonus || solo ? 1 : min + Math.floor(this.rng() * (max - min + 1 + extra));
     // Treasure rain items drift faster than they crawl along the seabed, so the rain stays lively.
     let speed = (this.bonus ? Math.max(species.speed, 26) : species.speed) * SWIM_PACE * this.between(0.8, 1.25);
     // Do not let a faster group catch the previous one while both are on screen.

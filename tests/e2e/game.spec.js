@@ -686,3 +686,239 @@ test('the treasure chest opens for a surprise amount and says so', async ({ page
   await expect(page.locator('#toast')).toContainText(`เปิดหีบได้ ${s.score}`);
   expect(errors).toEqual([]);
 });
+
+test('stop the wheel: the stage opens after the map pieces, a tap stops each of three spins, points are added and fishing resumes', async ({ page }, info) => {
+  test.setTimeout(90_000); const errors = await boot(page);
+  await page.evaluate(() => { window.__FISHING_QA__.setMaps(3); window.__FISHING_QA__.setBonusTurn(2); });
+  await fish(page, 'map'); await reel(page);
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'wheel', null, { timeout: 15_000 });
+  await expect(page.locator('#stopwheel')).toBeVisible();
+  await expect(page.locator('#cast')).toContainText('หยุด');
+  await expect(page.locator('#bonus-label')).toContainText('วงล้อ');
+  const before = await snapshot(page);
+  await page.waitForTimeout(350);
+  const later = await snapshot(page);
+  expect(later.stopWheel.angle).toBeGreaterThan(before.stopWheel.angle + 20);
+  await page.screenshot({ path: info.outputPath('stop-wheel.png') });
+  const start = later.score;
+  for (let spin = 0; spin < 3; spin++) {
+    await page.waitForFunction((n) => { const w = window.__FISHING_QA__.snapshot().stopWheel; return w && w.spin === n && w.state === 'spinning'; }, spin);
+    await page.waitForTimeout(150 + spin * 90);
+    await page.locator('#cast').click();
+    await page.waitForFunction((n) => { const w = window.__FISHING_QA__.snapshot().stopWheel; return !w || w.results.length === n + 1; }, spin);
+    if (spin === 0) await expect(page.locator('#sw-result')).not.toHaveText('');
+  }
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'aim', null, { timeout: 15_000 });
+  const done = await snapshot(page);
+  expect(done.stopWheel).toBeNull(); expect(done.wheelResult.results).toHaveLength(3);
+  expect(done.score).toBe(start + done.wheelResult.total);
+  await expect(page.locator('#stopwheel')).toBeHidden();
+  await expect(page.locator('#cast')).toContainText('หย่อนเบ็ด'); await expect(page.locator('#cast')).toBeEnabled();
+  expect(errors).toEqual([]);
+});
+
+test('stop the wheel: a tap anywhere on the sea also stops it, and an idle spin stops by itself', async ({ page }) => {
+  test.setTimeout(90_000); const errors = await boot(page);
+  await page.evaluate(() => { window.__FISHING_QA__.setMaps(3); window.__FISHING_QA__.setBonusTurn(2); });
+  await fish(page, 'map'); await reel(page);
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'wheel', null, { timeout: 15_000 });
+  const box = await page.locator('#sea').boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.3);
+  await page.waitForFunction(() => { const w = window.__FISHING_QA__.snapshot().stopWheel; return w && w.results.length === 1; });
+  // Spin two is left alone: it must stop by itself within its time limit.
+  await page.waitForFunction(() => { const w = window.__FISHING_QA__.snapshot().stopWheel; return w && w.results.length === 2; }, null, { timeout: 15_000 });
+  expect(errors).toEqual([]);
+});
+
+test('the fog horn: a call sounds, a pale fog rolls in and a giant is on its way at once', async ({ page }) => {
+  test.setTimeout(90_000); const errors = await boot(page);
+  await fish(page, 'horn'); await reel(page);
+  await landed(page);
+  expect((await snapshot(page)).hornCalls).toBe(1);
+  await page.evaluate(() => window.__FISHING_QA__.release());
+  await page.waitForFunction(() => { const s = window.__FISHING_QA__.snapshot(); return s.bossPending || s.fishes.some((f) => f.id.startsWith('boss-')); }, null, { timeout: 30_000 });
+  expect(errors).toEqual([]);
+});
+
+// ---------- two players on one device ----------
+async function duo(page, kind = 'coop') {
+  const errors = await boot(page);
+  await page.locator('#duo').click();
+  await page.locator(`#pick-${kind}`).click();
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().twoPlayers);
+  return errors;
+}
+async function fishBoth(page, a = 'goldfish', b = 'clownfish') {
+  await page.evaluate(([x, y]) => { window.__FISHING_QA__.arrange(x, [], 0); window.__FISHING_QA__.arrange(y, [], 1, true); }, [a, b]);
+  await page.locator('#cast').click(); await page.locator('#cast2').click();
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().players.every((p) => p.phase === 'reeling'), null, { timeout: 10_000 });
+}
+async function reelBoth(page) {
+  const need = (await snapshot(page)).players.map((p) => p.requiredTaps);
+  for (let i = 0; i < Math.max(...need); i++) {
+    if (i < need[0]) await page.locator('#reel').click();
+    if (i < need[1]) await page.locator('#reel2').click();
+    await page.waitForTimeout(95);
+  }
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().players.every((p) => p.phase !== 'reeling'));
+}
+
+test('two players: pick the kind of game, two boats with two rod tips and two sets of controls; back to one player', async ({ page }, info) => {
+  const errors = await boot(page);
+  await expect(page.locator('#cast2')).toBeHidden(); await expect(page.locator('#score-box2')).toBeHidden();
+  await page.locator('#duo').click();
+  await expect(page.locator('#dialog-title')).toHaveText('เล่น 2 คน');
+  await page.locator('#pick-versus').click();
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().twoPlayers);
+  const s = await snapshot(page);
+  expect(s.match.kind).toBe('versus');
+  expect(s.players.map((p) => p.originX)).toEqual([200, 280]);
+  expect(s.players.map((p) => p.boat.flipped)).toEqual([false, true]);
+  expect(s.players.every((p) => p.boat.visible)).toBe(true);
+  for (const id of ['#cast', '#cast2', '#reel', '#reel2', '#score-box', '#score-box2']) await expect(page.locator(id)).toBeVisible();
+  await expect(page.locator('#caught-count')).toHaveText('0 / 16');
+  await expect(page.locator('#duo')).toHaveAttribute('aria-pressed', 'true');
+  // Every control is fully on screen and none overlaps another.
+  const boxes = await page.evaluate(() => ['#cast', '#cast2', '#reel', '#reel2'].map((id) => { const b = document.querySelector(id).getBoundingClientRect(); return { id, left: b.left, right: b.right, top: b.top, bottom: b.bottom }; }));
+  const view = await page.evaluate(() => [innerWidth, innerHeight]);
+  for (const b of boxes) { expect(b.left, b.id).toBeGreaterThanOrEqual(0); expect(b.top, b.id).toBeGreaterThanOrEqual(0); expect(b.right, b.id).toBeLessThanOrEqual(view[0]); expect(b.bottom, b.id).toBeLessThanOrEqual(view[1] + 1); }
+  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+    const a = boxes[i]; const b = boxes[j];
+    expect(a.right <= b.left + 1 || b.right <= a.left + 1 || a.bottom <= b.top + 1 || b.bottom <= a.top + 1, `${a.id} and ${b.id} do not overlap`).toBe(true);
+  }
+  await page.screenshot({ path: info.outputPath('two-players.png') });
+  // The sea fills down to the controls (the lanes follow the dock).
+  expect(s.view.lanes.at(-1)).toBeLessThan((await page.evaluate(() => window.__FISHING_QA__.scene().view.seabedLine)) + 1);
+  await page.locator('#solo').click();
+  await page.waitForFunction(() => !window.__FISHING_QA__.snapshot().twoPlayers);
+  const back = await snapshot(page);
+  expect(back.players).toHaveLength(1); expect(back.players[0].originX).toBe(240);
+  await expect(page.locator('#cast2')).toBeHidden(); await expect(page.locator('#reel2')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('two players fish at the same time: each catch is scored for its own player and counts towards one shared goal', async ({ page }, info) => {
+  test.setTimeout(90_000); const errors = await duo(page);
+  await fishBoth(page, 'goldfish', 'clownfish');
+  const hooked = await snapshot(page);
+  expect(hooked.players[0].hook.x).not.toBe(hooked.players[1].hook.x);
+  await expect(page.locator('#tap-count')).toContainText('/'); await expect(page.locator('#tap-count2')).toContainText('/');
+  await reelBoth(page);
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().players.every((p) => p.phase === 'aim'));
+  const done = await snapshot(page);
+  expect(done.players.map((p) => p.score)).toEqual([5, 8]);
+  expect(done.players[0].catches).toEqual(['goldfish']); expect(done.players[1].catches).toEqual(['clownfish']);
+  expect(done.match.catches).toBe(2);
+  await expect(page.locator('#score')).toHaveText('5'); await expect(page.locator('#score2')).toHaveText('8');
+  await expect(page.locator('#caught-count')).toHaveText('2 / 16');
+  await page.screenshot({ path: info.outputPath('two-players-caught.png') });
+  // Both catches went into the one shared book.
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('tap-tap-fishing-v1')).collection);
+  expect(stored.goldfish).toBe(1); expect(stored.clownfish).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test('a tap on the left half of the sea casts player 1, the right half player 2', async ({ page }) => {
+  const errors = await duo(page);
+  const box = await page.locator('#sea').boundingBox();
+  await page.mouse.click(box.x + box.width * 0.2, box.y + box.height * 0.45);
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().players[0].phase !== 'aim');
+  expect((await snapshot(page)).players[1].phase, 'the left half did not cast player 2').toBe('aim');
+  await page.mouse.click(box.x + box.width * 0.8, box.y + box.height * 0.45);
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().players[1].phase !== 'aim');
+  // Both hooks are away now, each from its own boat.
+  const s = await snapshot(page);
+  expect(s.players.map((p) => p.phase)).not.toContain('aim');
+  expect(errors).toEqual([]);
+});
+
+test('two fingers at once: each player can cast and reel with their own hand at the same moment', async ({ page }, info) => {
+  test.skip(info.project.name === 'desktop' || info.project.name === 'webkit-tablet', 'needs real multi-touch');
+  test.setTimeout(90_000); const errors = await duo(page);
+  const client = await page.context().newCDPSession(page);
+  const centre = async (id) => { const b = await page.locator(id).boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
+  await page.evaluate(() => { window.__FISHING_QA__.arrange('goldfish', [], 0); window.__FISHING_QA__.arrange('clownfish', [], 1, true); });
+  const castPoints = [await centre('#cast'), await centre('#cast2')];
+  await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: castPoints });
+  await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().players.every((p) => p.phase !== 'aim'), null, { timeout: 5000 });
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().players.every((p) => p.phase === 'reeling'), null, { timeout: 10_000 });
+  const reelPoints = [await centre('#reel'), await centre('#reel2')];
+  await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: reelPoints.map((p, i) => ({ ...p, id: i })) });
+  await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  const s = await snapshot(page);
+  expect(s.players.map((p) => p.taps), 'both reels got their tap from the same two-finger press').toEqual([1, 1]);
+  expect(await page.evaluate(() => visualViewport.scale)).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test('bonus stages take turns: the player who completes the map plays it, the other player waits and then carries on', async ({ page }, info) => {
+  test.setTimeout(90_000); const errors = await duo(page);
+  await page.evaluate(() => { window.__FISHING_QA__.setMaps(3, 0); window.__FISHING_QA__.setBonusTurn(1, 0); window.__FISHING_QA__.arrange('map', [], 0); });
+  await page.locator('#cast').click();
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().players[0].phase === 'reeling');
+  const taps = (await snapshot(page)).players[0].requiredTaps;
+  for (let i = 0; i < taps; i++) { await page.locator('#reel').click(); await page.waitForTimeout(95); }
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().players[0].bonus > 0);
+  const during = await snapshot(page);
+  expect(during.players[1].waiting).toBe(true); expect(during.players[0].waiting).toBe(false);
+  await expect(page.locator('#cast2')).toBeDisabled(); await expect(page.locator('#cast2')).toContainText('รอเพื่อน');
+  await expect(page.locator('#phase-text2')).toContainText('รอเพื่อน');
+  await page.screenshot({ path: info.outputPath('two-players-waiting.png') });
+  // The waiting player's hook stands still.
+  const angle = during.players[1].angle; await page.waitForTimeout(500);
+  expect((await snapshot(page)).players[1].angle).toBe(angle);
+  // Rain over: both play again.
+  await page.evaluate(() => window.__FISHING_QA__.setPower('bonus', 0.4, 0));
+  await page.waitForFunction(() => !window.__FISHING_QA__.snapshot().players[1].waiting, null, { timeout: 8000 });
+  await expect(page.locator('#cast2')).toBeEnabled();
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().players[1].angle !== undefined);
+  expect(errors).toEqual([]);
+});
+
+test('two players: the trip ends for both, the dialog shows a team score (co-op) or a winner (race) and the wheel does not change the records', async ({ page }, info) => {
+  test.setTimeout(90_000);
+  for (const kind of ['coop', 'versus']) {
+    const errors = await duo(page, kind);
+    await fishBoth(page, 'goldfish', 'clownfish'); await reelBoth(page);
+    await page.waitForFunction(() => window.__FISHING_QA__.snapshot().players.every((p) => p.phase === 'aim'));
+    await page.evaluate(() => { window.__FISHING_QA__.finishTrip(['goldfish'], 0); window.__FISHING_QA__.finishTrip(['turtle'], 1); });
+    await expect(page.locator('#again')).toBeVisible();
+    if (kind === 'coop') {
+      await expect(page.locator('#dialog-title')).toHaveText('ทีมนักสำรวจอ่าวสมบัติ!');
+      await expect(page.locator('#team-score')).toContainText(String(5 + 123 + 8 + 123));
+    } else {
+      // Player 1 has 5 + 123, player 2 has 8 + 123: player 2 wins.
+      await expect(page.locator('#dialog-title')).toHaveText('ผู้เล่น 2 ชนะ!');
+      await expect(page.locator('#duo-score0')).toHaveText(String(5 + 123)); await expect(page.locator('#duo-score1')).toHaveText(String(8 + 123));
+      await expect(page.locator('.duo.winner')).toHaveCount(1);
+    }
+    await page.screenshot({ path: info.outputPath(`two-players-reward-${kind}.png`) });
+    const before = await page.evaluate(() => JSON.parse(localStorage.getItem('tap-tap-fishing-v1')));
+    expect(before.best.relaxed, 'two-player scores are not a personal best').toBe(0);
+    expect(before.trips).toBe(1);
+    await page.locator('#spin').click();
+    await expect(page.locator('#prize')).not.toHaveText('', { timeout: 6000 });
+    const after = await page.evaluate(() => JSON.parse(localStorage.getItem('tap-tap-fishing-v1')));
+    expect(after.best.relaxed).toBe(0);
+    await page.locator('#again').click();
+    expect((await snapshot(page)).twoPlayers).toBe(true);
+    expect(errors).toEqual([]);
+    await page.evaluate(() => localStorage.clear()); await page.reload();
+    await page.waitForFunction(() => window.__FISHING_QA__?.snapshot().ready);
+  }
+});
+
+test('the two-player trip-end dialog fits one screen without scrolling at phone sizes too', async ({ page }) => {
+  const errors = await duo(page, 'versus');
+  for (const [width, height] of [[390, 664], [375, 560], [844, 390], [1024, 768]]) {
+    await page.setViewportSize({ width, height }); await page.waitForTimeout(250);
+    await page.evaluate(() => { window.__FISHING_QA__.finishTrip(['goldfish', 'clownfish', 'turtle', 'shark'], 0); window.__FISHING_QA__.finishTrip(['chest', 'net', 'sardine'], 1); });
+    await expect(page.locator('#again')).toBeVisible();
+    const fit = await page.evaluate(() => { const modal = document.querySelector('#modal'); const again = document.querySelector('#again').getBoundingClientRect(); return { overflow: modal.scrollHeight - modal.clientHeight, bottom: again.bottom, inner: innerHeight }; });
+    expect(fit.overflow, `${width}x${height} no scrolling`).toBeLessThanOrEqual(1);
+    expect(fit.bottom, `${width}x${height} play again in view`).toBeLessThanOrEqual(fit.inner);
+    await page.locator('#again').click();
+  }
+  expect(errors).toEqual([]);
+});

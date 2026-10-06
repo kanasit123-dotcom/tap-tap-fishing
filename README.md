@@ -28,6 +28,12 @@ npm run build
 npm run preview -- --port 5194
 ```
 
+## Version 0.8.0
+
+Two players on one device (iPad or iPhone): two boats, two sets of controls, co-op or race, bonus stages in turns. A third bonus stage,
+stop-the-wheel. Works offline after the first visit (the whole game is kept on the device). A fog-horn item (waits for its picture).
+Creatures you have never caught visit more often, and the giant bosses swim faster.
+
 ## Version 0.7.0
 
 Giant bosses announce themselves (siren, flashing frame, a huge shadow gliding below, then the fish enters); heavy fish fight on

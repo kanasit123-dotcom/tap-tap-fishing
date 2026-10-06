@@ -2,7 +2,27 @@
 
 Date: 2026-10-04
 
-## Latest: v0.7.0 — Cabinet Ideas 1/2/3/5 + ancient giants (deployed 2026-10-06)
+## Latest: v0.8.0 — two players, stop-the-wheel stage, offline, fog horn, rare visitors, faster giants (2026-10-06)
+
+- User asked (2026-10-06): two players on one device (iPad and iPhone, co-op and race, bonus stages in turns), the stop-the-wheel bonus,
+  offline use, the fog horn; and reported that some creatures (the lobster king...) were never seen and the giants swam too slowly.
+- `npm test`: 94 passed (new: `tests/stopwheel.test.mjs`, `tests/match.test.mjs`, guest/boss-pace/horn tests in spawner.test.mjs, wheel
+  stage in model.test.mjs, two-finger touch in input.test.mjs, bonus turn 0-2 in progress.test.mjs). The map-rate test now averages 6 seeds
+  (one 25-minute run swings between 0.16 and 0.64 maps/min by chance).
+- Full browser suite via snapshot (`npm run test:e2e:snapshot`, 37 min, 117 tests): **114 passed, 3 skipped, 0 failed**. The skips are the
+  real multi-touch test on desktop and webkit (no touch screen) and the old desktop touch skips. New e2e: stop-the-wheel (three taps, a tap
+  anywhere, idle spin stops itself), fog horn, two players (controls fit and do not overlap, boats, shared goal, both fish at once, sea tap by
+  half, two fingers at once with real CDP multi-touch, waiting during a bonus stage, team/race results and the records stay untouched, dialog fits one
+  screen at 390x664 / 375x560 / 844x390 / 1024x768).
+- `npm run build:pages` writes `dist/sw.js` (79 files, 5.0 MB). Local production smoke (`npm run test:pages`) now also reloads with the network
+  cut and checks the game and every picture: passed. Found on the way: `cache.match` needs `ignoreVary` (module scripts send an Origin header).
+- Screenshots inspected on phone (390x664), tablet (810x1080) and phone on its side: wheel stage, two-player layout (boats, HUD, controls,
+  waiting state, results), top bar on iPad portrait (the tools were cut off until the mode buttons were narrowed).
+- Not verified on a real iPhone/iPad: two thumbs on the dock (button size and spacing), the two-player toasts, the offline install in Safari,
+  wheel-stage timing feel, boss pace, how often a new creature visits.
+- Fog horn picture and its sheet (prompt M) are still to come; the item is hidden in production until then.
+
+## Previous: v0.7.0 — Cabinet Ideas 1/2/3/5 + ancient giants (deployed 2026-10-06)
 
 - LIVE: commit 6719110, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37409246010 (success). Live bundle
   `index-DREDEn7Z.js` + `index-Bs6TdIvx.css` equal the local `npm run build:pages` output; both new sprites return 200;
