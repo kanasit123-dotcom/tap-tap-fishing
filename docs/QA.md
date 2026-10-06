@@ -2,9 +2,15 @@
 
 Date: 2026-10-04
 
-## Latest: Cabinet Ideas 1/2/3/5 (2026-10-06, not yet deployed)
+## Latest: v0.7.0 — Cabinet Ideas 1/2/3/5 + ancient giants (deployed 2026-10-06)
 
-- v0.6.1 (wheel dialog fit, 30 s battle, boss cadence, crank) is live: commit 5e91923, run 37391291010, live smoke passed.
+- LIVE: commit 6719110, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37409246010 (success). Live bundle
+  `index-DREDEn7Z.js` + `index-Bs6TdIvx.css` equal the local `npm run build:pages` output; both new sprites return 200;
+  `npm run test:pages -- https://kanasit123-dotcom.github.io/tap-tap-fishing/?qa=1`: passed, 55 entries, colored and moving canvas, no errors.
+- Not verified on a real iPhone/iPad: boss warning flash and shadow, tug feel and vibration, chest prize variety, ancient giant look and size.
+
+
+- Previous release v0.6.1 (wheel dialog fit, 30 s battle, boss cadence, crank): commit 5e91923, run 37391291010, live smoke passed.
 - New: boss warning layers (siren, flashing frame, shadow gliding below, boss held back 3.2 s), tug shake for heavy fish
   (reel ring/wheel only; the hit-area box is asserted unchanged), surprise chest prizes (30/40/60/100), ancient-giant catalog entries
   waiting for prompt L art.

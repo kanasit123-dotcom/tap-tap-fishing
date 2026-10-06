@@ -58,7 +58,10 @@ special items **with effects + bonus stage**; **sea ambience + soft music** with
   When sheet I arrives, `tests/assets.test.mjs` must allow the non-catalog prop ids (pirate ships, cannon, coin...).
 - **v0.6.1 LIVE (2026-10-06):** commit 5e91923, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37391291010
   (wheel dialog fit, 30 s pirate battle, boss cadence, harder crank).
-- **Cabinet ideas 1/2/3/5 (2026-10-06, user: "ทำข้อ 1 2 3 5"; not deployed):**
+- **v0.7.0 LIVE (2026-10-06):** commit 6719110, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37409246010
+  (everything in the next item, plus the ancient giants art). Found by the full suite and fixed before release: the boss waiting in the
+  wings was a single slot (`bossPending`), so two overlapping warnings lost one; now a `bossQueue` (regression e2e "two boss warnings at once").
+- **Cabinet ideas 1/2/3/5 (2026-10-06, user: "ทำข้อ 1 2 3 5"; shipped in v0.7.0):**
   - Boss warning layers: `bossWarning` + `bossShadow` (silhouette of the boss glides across lane 5, alpha .32) and the real boss is held
     back `BOSS_WARNING_SECONDS` 3.2 s of game time (`bossPending`, not for warm-up); DOM `#edge` flashing frame (`flashEdges`: orange boss,
     gold Fever), siren + horn. Reduced motion: steady glow, no shake.
