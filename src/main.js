@@ -7,7 +7,7 @@ import { loadProgress, saveProgress, recordCatch, recordTrip, recordMatch, reset
 import { DIFFICULTIES, DIFFICULTY_IDS, difficultyOf } from './difficulty.js';
 import { dateKey, ensureToday, recordLanding, rewardPower, bumpStreak, shownStreak, missionText, MISSION_COUNT } from './daily.js';
 import { FishingAudio } from './audio.js';
-import { bindTapControl } from './input.js';
+import { bindTapControl, bindHold } from './input.js';
 import { STOP_SEGMENTS, STOP_SPINS, SEGMENT_DEGREES, segmentAt } from './stopwheel.js';
 import { WHEEL, spinWheel, applyPrize, LOOKS, isUnlocked, zoneProgress, timeOfDay, TRIP_MESSAGES } from './extras.js';
 import { STICKERS, STICKER_BY_ID, earnedByCollection, earnedByLanding, award } from './stickers.js';
@@ -43,8 +43,10 @@ function stopWheelHtml() {
 // Everything that belongs to one player exists twice (ids of the second player end in 2); the second set is hidden
 // until two players are playing. The first player's ids and look are exactly those of the one-player game.
 const sfx = (i) => i ? '2' : '';
-const scoreHtml = (i) => `<div class="score${i ? ' p2 p2only' : ''}" id="score-box${sfx(i)}"><span class="score-icon">${icon('trophy')}</span><div><small>คะแนน</small><strong id="score${sfx(i)}">0</strong></div><span id="double${sfx(i)}" class="double-badge" hidden>x2</span><span class="pmaps">${icon('map')}<b id="pmaps${sfx(i)}">0/${MAP_PIECES}</b></span></div><div id="powers${sfx(i)}" class="powers${i ? ' p2 p2only' : ''}" aria-label="ไอเทมที่ใช้ได้"></div>`;
-const labelHtml = (i) => `<div class="phase-label${i ? ' p2 p2only' : ''}"><div id="bonus${sfx(i)}" class="bonus-banner" role="status" hidden>${icon('sparkles')}<span id="bonus-label${sfx(i)}">ฝนสมบัติ!</span><strong id="bonus-time${sfx(i)}">20</strong></div><div id="fever${sfx(i)}" class="fever-banner" role="status" hidden><span>FEVER x2</span><strong id="fever-time${sfx(i)}">15</strong></div><span id="phase-text${sfx(i)}" class="phase-text" role="status" aria-live="polite">ออกทะเลกัน!</span><span id="caught-name${sfx(i)}" class="caught-name"></span></div>`;
+const scoreHtml = (i) => `<div class="score${i ? ' p2 p2only' : ''}" id="score-box${sfx(i)}"><span class="score-icon">${icon('trophy')}</span><div><small>คะแนน</small><strong id="score${sfx(i)}">0</strong></div><span id="double${sfx(i)}" class="double-badge" hidden>x2</span><span class="pmaps">${icon('map')}<b id="pmaps${sfx(i)}">0/${MAP_PIECES}</b></span><div id="fever${sfx(i)}" class="fever-banner" role="status" hidden><span>FEVER x2</span><strong id="fever-time${sfx(i)}">15</strong></div></div><div id="powers${sfx(i)}" class="powers${i ? ' p2 p2only' : ''}" aria-label="ไอเทมที่ใช้ได้"></div>`;
+// Small chips: the FEVER chip hangs on the score box and the bonus-stage chip sits at the top, so neither covers the sea that is played in.
+const bonusHtml = (i) => `<div id="bonus${sfx(i)}" class="bonus-banner${i ? ' p2' : ''}" role="status" hidden>${icon('sparkles')}<span id="bonus-label${sfx(i)}">ฝนสมบัติ!</span><strong id="bonus-time${sfx(i)}">20</strong></div>`;
+const labelHtml = (i) => `<div class="phase-label${i ? ' p2 p2only' : ''}"><span id="phase-text${sfx(i)}" class="phase-text" role="status" aria-live="polite">ออกทะเลกัน!</span><span id="caught-name${sfx(i)}" class="caught-name"></span></div>`;
 const dockHtml = (i) => `<button id="cast${sfx(i)}" class="cast-button${i ? ' p2 p2only' : ''}" disabled>${icon('anchor')}<span>หย่อนเบ็ด</span></button>
       <div id="reel-wrap${sfx(i)}" class="reel-wrap${i ? ' p2 p2only' : ''}">
         <output id="tap-count${sfx(i)}" class="tap-count" aria-live="off"></output>
@@ -68,7 +70,7 @@ $('#app').innerHTML = `
       <button id="collection" class="icon-button" aria-label="สมุดสะสม" data-tip="สมุดสะสม">${icon('book-open')}</button>
       <button id="music" class="icon-button" aria-label="ปิดเพลง" data-tip="เพลง" aria-pressed="true">${icon('music')}</button>
       <button id="sound" class="icon-button" aria-label="ปิดเสียง" data-tip="เสียง" aria-pressed="true">${icon('volume-2')}</button>
-      <button id="pause" class="icon-button" aria-label="พักเกม" data-tip="พักเกม">${icon('pause')}</button>
+      <button id="pause" class="icon-button" aria-label="พักเกมและตั้งค่า" data-tip="พักเกม / ตั้งค่า">${icon('pause')}</button>
     </nav>
   </header>
   <main class="stage" aria-label="ทะเลสำหรับตกปลา">
@@ -87,6 +89,7 @@ $('#app').innerHTML = `
     <div id="edge" class="edge-flash" hidden></div>
     <div id="stopwheel" class="stopwheel" hidden aria-live="polite">${stopWheelHtml()}</div>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <div class="banners">${bonusHtml(0)}${bonusHtml(1)}</div>
     ${labelHtml(0)}
     ${labelHtml(1)}
     <div class="dock">
@@ -238,6 +241,7 @@ class FishingApp {
         setDaily: (missions) => { const today = this.todayMissions(); today.missions = missions; today.allDone = false; today.seen = false; this.updateBookDot(); },
         daily: () => JSON.parse(JSON.stringify(this.progress.daily)),
         giveStickers: (ids) => this.giveStickers(ids),
+        setStickers: (ids) => { this.progress.stickers = Object.fromEntries(ids.map((id) => [id, true])); this.persist(); },   // silently (no message)
         progress: () => JSON.parse(JSON.stringify(this.progress)),
         scene: () => this.scene,
       };
@@ -509,7 +513,7 @@ class FishingApp {
     toast.hidden = false;
     toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
     clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => { toast.hidden = true; }, 2200);
+    this.toastTimer = setTimeout(() => { toast.hidden = true; }, 1900);
   }
 
   hudSignature(r, i) {
@@ -693,7 +697,7 @@ class FishingApp {
   openSettings() {
     const level = difficultyOf(this.progress.difficulty);
     const buttons = DIFFICULTY_IDS.map((id) => `<button class="diff" data-level="${id}" aria-pressed="${id === level.id}">${DIFFICULTIES[id].name}</button>`).join('');
-    this.showDialog(`<div class="dialog-emblem">${icon('anchor')}</div><h2 id="dialog-title">พักที่ท่าเรือ</h2><div class="dialog-actions"><button id="resume" class="primary">${icon('play')}เล่นต่อ</button><button id="restart" class="secondary">${icon('rotate-ccw')}เริ่มรอบใหม่</button></div><section class="settings"><h3 class="zone-title">ความยาก <small>ใช้ตั้งแต่รอบใหม่</small></h3><div class="diff-row" role="group" aria-label="ความยาก">${buttons}</div><p id="diff-hint" class="hint">${level.hint}</p><button id="reset-all" class="danger">${icon('rotate-ccw')}ล้างการสะสมทั้งหมด…</button></section>`);
+    this.showDialog(`<div class="dialog-emblem">${icon('anchor')}</div><h2 id="dialog-title">พักที่ท่าเรือ · ตั้งค่า</h2><div class="dialog-actions"><button id="resume" class="primary">${icon('play')}เล่นต่อ</button><button id="restart" class="secondary">${icon('rotate-ccw')}เริ่มรอบใหม่</button></div><section class="settings"><h3 class="zone-title">ความยาก <small>ใช้ตั้งแต่รอบใหม่</small></h3><div class="diff-row" role="group" aria-label="ความยาก">${buttons}</div><p id="diff-hint" class="hint">${level.hint}</p><div class="reset-box"><p class="hint">ล้างสมุดสะสม คะแนนสูงสุด ของแต่งเรือ ดาว สติ๊กเกอร์ และภารกิจ เอากลับคืนไม่ได้ (เสียง เพลง และความยากไม่ถูกล้าง)</p><button id="reset-hold" class="danger hold" type="button"><span class="hold-label">${icon('rotate-ccw')}กดค้าง 3 วินาทีเพื่อล้างการสะสมทั้งหมด</span></button></div></section>`);
     $('#resume').onclick = () => $('#modal').close();
     $('#restart').onclick = () => this.startRound();
     for (const button of document.querySelectorAll('.diff')) {
@@ -706,29 +710,16 @@ class FishingApp {
         this.audio.play('powerup');
       };
     }
-    $('#reset-all').onclick = () => this.confirmReset(() => this.openSettings());
+    // Holding is the confirmation: a stray tap does nothing, letting go early cancels.
+    bindHold($('#reset-hold'), 3000, () => this.resetEverything());
   }
 
-  // Clearing everything cannot be undone: a second dialog, and the button only works after a short wait.
-  confirmReset(back) {
-    this.showDialog(`<div class="dialog-emblem">${icon('rotate-ccw')}</div><h2 id="dialog-title">ล้างการสะสมทั้งหมด?</h2><p>สมุดสะสม คะแนนสูงสุด ของแต่งเรือ ดาว และภารกิจ จะหายไปทั้งหมด <b>เอากลับคืนไม่ได้</b><br>เสียง เพลง และความยากจะไม่เปลี่ยน</p><div class="dialog-actions"><button id="reset-cancel" class="secondary">${icon('x')}ยกเลิก</button><button id="reset-go" class="danger solid" disabled>ล้างทั้งหมด (3)</button></div>`);
-    $('#reset-cancel').onclick = () => { clearInterval(this.resetTimer); back(); };
-    let left = 3;
-    clearInterval(this.resetTimer);
-    this.resetTimer = setInterval(() => {
-      const go = $('#reset-go');
-      if (!go) { clearInterval(this.resetTimer); return; }
-      left--;
-      go.textContent = left > 0 ? `ล้างทั้งหมด (${left})` : 'ล้างทั้งหมด';
-      if (left <= 0) { go.disabled = false; clearInterval(this.resetTimer); }
-    }, 1000);
-    $('#reset-go').onclick = () => {
-      if ($('#reset-go').disabled) return;
-      this.progress = resetProgress(this.progress);
-      this.persist();
-      this.startRound();
-      this.toast('ล้างการสะสมเรียบร้อยแล้ว เริ่มใหม่ได้เลย!');
-    };
+  // Clearing everything cannot be undone; it only happens after the reset button has been held for three seconds.
+  resetEverything() {
+    this.progress = resetProgress(this.progress);
+    this.persist();
+    this.startRound();
+    this.toast('ล้างการสะสมเรียบร้อยแล้ว เริ่มใหม่ได้เลย!');
   }
 
   // ---- daily missions ----
@@ -815,10 +806,10 @@ class FishingApp {
       if (!list.length) return '';
       return `<h3 class="zone-title">${zone.name}</h3><div class="collection-grid">${list.map((s) => `<article class="collection-item ${this.progress.collection[s.id] ? '' : 'undiscovered'}">${art(s)}<h4>${s.name}</h4><span>${this.progress.collection[s.id] ? `${this.progress.collection[s.id]} ครั้ง` : 'ยังไม่พบ'}</span></article>`).join('')}</div>`;
     }).join('');
-    this.showDialog(`<div class="dialog-heading"><div><small>สัตว์ทะเลและสมบัติ</small><h2 id="dialog-title">สมุดสะสม <span>${found} / ${this.species.length}</span></h2></div><button id="close-book" class="icon-button" aria-label="ปิดสมุดสะสม">${icon('x')}</button></div>${this.missionsHtml()}${this.stickersHtml()}${this.looksHtml()}${sections}<button id="book-reset" class="danger">${icon('rotate-ccw')}ล้างการสะสมทั้งหมด…</button>`);
+    this.showDialog(`<div class="dialog-heading"><div><small>สัตว์ทะเลและสมบัติ</small><h2 id="dialog-title">สมุดสะสม <span>${found} / ${this.species.length}</span></h2></div><button id="close-book" class="icon-button" aria-label="ปิดสมุดสะสม">${icon('x')}</button></div>${this.missionsHtml()}${this.stickersHtml()}${this.looksHtml()}${sections}<button id="book-settings" class="secondary">${icon('anchor')}ตั้งค่า / ล้างการสะสม…</button>`);
     this.progress.daily.seen = true; this.persist(); this.updateBookDot();
     $('#close-book').onclick = () => back ? back() : $('#modal').close();
-    $('#book-reset').onclick = () => this.confirmReset(() => this.openCollection(back));
+    $('#book-settings').onclick = () => this.openSettings();
     for (const button of document.querySelectorAll('.look:not([disabled])')) {
       button.onclick = () => {
         this.progress.looks = { ...this.progress.looks, [button.dataset.part]: button.dataset.look };

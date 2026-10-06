@@ -28,6 +28,12 @@ npm run build
 npm run preview -- --port 5194
 ```
 
+## Version 0.9.1
+
+Clearing the whole collection is now a button that must be held for three seconds (in the settings, reached from the pause button or from the bottom of the
+book; a tap or a short hold does nothing). Smaller messages while playing: the FEVER notice is a small chip on the score box, the bonus-stage notice a small chip
+at the top, toasts are smaller and higher, the floating points and the boss warning are gentler, so the sea you play in stays clear.
+
 ## Version 0.9.0
 
 New pictures are in: the fog horn, eight special creatures (own book section), three new seas (ice sea, emerald lagoon, wrecked-ship bay; the trips now

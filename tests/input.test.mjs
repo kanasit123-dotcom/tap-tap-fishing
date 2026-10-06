@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bindTapControl, createCrank, CRANK_STEP } from '../src/input.js';
+import { bindTapControl, bindHold, createCrank, CRANK_STEP } from '../src/input.js';
 
 function setup() {
   const button = new EventTarget(); button.disabled = false;
@@ -110,4 +110,33 @@ test('two players can hold their own controls at the same time: only fingers on 
   // Two fingers on the SAME control (a pinch) still do not add a tap.
   a.fire(a.surface, 'touchstart', { touches: [{}, {}, {}], targetTouches: [{}, {}] });
   assert.equal(a.count(), 1);
+});
+
+test('a hold button runs only after being held the whole time; a tap, letting go early, leaving the button or a key repeat do nothing', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const button = new EventTarget(); button.disabled = false;
+  const classes = new Set(); button.classList = { add: (c) => classes.add(c), remove: (c) => classes.delete(c), contains: (c) => classes.has(c) };
+  let done = 0; bindHold(button, 3000, () => done++);
+  const fire = (type, fields = {}) => { const e = new Event(type, { cancelable: true }); Object.assign(e, fields); button.dispatchEvent(e); return e; };
+  // A quick tap.
+  fire('pointerdown'); assert.ok(classes.has('holding')); t.mock.timers.tick(400); fire('pointerup'); t.mock.timers.tick(5000);
+  assert.equal(done, 0); assert.ok(!classes.has('holding'));
+  // Held almost long enough, then the finger slides off.
+  fire('pointerdown'); t.mock.timers.tick(2900); fire('pointerleave'); t.mock.timers.tick(5000);
+  assert.equal(done, 0);
+  // The whole time.
+  fire('pointerdown'); t.mock.timers.tick(2999); assert.equal(done, 0); t.mock.timers.tick(1);
+  assert.equal(done, 1); assert.ok(!classes.has('holding'), 'the button is released after it worked');
+  // A second pointer press while holding does not restart the clock; a click never acts.
+  fire('pointerdown'); t.mock.timers.tick(1500); fire('pointerdown'); t.mock.timers.tick(1500);
+  assert.equal(done, 2);
+  assert.equal(fire('click').defaultPrevented, true);
+  // Keyboard: hold Space or Enter; key repeats do not matter, other keys do nothing, letting go cancels.
+  fire('keydown', { key: ' ' }); fire('keydown', { key: ' ', repeat: true }); t.mock.timers.tick(3000); assert.equal(done, 3);
+  fire('keydown', { key: 'a' }); t.mock.timers.tick(5000); assert.equal(done, 3);
+  fire('keydown', { key: 'Enter' }); t.mock.timers.tick(1000); fire('keyup', { key: 'Enter' }); t.mock.timers.tick(5000); assert.equal(done, 3);
+  fire('keydown', { key: 'Enter' }); t.mock.timers.tick(1000); fire('blur'); t.mock.timers.tick(5000); assert.equal(done, 3);
+  // A disabled button cannot be held; the long-press menu is suppressed.
+  button.disabled = true; fire('pointerdown'); t.mock.timers.tick(5000); assert.equal(done, 3);
+  assert.equal(fire('contextmenu').defaultPrevented, true);
 });

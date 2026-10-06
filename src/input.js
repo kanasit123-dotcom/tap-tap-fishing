@@ -100,3 +100,24 @@ export function bindTapControl(button, activate, surface = button, { onRotate } 
     if (event.repeat && (event.key === ' ' || event.key === 'Enter')) cancel(event);
   });
 }
+
+// A button that only works when it is held down for `ms` milliseconds (a deliberate action that a child cannot do by a stray tap):
+// holding adds the class "holding" (the button fills up), letting go or moving away cancels it, a quick tap does nothing.
+// Works for touch, mouse and pen, and for the keyboard (hold Space or Enter). done() runs once the time is up.
+export function bindHold(button, ms, done) {
+  let timer = null;
+  const stop = () => { clearTimeout(timer); timer = null; button.classList.remove('holding'); };
+  const start = (event) => {
+    if (timer !== null || button.disabled) return;
+    if (event.type === 'keydown' && (event.repeat || !['Enter', ' '].includes(event.key))) return;
+    if (event.cancelable) event.preventDefault();
+    button.classList.add('holding');
+    timer = setTimeout(() => { stop(); done(); }, ms);
+  };
+  button.addEventListener('pointerdown', start);
+  for (const type of ['pointerup', 'pointercancel', 'pointerleave', 'keyup', 'blur']) button.addEventListener(type, stop);
+  button.addEventListener('keydown', start);
+  button.addEventListener('contextmenu', (event) => event.preventDefault());
+  button.addEventListener('click', (event) => event.preventDefault());
+  return { cancel: stop };
+}

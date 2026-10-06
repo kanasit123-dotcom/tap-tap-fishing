@@ -2,7 +2,23 @@
 
 Date: 2026-10-04
 
-## Latest: v0.9.0 — settings, daily missions, clear-all, new pictures (deployed 2026-10-06)
+## Latest: v0.9.1 — hold-to-clear and smaller messages (2026-10-06)
+
+- Full browser suite via snapshot (39 min, 145 tests): 140 passed, 3 skipped, 2 failed on the phone project, both flaws of the tests themselves: (1) the FEVER test saw the
+  delayed "new sticker" message instead of the combo message (it now silences the first-catch sticker with the QA hook `setStickers`); (2) a stalled frame bunched two reel
+  clicks into one 70 ms window and the game ignores the second by design, so the tug test stopped at 15/16 taps (the shared `reel()` helper now keeps tapping until the catch is up).
+  Both tests repeated 3 times on phone and tablet after the fix: 12/12. The product code did not change between the full run and the reruns (only the DEV-only QA hook).
+
+- User (after playing v0.9.0): clearing should be a button held for 3 seconds, or live in a settings place; and the messages for a big catch and the red FEVER x2 banner
+  were too large and covered the sea.
+- Clear-all: `bindHold` (src/input.js: touch, mouse, pen and keyboard hold; a tap, an early release, leaving the button, key repeat or a disabled button do nothing; unit-tested with fake
+  timers) on the button in the settings; no second dialog. The book's bottom button now opens the settings ("ตั้งค่า / ล้างการสะสม…"). The pause dialog is titled "พักที่ท่าเรือ · ตั้งค่า".
+- Messages: FEVER is a small chip hanging on the score box (it used to be a full-width red banner above the dock), the bonus-stage chip sits small at the top centre, toasts are 13 px,
+  max 300 px wide, 1.9 s, placed just above the water; the floating "+points" text is 22 px (30 for a jackpot), the boss warning arrow 22 px, the dark veil and the orange frame gentler.
+  Screenshots inspected on a phone (FEVER, rain stage, settings with the hold button half filled).
+- `npm test`: 115 passed.
+
+## Previous: v0.9.0 — settings, daily missions, clear-all, new pictures (deployed 2026-10-06)
 
 - LIVE: commit c29d308, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37450852021 (success). Live bundle `index-BOx9jgTR.js` + `index-DD5ZzIJW.css`
   equal the local Pages build; `sw.js`, the horn, a special creature, a sticker and two sea pictures return 200; `npm run test:pages -- https://kanasit123-dotcom.github.io/tap-tap-fishing/`:

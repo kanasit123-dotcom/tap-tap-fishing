@@ -538,10 +538,10 @@ export class CoveScene extends Phaser.Scene {
   bossWarning(species, order) {
     this.bossShadow(species, order.dir ?? this.spawner.dir[3]);
     const shade = this.add.rectangle(240, this.view.height / 2, this.view.width + 4, this.view.height + 4, 0x02121c, 0).setDepth(4);
-    this.tweens.add({ targets: shade, fillAlpha: 0.35, duration: 500, yoyo: true, hold: 900, onComplete: () => shade.destroy() });
+    this.tweens.add({ targets: shade, fillAlpha: 0.2, duration: 500, yoyo: true, hold: 900, onComplete: () => shade.destroy() });
     const y = this.view.lanes[3];
     const arrow = this.add.text(this.spawner.dir[3] > 0 ? this.view.left + 40 : this.view.right - 40, y, this.spawner.dir[3] > 0 ? '▶▶' : '◀◀',
-      { fontFamily: 'Tahoma, sans-serif', fontSize: '30px', fontStyle: 'bold', color: '#ffd34d', stroke: '#5a2a00', strokeThickness: 5 }).setOrigin(0.5).setDepth(20);
+      { fontFamily: 'Tahoma, sans-serif', fontSize: '22px', fontStyle: 'bold', color: '#ffd34d', stroke: '#5a2a00', strokeThickness: 4 }).setOrigin(0.5).setDepth(20);
     this.tweens.add({ targets: arrow, alpha: { from: 1, to: 0.2 }, duration: 300, yoyo: true, repeat: 3, onComplete: () => arrow.destroy() });
     if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) this.cameras.main.shake(500, 0.003);
     this.controller.onBossWarning?.(species);
@@ -761,7 +761,7 @@ export class CoveScene extends Phaser.Scene {
     rig.netted = [];
     rig.netMesh.clear();
     const text = landing.multiplier > 1 ? `+${landing.points}  x${landing.multiplier}` : `+${landing.points}`;
-    const label = this.add.text(rig.originX, 176, text, { fontFamily: 'Tahoma, sans-serif', fontSize: species.jackpot ? '40px' : '32px', fontStyle: 'bold', color: '#ffea8e', stroke: '#145466', strokeThickness: 6 }).setOrigin(0.5).setDepth(21);
+    const label = this.add.text(rig.originX, 176, text, { fontFamily: 'Tahoma, sans-serif', fontSize: species.jackpot ? '30px' : '22px', fontStyle: 'bold', color: '#ffea8e', stroke: '#145466', strokeThickness: 5 }).setOrigin(0.5).setDepth(21);
     this.tweens.add({ targets: label, y: 120, alpha: 0, delay: species.jackpot ? 600 : 250, duration: species.jackpot ? 1400 : 900, onComplete: () => label.destroy() });
     if (species.kind === 'item' || species.jackpot) this.coinBurst(x, species.jackpot ? 34 : 18);
     if (landing.points > 1) this.controller.flyCoins?.(x, WATERLINE - 10, Math.max(3, Math.min(14, Math.ceil(landing.points / 8))), rig.index);

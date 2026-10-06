@@ -18,7 +18,8 @@ async function fish(page, id = 'goldfish', extras = []) {
 }
 async function reel(page, touch = false) {
   const n = (await snapshot(page)).requiredTaps;
-  for (let i = 0; i < n; i++) {
+  // A tap within 70 ms of the one before is ignored by design, and a stalled frame can bunch two clicks together: keep tapping until the catch is up.
+  for (let i = 0; i < n * 2 && (await snapshot(page)).phase === 'reeling'; i++) {
     if (touch) { const rect = await page.locator('#reel').boundingBox(); await page.touchscreen.tap(rect.x + rect.width / 2, rect.y + rect.height / 2); }
     else await page.locator('#reel').click();
     await page.waitForTimeout(95);
@@ -415,6 +416,7 @@ test('every creature collides with the real hook, lands and persists in the zone
 
 test('three catches in a row start FEVER: banner, golden line, doubled points and coins flying to the score', async ({ page }, info) => {
   test.setTimeout(90_000); const errors = await boot(page);
+  await page.evaluate(() => window.__FISHING_QA__.setStickers(['first-catch']));   // the first-catch sticker message would otherwise land between the catches
   for (let i = 0; i < 2; i++) { await fish(page, 'goldfish'); await reel(page); await landed(page); }
   expect((await snapshot(page)).combo).toBe(2);
   await expect(page.locator('#toast')).toContainText('คอมโบ 2');
@@ -676,8 +678,7 @@ test('a big fish fights back: the wheel shakes and tugs are counted, a small fis
   await page.screenshot({ path: info.outputPath('tug.png') });
   await page.locator('#reel').click();
   expect((await snapshot(page)).taps).toBe(1);
-  const { requiredTaps } = await snapshot(page);
-  for (let i = 1; i < requiredTaps; i++) { await page.locator('#reel').click(); await page.waitForTimeout(95); }
+  await reel(page);
   await landed(page);
   expect(errors).toEqual([]);
 });
@@ -1021,28 +1022,42 @@ test('settings: the arcade clock follows the level', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('clear everything: two steps with a short wait, cancel keeps all, confirm empties the book but keeps sound, music and the level', async ({ page }, info) => {
+// Holds the mouse (or a finger) on the centre of a control for some milliseconds.
+async function hold(page, selector, ms) {
+  const box = await page.locator(selector).boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(ms);
+  await page.mouse.up();
+}
+
+test('clear everything: hold the button for three seconds (a tap or a short hold does nothing); the book is emptied but sound, music and the level stay', async ({ page }, info) => {
   test.setTimeout(90_000); const errors = await boot(page);
   await page.evaluate(() => window.__FISHING_QA__.setCollection(['goldfish', 'clownfish', 'turtle', 'shark']));
   await page.locator('#music').click();    // music off: a player's own setting
-  await page.locator('#pause').click(); await page.locator('.diff[data-level="easy"]').click(); await page.locator('#reset-all').click();
-  await expect(page.locator('#dialog-title')).toHaveText('ล้างการสะสมทั้งหมด?');
-  await expect(page.locator('#reset-go')).toBeDisabled();
-  await page.screenshot({ path: info.outputPath('reset-confirm.png') });
-  // Cancel brings the settings back and nothing is lost.
-  await page.locator('#reset-cancel').click();
-  await expect(page.locator('#reset-all')).toBeVisible();
-  expect(Object.values((await page.evaluate(() => window.__FISHING_QA__.progress())).collection).filter(Boolean).length).toBe(4);
-  // The same from the book.
+  await page.locator('#pause').click(); await page.locator('.diff[data-level="easy"]').click();
+  await expect(page.locator('#reset-hold')).toBeVisible();
+  await page.screenshot({ path: info.outputPath('reset-hold.png') });
+  const kept = async () => Object.values((await page.evaluate(() => window.__FISHING_QA__.progress())).collection).filter(Boolean).length;
+  // A tap, and a hold that is let go too early, change nothing.
+  await page.locator('#reset-hold').click();
+  await hold(page, '#reset-hold', 1200);
+  await page.waitForTimeout(300);
+  expect(await kept()).toBe(4);
+  await expect(page.locator('#reset-hold')).not.toHaveClass(/holding/);
+  // The same button is reached from the book.
   await page.locator('#resume').click();
   await page.locator('#collection').click();
-  await page.locator('#book-reset').scrollIntoViewIfNeeded(); await page.locator('#book-reset').click();
-  await expect(page.locator('#reset-go')).toBeDisabled();
-  await page.waitForTimeout(1000);
-  await expect(page.locator('#reset-go')).toBeDisabled();      // still counting
-  await expect(page.locator('#reset-go')).toBeEnabled({ timeout: 4000 });
-  await page.locator('#reset-go').click();
-  await expect(page.locator('#modal')).not.toHaveAttribute('open', '');
+  await page.locator('#book-settings').scrollIntoViewIfNeeded(); await page.locator('#book-settings').click();
+  await expect(page.locator('#reset-hold')).toBeVisible();
+  // Held for the whole three seconds.
+  const box = await page.locator('#reset-hold').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down();
+  await page.waitForTimeout(500);
+  await expect(page.locator('#reset-hold')).toHaveClass(/holding/);
+  expect(await kept()).toBe(4);
+  await expect(page.locator('#modal')).not.toHaveAttribute('open', '', { timeout: 5000 });
+  await page.mouse.up();
   const after = await page.evaluate(() => window.__FISHING_QA__.progress());
   expect(Object.values(after.collection).reduce((a, b) => a + b, 0)).toBe(0);
   expect(after).toMatchObject({ trips: 0, stars: 0, music: false, difficulty: 'easy', looks: { rod: 'classic', hook: 'steel', boat: 'plain' }, best: { relaxed: 0, arcade: 0 } });
@@ -1096,7 +1111,7 @@ test('the settings dialog (difficulty and clearing the collection) fits one scre
   for (const [width, height] of [[390, 664], [375, 560], [430, 740], [844, 390], [1024, 768]]) {
     await page.setViewportSize({ width, height }); await page.waitForTimeout(250);
     await page.locator('#pause').click();
-    const fit = await page.evaluate(() => { const m = document.querySelector('#modal'); return { overflow: m.scrollHeight - m.clientHeight, bottom: document.querySelector('#reset-all').getBoundingClientRect().bottom, inner: innerHeight }; });
+    const fit = await page.evaluate(() => { const m = document.querySelector('#modal'); return { overflow: m.scrollHeight - m.clientHeight, bottom: document.querySelector('#reset-hold').getBoundingClientRect().bottom, inner: innerHeight }; });
     expect(fit.overflow, `${width}x${height} settings need no scrolling`).toBeLessThanOrEqual(1);
     expect(fit.bottom).toBeLessThanOrEqual(fit.inner);
     await page.locator('#resume').click();
@@ -1160,9 +1175,8 @@ test('stickers: finishing a book section earns its sticker and "clear everything
   await page.evaluate((ids) => window.__FISHING_QA__.setCollection(ids.slice(1)), specials);
   await fish(page, specials[0]); await reel(page); await landed(page);
   expect((await page.evaluate(() => window.__FISHING_QA__.progress())).stickers).toMatchObject({ special: true, 'first-catch': true });
-  await page.locator('#pause').click(); await page.locator('#reset-all').click();
-  await expect(page.locator('#reset-go')).toBeEnabled({ timeout: 5000 });
-  await page.locator('#reset-go').click();
+  await page.locator('#pause').click();
+  await hold(page, '#reset-hold', 3300);
   expect((await page.evaluate(() => window.__FISHING_QA__.progress())).stickers).toEqual({});
   expect(errors).toEqual([]);
 });
