@@ -2,7 +2,11 @@
 
 Date: 2026-10-04
 
-## Latest: v0.8.1 — giant seal and turtle, trip-end book fix (2026-10-06)
+## Latest: v0.8.1 — giant seal and turtle, trip-end book fix (deployed 2026-10-06)
+
+- LIVE: commit 5dcff9b, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37429255762 (success). Live bundle
+  `index-I_Nyzk_z.js` + `index-DMSSDtU0.css` equal the local Pages build; `sw.js` and both new sprites return 200;
+  `npm run test:pages -- https://kanasit123-dotcom.github.io/tap-tap-fishing/`: passed, 57 entries, colored and moving canvas, offline reload ok, no errors.
 
 - User report (iPhone): "choosing a rod or a boat in the settings hangs on that page, only a reload helps". Found and reproduced with a new test
   (it failed on desktop, tablet, phone and WebKit before the fix): opening the book from the trip-end dialog and closing it left every round

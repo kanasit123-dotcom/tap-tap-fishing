@@ -56,6 +56,7 @@ special items **with effects + bonus stage**; **sea ambience + soft music** with
   (`sheet-f-pirate.png`, already in docs/ART-PROMPTS.md and `SHEETS`); then boss fish, lucky wheel at trip end, unlockable boat/hook
   skins from book zones, day/sunset/night. Power-up and pirate design notes are under prompt I in ART-PROMPTS.md.
   When sheet I arrives, `tests/assets.test.mjs` must allow the non-catalog prop ids (pirate ships, cannon, coin...).
+- **v0.8.1 LIVE (2026-10-06):** commit 5dcff9b, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37429255762.
 - **Trip-end book fix (2026-10-06, v0.8.1):** every dialog pauses the rounds and closing the modal always un-pauses (`resumeOnClose` is gone); `openCollection(back)` returns to `this.rewardView` when opened from the trip-end dialog; `this.wheelPrize` remembers a spun wheel; looks are marked in place.
 - **Giant seal + giant turtle bosses (2026-10-06, v0.8.1):** `boss-seal` / `boss-turtle` in species.js, art cut from `sheet-j-giants` (prompt N), 7 giants and 57 book entries; `tests/assets.test.mjs` has a `waiting` list for creatures whose picture has not arrived (only the fog horn now).
 - **v0.8.0 LIVE (2026-10-06):** commit 205ccf1, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37415639871.
