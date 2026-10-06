@@ -2,7 +2,11 @@
 
 Date: 2026-10-04
 
-## Latest: v0.9.1 — hold-to-clear and smaller messages (2026-10-06)
+## Latest: v0.9.1 — hold-to-clear and smaller messages (deployed 2026-10-06)
+
+- LIVE: commit e25cf9c, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37468623020 (success). Live bundle `index-Hjul-Q1i.js` + `index-dGMOQDl_.css` equal the local Pages build;
+  `npm run test:pages -- https://kanasit123-dotcom.github.io/tap-tap-fishing/`: passed, 66 entries, colored and moving canvas, offline reload ok, no errors.
+- Not verified on a real iPhone/iPad: holding the clear button with a finger (touch hold is covered by the unit test and the mouse hold in the browser test), how small the messages feel in play.
 
 - Full browser suite via snapshot (39 min, 145 tests): 140 passed, 3 skipped, 2 failed on the phone project, both flaws of the tests themselves: (1) the FEVER test saw the
   delayed "new sticker" message instead of the combo message (it now silences the first-catch sticker with the QA hook `setStickers`); (2) a stalled frame bunched two reel

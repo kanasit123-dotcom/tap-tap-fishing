@@ -56,7 +56,7 @@ special items **with effects + bonus stage**; **sea ambience + soft music** with
   (`sheet-f-pirate.png`, already in docs/ART-PROMPTS.md and `SHEETS`); then boss fish, lucky wheel at trip end, unlockable boat/hook
   skins from book zones, day/sunset/night. Power-up and pirate design notes are under prompt I in ART-PROMPTS.md.
   When sheet I arrives, `tests/assets.test.mjs` must allow the non-catalog prop ids (pirate ships, cannon, coin...).
-- **v0.9.1 (2026-10-06, built, NOT deployed):** hold-to-clear (`bindHold`, `resetEverything()`; `#reset-hold` in the settings, `#book-settings` in the book), FEVER chip inside `#score-box`, bonus chip in `.banners`, smaller toasts and floating text.
+- **v0.9.1 LIVE (2026-10-06):** commit e25cf9c, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37468623020. hold-to-clear (`bindHold`, `resetEverything()`; `#reset-hold` in the settings, `#book-settings` in the book), FEVER chip inside `#score-box`, bonus chip in `.banners`, smaller toasts and floating text.
 - **v0.9.0 LIVE (2026-10-06):** commit c29d308, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37450852021. Round 5 notes: `src/difficulty.js` (level table; `FishingRound({ difficulty })`, `Spawner({ speedScale })`),
   `src/daily.js` (pure missions; `progress.daily/stars/streak/difficulty`, `resetProgress`), settings = the pause dialog (`openSettings`, `confirmReset`),
   missions in the book (`missionsHtml`, `countMissions`, gold dot `has-news`). Pre-registered, hidden until art: eight `special: true` creatures
