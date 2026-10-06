@@ -2,7 +2,21 @@
 
 Date: 2026-10-04
 
-## Latest: v0.8.0 — two players, stop-the-wheel stage, offline, fog horn, rare visitors, faster giants (deployed 2026-10-06)
+## Latest: v0.8.1 — giant seal and turtle, trip-end book fix (2026-10-06)
+
+- User report (iPhone): "choosing a rod or a boat in the settings hangs on that page, only a reload helps". Found and reproduced with a new test
+  (it failed on desktop, tablet, phone and WebKit before the fix): opening the book from the trip-end dialog and closing it left every round
+  paused for good (`resumeOnClose` was false after a finished trip), so "ออกเรืออีกครั้ง" stayed disabled. The same happened when the
+  trip-end dialog was closed with Escape. Fix: closing any dialog always un-pauses; the book opened from the trip-end dialog returns to it (the
+  wheel keeps its prize text and cannot be spun twice); choosing a look marks the button in place instead of redrawing the whole book;
+  `FishingAudio.play` can no longer throw into game code. New e2e "looks keep answering" (desktop, tablet, phone and WebKit).
+- Not reproduced before the test: one-player and two-player flows with all looks in WebKit and Chromium iPhone emulation, in dev and production builds.
+- Giant seal (`boss-seal`) and giant turtle (`boss-turtle`) from `sheet-j-giants.png` (prompt N, SHA-256 in docs/ARTWORK.md): clean cutouts, 720x215
+  and 720x283, in game on phone and tablet; 7 giants, 57 book entries.
+- Full browser suite via snapshot (43 min, 121 tests): **118 passed, 3 skipped, 0 failed** (the skips are the real multi-touch and old desktop touch cases).
+- `npm test`: 95 passed. The five-size trip-end dialog test runs 25-28 s on the phone project (limit was 30 s): its timeout is now 90 s.
+
+## Previous: v0.8.0 — two players, stop-the-wheel stage, offline, fog horn, rare visitors, faster giants (deployed 2026-10-06)
 
 - LIVE: commit 205ccf1, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37415639871 (success; CI ran `npm test` and `build:pages`).
   Live bundle `index-CmSBGZua.js` + `index-DMSSDtU0.css` equal the local Pages build; `sw.js`, the manifest and the new sprites return 200;

@@ -269,12 +269,13 @@ test('a boss the player has not caught yet is favoured, and no boss repeats back
   const ids = SPECIES.filter((s) => s.boss).map((s) => s.id);
   const caught = ids.slice(1);   // only the first boss is still wanted
   let wantedPicks = 0; let total = 0;
-  for (let seed = 1; seed <= 12; seed++) {
+  for (let seed = 1; seed <= 40; seed++) {
     const bosses = simulate({ seconds: 600, seed, wanted: () => [ids[0]] }).spawns.filter((s) => s.order.boss);
     bosses.slice(1).forEach((b, i) => assert.notEqual(b.order.species.id, bosses[i].order.species.id));
     for (const b of bosses) { total++; if (b.order.species.id === ids[0]) wantedPicks++; }
   }
-  assert.ok(wantedPicks / total > 0.28, `the wanted boss comes ${(100 * wantedPicks / total).toFixed(0)}% of the time (an even share would be ${(100 / ids.length).toFixed(0)}%)`);
+  // Weight 4 against 1 for the others (and never twice in a row) gives it about twice an even share, whatever the number of bosses.
+  assert.ok(wantedPicks / total > 1.5 / ids.length, `the wanted boss comes ${(100 * wantedPicks / total).toFixed(0)}% of the time (an even share would be ${(100 / ids.length).toFixed(0)}%)`);
   assert.equal(caught.length, ids.length - 1);
 });
 

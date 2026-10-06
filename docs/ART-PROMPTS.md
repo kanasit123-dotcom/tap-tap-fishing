@@ -307,6 +307,28 @@ LAYOUT: exactly 1 subject, centred, about 60% of the image width, with empty tra
 
 ---
 
+## N — `sheet-j-giants.png` แมวน้ำยักษ์ + เต่าทะเลยักษ์ 2 ตัว (2026-10-06 — ใช้งานแล้ว)
+
+> บอสใหม่ 2 ตัวที่ผู้เล่นขอ ในเกมตั้งชื่อว่า แมวน้ำยักษ์ (`boss-seal`, 190 คะแนน, แตะ 28 ครั้ง, ว่ายเร็ว) และ เต่าทะเลยักษ์ (`boss-turtle`, 210 คะแนน, แตะ 30 ครั้ง, ว่ายช้ากว่า)
+> เข้าหมวด "ยักษ์ใหญ่" (รวมเป็น 7 ตัว) ทำในแชตเดิมที่ทำแผ่น K/L แล้วพิมพ์เพิ่มท้าย prompt ว่า `Match the exact art style of the earlier creature sheets.`
+> รอบที่แล้ว (แผ่น L) ChatGPT วาดแสงเรืองรอบตัวทั้งที่สั่งว่าไม่เอา เครื่องมือตัดภาพจัดการให้ได้ แต่ถ้าเห็นพื้นหลังดำหรือกรอบ ให้สั่งใหม่
+
+```text
+Create a 1536x1024 landscape PNG with a TRANSPARENT background (real alpha, no checkerboard pattern drawn in, no dark or coloured background, no vignette).
+
+ART STYLE: semi-realistic painted illustration for a premium mobile fishing game, the same style as the earlier giant-creature sheets. Natural anatomy, rich detail, soft light from above with a gentle rim light. NOT cartoon. Majestic but gentle and friendly for children: mouths closed, no teeth, calm kind eyes, no blood, no scars.
+
+LAYOUT: exactly 2 separate giant sea animals stacked in 2 rows (one per row, each row a full-width band), in this order from top to bottom. Each animal is centred in its band, about 80% of the image width, with empty transparent space above and below. Nothing touches the other animal or the image edge. Strict side view facing RIGHT (head toward the right edge), swimming horizontally, whole body visible including the full tail and every flipper. No water, no bubbles, no shadows, no glow, no halo, no text, no labels, no grid lines, no frame.
+
+1) a giant seal: a huge, long, sleek grey seal with dark speckles on a silver-grey coat and a pale cream belly, a big rounded head with a short snout on the right, long white whiskers, large dark gentle eyes, small ear holes, one front flipper held out to the side, the two rear flippers together at the tail end on the left; the mouth is closed and friendly; it looks twice as big and powerful as an ordinary harbour seal
+2) a giant ancient sea turtle: an enormous green and olive sea turtle with a high domed shell made of large patterned plates, the shell worn and weathered with a few small barnacles and a little pale green algae on it, thick wrinkled skin, a wise gentle face on the right with a calm eye and a closed beak-like mouth, two huge front flippers spread out wide as if flying through the water, two small rear flippers and a short tail on the left
+```
+
+ชื่อชิ้นตอนตัด (ตามลำดับ): `boss-seal boss-turtle`
+ตัดแล้ว: `python tools/sprites.py sheet-j-giants` ได้ `boss-seal` 720x215 และ `boss-turtle` 720x283 (ใส่ในเกมแล้ว 2026-10-06 ภาพตรงตาม prompt: หันขวา ปากปิด หน้าใจดี พื้นโปร่งใส ขอบเรืองเหมือนแผ่น L แต่ตัดสะอาด) ค่าในเกม: แมวน้ำ size 280 speed 30, เต่า size 280 speed 22
+
+---
+
 ## สำหรับ AI ที่ทำงานต่อ
 
 - `python tools/sprites.py [ชื่อแผ่น]` อ่านไฟล์ตามชื่อในตารางจาก `art/incoming/` (ไฟล์ดิบไม่ถูก commit) → เขียน `public/assets/sprites/<id>.webp`,

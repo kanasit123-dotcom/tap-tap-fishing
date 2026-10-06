@@ -42,6 +42,7 @@ SHEETS = {
     'sheet-g-boss': ((3, 1), ['boss-whale', 'boss-kraken', 'boss-marlin'], 720),
     'sheet-h-ancient': ((2, 1), ['boss-helicoprion', 'boss-dunkleosteus'], 720),
     'sheet-i-horn': ((1, 1), ['horn'], 420),
+    'sheet-j-giants': ((2, 1), ['boss-seal', 'boss-turtle'], 720),
     'boat': ((1, 1), ['boat'], 900),
 }
 # พื้นหลัง: (ชื่อ, ความสูงสูงสุดของไฟล์ผลลัพธ์) — เส้นน้ำ/ขอบทราย (สัดส่วนความสูง) อยู่ใน ANCHORS

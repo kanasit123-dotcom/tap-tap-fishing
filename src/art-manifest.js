@@ -326,6 +326,16 @@ export default {
       "file": "sprites/boss-dunkleosteus.webp",
       "w": 720,
       "h": 237
+    },
+    "boss-seal": {
+      "file": "sprites/boss-seal.webp",
+      "w": 720,
+      "h": 215
+    },
+    "boss-turtle": {
+      "file": "sprites/boss-turtle.webp",
+      "w": 720,
+      "h": 283
     }
   },
   "backgrounds": {

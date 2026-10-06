@@ -28,6 +28,12 @@ npm run build
 npm run preview -- --port 5194
 ```
 
+## Version 0.8.1
+
+Two more giant bosses: a giant seal and a giant sea turtle (7 giants, 57 book entries). Fixed: opening the book from the trip-end
+dialog and closing it left the game paused for good (the sail-again button stayed dead until a reload); the book now returns to the
+trip-end dialog with the wheel still to spin, and choosing a rod or boat look no longer redraws the whole book.
+
 ## Version 0.8.0
 
 Two players on one device (iPad or iPhone): two boats, two sets of controls, co-op or race, bonus stages in turns. A third bonus stage,

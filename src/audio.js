@@ -162,7 +162,8 @@ export class FishingAudio {
   play(event, detail = {}) {
     if (!this.ready()) return;
     const effect = EFFECTS[event];
-    if (effect) effect.call(this, detail);
+    // A sound that fails (a phone's audio engine in an odd state) must never stop the game's own code that asked for it.
+    try { if (effect) effect.call(this, detail); } catch { /* silent */ }
   }
 
   // Background loops and the scheduler that feeds ambience, music and the line ratchet.

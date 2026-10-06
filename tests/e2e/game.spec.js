@@ -501,6 +501,7 @@ test('four map pieces on an even turn start the 30 second pirate battle: aim, fi
 });
 
 test('the trip-end dialog with the lucky wheel fits one phone screen: no scrolling, the play-again button in view', async ({ page }, info) => {
+  test.setTimeout(90_000);   // five screen sizes with a wheel spin each: 25-28 s, too close to the 30 s default
   const errors = await boot(page);
   for (const [width, height] of [[390, 664], [375, 560], [430, 740], [844, 390], [1024, 768]]) {
     await page.setViewportSize({ width, height }); await page.waitForTimeout(250);
@@ -920,5 +921,60 @@ test('the two-player trip-end dialog fits one screen without scrolling at phone 
     expect(fit.bottom, `${width}x${height} play again in view`).toBeLessThanOrEqual(fit.inner);
     await page.locator('#again').click();
   }
+  expect(errors).toEqual([]);
+});
+
+test('looks keep answering: choosing a rod and a boat in the book changes it in place, the book still closes and the game carries on', async ({ page }, info) => {
+  test.setTimeout(90_000); const errors = await boot(page);
+  const touch = Boolean(info.project.use.hasTouch);
+  const press = (selector) => touch ? page.locator(selector).tap() : page.locator(selector).click();
+  await page.evaluate(() => window.__FISHING_QA__.setCollection(window.__FISHING_QA__.scene().controller.species.map((s) => s.id)));
+  await press('#collection');
+  const before = await page.evaluate(() => { const modal = document.querySelector('#modal'); modal.scrollTop = 40; return { open: modal.open, button: document.querySelector('.look[data-look="bamboo"]') !== null }; });
+  expect(before.open).toBe(true);
+  const heading = await page.locator('#dialog-title').elementHandle();
+  for (const look of ['bamboo', 'gold', 'pennants', 'lanterns', 'golden', 'classic', 'plain', 'steel']) {
+    await press(`.look[data-look="${look}"]`);
+    await expect(page.locator(`.look[data-look="${look}"]`)).toHaveAttribute('aria-pressed', 'true');
+  }
+  // The book was not drawn again (same heading element, same scroll position) and only one look per row is marked.
+  expect(await heading.evaluate((el) => el.isConnected)).toBe(true);
+  expect(await page.evaluate(() => document.querySelector('#modal').scrollTop)).toBe(40);
+  expect(await page.locator('.look[aria-pressed="true"]').count()).toBe(3);
+  expect((await snapshot(page)).looks).toMatchObject({ rod: 'classic', hook: 'steel', boat: 'plain' });
+  await press('.look[data-look="gold"]'); await press('.look[data-look="lanterns"]');
+  await press('#close-book');
+  await expect(page.locator('#modal')).not.toHaveAttribute('open', '');
+  const angle = (await snapshot(page)).angle;
+  await page.waitForFunction((a) => window.__FISHING_QA__.snapshot().angle !== a, angle, { timeout: 5000 });
+  expect((await snapshot(page)).looks).toMatchObject({ rod: 'gold', boat: 'lanterns' });
+  await press('#cast');
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase !== 'aim', null, { timeout: 5000 });
+  // From the trip-end dialog: the book (and a look) opens, closing it brings the trip-end dialog back with the wheel still to spin
+  // (the game used to stay paused for good here, the "sail again" button dead until the page was reloaded).
+  await page.evaluate(() => window.__FISHING_QA__.finishTrip(['goldfish']));
+  await expect(page.locator('#again')).toBeVisible();
+  await press('#reward-book'); await press('.look[data-look="bamboo"]'); await press('#close-book');
+  await expect(page.locator('#again')).toBeVisible();
+  await expect(page.locator('#spin')).toBeEnabled();
+  await press('#spin');
+  await expect(page.locator('#prize')).not.toHaveText('', { timeout: 6000 });
+  const prize = await page.locator('#prize').textContent();
+  await press('#reward-book'); await press('#close-book');
+  await expect(page.locator('#again')).toBeVisible();
+  await expect(page.locator('#spin')).toBeDisabled();
+  await expect(page.locator('#prize')).toHaveText(prize);
+  await press('#again');
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'aim' && window.__FISHING_QA__.snapshot().score === 0, null, { timeout: 5000 });
+  await expect(page.locator('#cast')).toBeEnabled();
+  // Closing the trip-end dialog any other way (Escape) must not leave the game dead either.
+  await page.evaluate(() => window.__FISHING_QA__.finishTrip(['goldfish']));
+  await expect(page.locator('#again')).toBeVisible();
+  if (!touch) await page.keyboard.press('Escape'); else await page.evaluate(() => document.querySelector('#modal').close());
+  await expect(page.locator('#modal')).not.toHaveAttribute('open', '');
+  await expect(page.locator('#cast')).toBeEnabled();
+  await expect(page.locator('#cast')).toContainText('ออกเรืออีกครั้ง');
+  await press('#cast');
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'aim' && window.__FISHING_QA__.snapshot().score === 0, null, { timeout: 5000 });
   expect(errors).toEqual([]);
 });

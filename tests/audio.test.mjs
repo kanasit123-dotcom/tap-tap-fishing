@@ -53,6 +53,13 @@ test('every fishing event schedules sound', (t) => {
   }
 });
 
+test('a sound effect that throws never breaks the code that played it', (t) => {
+  const contexts = []; install(t, contexts);
+  const audio = new FishingAudio(); audio.unlock(); t.after(() => audio.teardown());
+  contexts[0].createOscillator = () => { throw new Error('audio engine in an odd state'); };
+  for (const event of ['cast', 'tap', 'land', 'powerup', 'jackpot', 'fever']) assert.doesNotThrow(() => audio.play(event, { progress: 0.5 }), event);
+});
+
 test('the scheduler adds ambience, music, and line clicks only when wanted', async (t) => {
   const contexts = []; install(t, contexts);
   const audio = new FishingAudio(); audio.unlock(); t.after(() => audio.teardown());

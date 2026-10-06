@@ -113,8 +113,9 @@ class FishingApp {
     this.wheelAngles = [0, 0];
     this.lastHUD = '';
     this.lastSecond = null;
-    this.resumeOnClose = false;
     this.hookMessageCount = 0;
+    this.rewardView = null;      // reopens the trip-end dialog (the book opened from it returns there)
+    this.wheelPrize = null;      // the trip-end wheel was spun: its prize text
     this.syncSound();
     this.bindControls();
     this.game = createGame(this);
@@ -301,8 +302,9 @@ class FishingApp {
     $('#duo').onclick = () => { this.audio.unlock(); this.openDuoChooser(); };
     $('.stage').addEventListener('contextmenu', (event) => event.preventDefault());
     $('#modal').addEventListener('close', () => {
-      if (this.resumeOnClose) for (const round of this.rounds) if (round.phase !== 'complete') round.pause(false);
-      this.resumeOnClose = false;
+      // Every dialog pauses the game. Closing it always gives the game back, also after a finished trip (otherwise the
+      // "sail again" button stays dead: the book opened from the trip-end dialog used to leave the game paused for good).
+      for (const round of this.rounds) round.pause(false);
       this.audio.duck(false);
       this.lastHUD = ''; this.renderHUD();
     });
@@ -618,7 +620,7 @@ class FishingApp {
 
   // Starts a trip. The mode, the number of players and the kind of two-player game default to what is selected now.
   startRound(mode = this.mode, players = this.players, kind = this.matchKind) {
-    this.resumeOnClose = false;
+    this.rewardView = null; this.wheelPrize = null;
     if ($('#modal').open) $('#modal').close();
     this.audio.stop();
     this.rounds = this.makeRounds(mode, players, kind);
@@ -675,7 +677,6 @@ class FishingApp {
   }
 
   showDialog(html) {
-    if (!$('#modal').open) this.resumeOnClose = !this.round.paused && !this.rounds.every((r) => r.phase === 'complete');
     for (const round of this.rounds) round.pause(true);
     this.audio.stop(); this.audio.duck(true);
     $('#modal-content').innerHTML = html;
@@ -684,7 +685,8 @@ class FishingApp {
     this.lastHUD = ''; this.renderHUD();
   }
 
-  openCollection() {
+  // back: the dialog to return to when the book is closed (the trip-end dialog), else the book just closes.
+  openCollection(back = null) {
     const found = this.species.filter((s) => this.progress.collection[s.id]).length;
     const sections = ZONES.map((zone) => {
       const list = this.species.filter(zone.match);
@@ -692,13 +694,19 @@ class FishingApp {
       return `<h3 class="zone-title">${zone.name}</h3><div class="collection-grid">${list.map((s) => `<article class="collection-item ${this.progress.collection[s.id] ? '' : 'undiscovered'}">${art(s)}<h4>${s.name}</h4><span>${this.progress.collection[s.id] ? `${this.progress.collection[s.id]} ครั้ง` : 'ยังไม่พบ'}</span></article>`).join('')}</div>`;
     }).join('');
     this.showDialog(`<div class="dialog-heading"><div><small>สัตว์ทะเลและสมบัติ</small><h2 id="dialog-title">สมุดสะสม <span>${found} / ${this.species.length}</span></h2></div><button id="close-book" class="icon-button" aria-label="ปิดสมุดสะสม">${icon('x')}</button></div>${this.looksHtml()}${sections}`);
-    $('#close-book').onclick = () => $('#modal').close();
+    $('#close-book').onclick = () => back ? back() : $('#modal').close();
     for (const button of document.querySelectorAll('.look:not([disabled])')) {
       button.onclick = () => {
         this.progress.looks = { ...this.progress.looks, [button.dataset.part]: button.dataset.look };
         this.persist();
+        // Mark the choice in place. Drawing the whole book again under the finger made the panel jump back to the top
+        // and, reported on a phone, stop answering until the page was reloaded.
+        for (const other of document.querySelectorAll(`.look[data-part="${button.dataset.part}"]`)) {
+          const chosen = other === button;
+          other.classList.toggle('active', chosen);
+          other.setAttribute('aria-pressed', String(chosen));
+        }
         this.audio.play('powerup');
-        this.openCollection();
       };
     }
   }
@@ -720,8 +728,9 @@ class FishingApp {
     const r = this.round;
     const unique = [...new Set(r.catches)].map((id) => SPECIES_BY_ID[id]);
     this.showDialog(`<div class="reward"><div class="reward-main"><div class="dialog-emblem gold">${icon('trophy')}</div><h2 id="dialog-title">นักสำรวจอ่าวสมบัติ!</h2><div class="reward-score">${r.score}<span>คะแนน</span></div><p>นำขึ้นเรือ ${r.catches.length} รายการ · สถิติสูงสุด ${this.progress.best[r.mode]} คะแนน</p><div class="catch-strip">${unique.map((s) => art(s)).join('')}</div></div><div class="reward-side">${this.wheelHtml()}<div class="dialog-actions"><button id="again" class="primary">${icon('anchor')}ออกเรืออีกครั้ง</button><button id="reward-book" class="secondary">${icon('book-open')}สมุดสะสม</button></div></div></div>`);
+    this.rewardView = () => this.openReward();
     $('#again').onclick = () => this.startRound(r.mode);
-    $('#reward-book').onclick = () => this.openCollection();
+    $('#reward-book').onclick = () => this.openCollection(this.rewardView);
     $('#spin').onclick = () => this.spin();
   }
 
@@ -732,12 +741,13 @@ class FishingApp {
     const total = this.rounds.reduce((sum, r) => sum + r.catches.length, 0);
     const versus = m.kind === 'versus';
     const title = !versus ? 'ทีมนักสำรวจอ่าวสมบัติ!' : m.winner < 0 ? 'เสมอกัน! เก่งทั้งคู่' : `ผู้เล่น ${m.winner + 1} ชนะ!`;
-    const duo = m.scores.map((score, i) => `<div class="duo p${i + 1}${versus && m.winner === i ? ' winner' : ''}"><small>ผู้เล่น ${i + 1}${versus && m.winner === i ? ' 👑' : ''}</small><strong id="duo-score${i}">${score}</strong></div>`).join('');
+    const duo = m.scores.map((score, i) => `<div class="duo p${i + 1}${versus && m.winner === i ? ' winner' : ''}"><small>ผู้เล่น ${i + 1}${versus && m.winner === i ? ' 👑' : ''}</small><strong id="duo-score${i}">${score + (versus && m.spinner === i ? m.bonusPoints : 0)}</strong></div>`).join('');
     const teamScore = !versus ? `<div class="reward-score" id="team-score">${m.total}<span>คะแนนทีม</span></div>` : '';
     const note = versus ? 'ผู้ชนะได้หมุนวงล้อนำโชค' : 'ทีมได้หมุนวงล้อนำโชค';
     this.showDialog(`<div class="reward"><div class="reward-main"><div class="dialog-emblem gold">${icon('trophy')}</div><h2 id="dialog-title">${title}</h2>${teamScore}<div class="duo-scores">${duo}</div><p>นำขึ้นเรือ ${total} รายการ · ${note}</p><div class="catch-strip">${unique.map((s) => art(s)).join('')}</div></div><div class="reward-side">${this.wheelHtml()}<div class="dialog-actions"><button id="again" class="primary">${icon('anchor')}ออกเรืออีกครั้ง</button><button id="reward-book" class="secondary">${icon('book-open')}สมุดสะสม</button></div></div></div>`);
+    this.rewardView = () => this.openMatchReward();
     $('#again').onclick = () => this.startRound();
-    $('#reward-book').onclick = () => this.openCollection();
+    $('#reward-book').onclick = () => this.openCollection(this.rewardView);
     $('#spin').onclick = () => this.spin();
   }
 
@@ -746,7 +756,8 @@ class FishingApp {
     const colors = ['#ffd34d', '#4fb3e8', '#ff8a5c', '#7fd48a', '#e8433a', '#9b7be0', '#ffb347', '#3fc1b0'];
     const gradient = WHEEL.map((_, i) => `${colors[i % colors.length]} ${i * step}deg ${(i + 1) * step}deg`).join(', ');
     const labels = WHEEL.map((prize, i) => `<span class="seg" style="--a:${i * step + step / 2}deg"><span>${prize.art ? `<img src="${assetUrl(`sprites/${prize.art}.webp`)}" alt="">` : ''}<b>${prize.short ?? prize.label}</b></span></span>`).join('');
-    return `<div class="lucky"><div class="lucky-box"><div class="lucky-pointer"></div><div id="lucky-wheel" class="lucky-wheel" style="background: conic-gradient(${gradient})">${labels}<span class="lucky-hub"></span></div></div><button id="spin" class="primary spin">${icon('sparkles')}หมุนวงล้อนำโชค</button><p id="prize" class="prize" aria-live="polite"></p></div>`;
+    const spun = this.wheelPrize !== null;
+    return `<div class="lucky"><div class="lucky-box"><div class="lucky-pointer"></div><div id="lucky-wheel" class="lucky-wheel" style="background: conic-gradient(${gradient})">${labels}<span class="lucky-hub"></span></div></div><button id="spin" class="primary spin" ${spun ? 'disabled' : ''}>${icon(spun ? 'check' : 'sparkles')}${spun ? 'หมุนแล้ว' : 'หมุนวงล้อนำโชค'}</button><p id="prize" class="prize" aria-live="polite">${spun ? this.wheelPrize : ''}</p></div>`;
   }
 
   spin() {
@@ -776,7 +787,8 @@ class FishingApp {
         if (pseudo.score) {
           const spinner = this.match.spinner;
           const shown = $(`#duo-score${spinner}`);
-          if (shown) shown.textContent = this.match.scores[spinner] + this.match.bonusPoints;
+          // In a race the spinner's own box grows; a team keeps the players' boxes and grows the team total.
+          if (shown && this.match.kind === 'versus') shown.textContent = this.match.scores[spinner] + this.match.bonusPoints;
           const team = $('#team-score');
           if (team) team.firstChild.textContent = this.match.total;
         }
@@ -787,6 +799,7 @@ class FishingApp {
       this.persist();
       this.audio.play(prize.points >= 100 ? 'jackpot' : 'treasure');
       $('#prize').textContent = message;
+      this.wheelPrize = message;
       button.innerHTML = `${icon('check')}หมุนแล้ว`;
       updateIcons();
       this.lastHUD = ''; this.renderHUD();

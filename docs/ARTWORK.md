@@ -24,6 +24,7 @@ reprocess. Only the processed output below is published.
 | `sheet-f-pirate.png` (pirate ships, cannon, loot, power-ups, coin; prompt I) | 1536x1024 RGBA | `03236a50b8a06ccdbf9e40c5200cb3792f61c79a3513453134fdd55b325af50c` |
 | `sheet-g-boss.png` (whale, kraken, golden marlin bosses; prompt K) | see file | `3eb6fe8830f9235cd2dd5138c83837f4db4ac8dd6f8ff87b01f7bd95b532e6cb` |
 | `sheet-h-ancient.png` (Helicoprion and Dunkleosteus ancient giants; prompt L, delivered 2026-10-06) | 1536x1024 RGBA | `7071294f7b819b16da5d3c9a9f0a084d176e8f054ad8af4a62d9b7c24d2feb5b` |
+| `sheet-j-giants.png` (giant seal and giant sea turtle; prompt N, delivered 2026-10-06) | 1536x1024 RGBA | `6217cd17bd18ae48ba1e164d358d1476a60cd4c9c30424eb18cbb31711853904` |
 | `background-sunset-portrait.png` (prompt J1) | see file | `eda08156aaac54c6702c06d40511e4ab41470d57e982c676d03288548a73a308` |
 | `background-sunset-landscape.png` (prompt J1) | see file | `cba10a53904e86b2e11806f320a4a7ff5662c19f4e2c8a98853ce3561d9fc16e` |
 | `background-night-portrait.png` (prompt J2) | see file | `e15d259d9b0cd45684886a1d53280848ab12b2d8af7631ac913765f11f93c6f9` |

@@ -76,6 +76,8 @@ const catalog = [
   { id: 'boss-kraken', name: 'คราเคน', lane: 3, points: 180, taps: 28, size: 260, speed: 27, weight: 1, boss: true, motion: 'pulse', emoji: '🐙' },
   { id: 'boss-helicoprion', name: 'ปลาฟันก้นหอยโบราณ', lane: 3, points: 220, taps: 30, size: 250, speed: 23, weight: 1, boss: true, emoji: '🦈' },
   { id: 'boss-dunkleosteus', name: 'ปลาเกราะยักษ์โบราณ', lane: 3, points: 240, taps: 32, size: 270, speed: 25, weight: 1, boss: true, emoji: '🐟' },
+  { id: 'boss-seal', name: 'แมวน้ำยักษ์', lane: 3, points: 190, taps: 28, size: 280, speed: 30, weight: 1, boss: true, emoji: '🦭' },
+  { id: 'boss-turtle', name: 'เต่าทะเลยักษ์', lane: 3, points: 210, taps: 30, size: 280, speed: 22, weight: 1, boss: true, emoji: '🐢' },
   { id: 'boss-marlin', name: 'ราชาปลากระโทงทอง', lane: 3, points: 250, taps: 32, size: 280, speed: 30, weight: 1, boss: true, emoji: '🐟' },
 
   // Seabed: crawlers, the jackpot lobster and the odd old boot.

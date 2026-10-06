@@ -41,7 +41,9 @@ test('catalog keeps every saved collection id and describes each creature comple
 
 test('every creature, the boat and both seas have processed artwork that exists with the recorded size', () => {
   // Only creatures still waiting for their sheet may lack a sprite (the fog horn, prompt M); production hides them.
-  for (const s of SPECIES) assert.ok(s.art || s.id === 'horn', `${s.id} has a sprite in the manifest`);
+  // Remove an id from this list when its picture is cut.
+  const waiting = new Set(['horn']);
+  for (const s of SPECIES) assert.ok(s.art || waiting.has(s.id), `${s.id} has a sprite in the manifest`);
   assert.equal(speciesWithArt(false).length, SPECIES.filter((s) => s.art).length);
   assert.ok(speciesWithArt(false).every((s) => s.art));
   assert.ok(manifest.sprites.boat && manifest.backgrounds.portrait && manifest.backgrounds.landscape);
