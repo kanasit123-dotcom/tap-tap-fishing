@@ -2,7 +2,12 @@
 
 Date: 2026-10-04
 
-## Latest: v0.9.0 — settings, daily missions, clear-all, new pictures (2026-10-06)
+## Latest: v0.9.0 — settings, daily missions, clear-all, new pictures (deployed 2026-10-06)
+
+- LIVE: commit c29d308, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37450852021 (success). Live bundle `index-BOx9jgTR.js` + `index-DD5ZzIJW.css`
+  equal the local Pages build; `sw.js`, the horn, a special creature, a sticker and two sea pictures return 200; `npm run test:pages -- https://kanasit123-dotcom.github.io/tap-tap-fishing/`:
+  passed, 66 entries, colored and moving canvas, offline reload ok, no errors. The offline copy is now 112 files (7.3 MB).
+- Not verified on a real iPhone/iPad: the new seas on a phone's memory, the sticker/mission panel scrolling in the book, the two-thumb two-player buttons, offline in Safari.
 
 - Full browser suite via snapshot (59 min, 145 tests): **142 passed, 3 skipped, 0 failed**. Unit tests: 114 passed.
 - Found while testing the new pictures: loading all 18 sea pictures at start (each several MB decoded) slowed the phone profile until a reel tap was

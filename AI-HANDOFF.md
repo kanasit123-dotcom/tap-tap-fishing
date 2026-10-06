@@ -56,7 +56,7 @@ special items **with effects + bonus stage**; **sea ambience + soft music** with
   (`sheet-f-pirate.png`, already in docs/ART-PROMPTS.md and `SHEETS`); then boss fish, lucky wheel at trip end, unlockable boat/hook
   skins from book zones, day/sunset/night. Power-up and pirate design notes are under prompt I in ART-PROMPTS.md.
   When sheet I arrives, `tests/assets.test.mjs` must allow the non-catalog prop ids (pirate ships, cannon, coin...).
-- **v0.9.0 (2026-10-06, round 5; deployment below if recorded):** `src/difficulty.js` (level table; `FishingRound({ difficulty })`, `Spawner({ speedScale })`),
+- **v0.9.0 LIVE (2026-10-06):** commit c29d308, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37450852021. Round 5 notes: `src/difficulty.js` (level table; `FishingRound({ difficulty })`, `Spawner({ speedScale })`),
   `src/daily.js` (pure missions; `progress.daily/stars/streak/difficulty`, `resetProgress`), settings = the pause dialog (`openSettings`, `confirmReset`),
   missions in the book (`missionsHtml`, `countMissions`, gold dot `has-news`). Pre-registered, hidden until art: eight `special: true` creatures
   (own zone `special`) and sheet names `sheet-k-special`, `sheet-l-stickers`, backgrounds `arctic|lagoon|wreck`-portrait/landscape in tools/sprites.py.
