@@ -43,10 +43,11 @@ function stopWheelHtml() {
 // Everything that belongs to one player exists twice (ids of the second player end in 2); the second set is hidden
 // until two players are playing. The first player's ids and look are exactly those of the one-player game.
 const sfx = (i) => i ? '2' : '';
-const scoreHtml = (i) => `<div class="score${i ? ' p2 p2only' : ''}" id="score-box${sfx(i)}"><span class="score-icon">${icon('trophy')}</span><div><small>คะแนน</small><strong id="score${sfx(i)}">0</strong></div><span id="double${sfx(i)}" class="double-badge" hidden>x2</span><span class="pmaps">${icon('map')}<b id="pmaps${sfx(i)}">0/${MAP_PIECES}</b></span><div id="fever${sfx(i)}" class="fever-banner" role="status" hidden><span>FEVER x2</span><strong id="fever-time${sfx(i)}">15</strong></div></div><div id="powers${sfx(i)}" class="powers${i ? ' p2 p2only' : ''}" aria-label="ไอเทมที่ใช้ได้"></div>`;
-// Small chips: the FEVER chip hangs on the score box and the bonus-stage chip sits at the top, so neither covers the sea that is played in.
+const scoreHtml = (i) => `<div class="score${i ? ' p2 p2only' : ''}" id="score-box${sfx(i)}"><span class="score-icon">${icon('trophy')}</span><div><small id="score-label${sfx(i)}">คะแนน</small><small id="fever${sfx(i)}" class="fever-banner" role="status" hidden>FEVER x2 · <b id="fever-time${sfx(i)}">15</b></small><strong id="score${sfx(i)}">0</strong></div><span id="double${sfx(i)}" class="double-badge" hidden>x2</span><span class="pmaps">${icon('map')}<b id="pmaps${sfx(i)}">0/${MAP_PIECES}</b></span><span id="gain${sfx(i)}" class="gain" aria-hidden="true" hidden></span></div><div id="powers${sfx(i)}" class="powers${i ? ' p2 p2only' : ''}" aria-label="ไอเทมที่ใช้ได้"></div>`;
+// Nothing talks over the water: FEVER takes the place of the word "คะแนน" in the score box, the "+points" of a catch float up beside
+// the score box, the bonus-stage chip hangs under the counters, and messages (the toast) replace the status line above the cast button.
 const bonusHtml = (i) => `<div id="bonus${sfx(i)}" class="bonus-banner${i ? ' p2' : ''}" role="status" hidden>${icon('sparkles')}<span id="bonus-label${sfx(i)}">ฝนสมบัติ!</span><strong id="bonus-time${sfx(i)}">20</strong></div>`;
-const labelHtml = (i) => `<div class="phase-label${i ? ' p2 p2only' : ''}"><span id="phase-text${sfx(i)}" class="phase-text" role="status" aria-live="polite">ออกทะเลกัน!</span><span id="caught-name${sfx(i)}" class="caught-name"></span></div>`;
+const labelHtml = (i) => `<div class="phase-label${i ? ' p2 p2only' : ''}"><span id="phase-text${sfx(i)}" class="phase-text" role="status" aria-live="polite">ออกทะเลกัน!</span><span id="caught-name${sfx(i)}" class="caught-name"></span>${i ? '' : '<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>'}</div>`;
 const dockHtml = (i) => `<button id="cast${sfx(i)}" class="cast-button${i ? ' p2 p2only' : ''}" disabled>${icon('anchor')}<span>หย่อนเบ็ด</span></button>
       <div id="reel-wrap${sfx(i)}" class="reel-wrap${i ? ' p2 p2only' : ''}">
         <output id="tap-count${sfx(i)}" class="tap-count" aria-live="off"></output>
@@ -83,13 +84,12 @@ $('#app').innerHTML = `
         <div id="timer" class="timer" hidden>${icon('timer')}<strong>1:30</strong></div>
         <div class="catch-count">${icon('fish')}<strong id="caught-count">0 / ${GOAL}</strong></div>
         <div class="maps" aria-label="แผนที่สมบัติ">${icon('map')}<strong id="maps">0/${MAP_PIECES}</strong></div>
+        <div class="banners">${bonusHtml(0)}${bonusHtml(1)}</div>
       </div>
       ${scoreHtml(1)}
     </section>
     <div id="edge" class="edge-flash" hidden></div>
     <div id="stopwheel" class="stopwheel" hidden aria-live="polite">${stopWheelHtml()}</div>
-    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-    <div class="banners">${bonusHtml(0)}${bonusHtml(1)}</div>
     ${labelHtml(0)}
     ${labelHtml(1)}
     <div class="dock">
@@ -207,6 +207,7 @@ class FishingApp {
     this.countMissions(landing);
     this.giveStickers([...earnedByCollection(this.progress.collection, this.species, ZONES), ...earnedByLanding(landing)]);
     if (landing.bonusStarted && this.twoPlayers) setTimeout(() => this.toast(`ผู้เล่น ${player + 1} เล่นด่านโบนัส อีกคนรอสักครู่นะ`), 1700);
+    this.showGain(player, landing);
     this.scene?.celebrate(this.scene.rigs[player], species, landing);
   }
 
@@ -226,7 +227,7 @@ class FishingApp {
         setBonusTurn: (n, player = 0) => { this.rounds[player].bonusTurn = n; },
         setPower: (name, value, player = 0) => { this.rounds[player][name] = value; },
         setPirateTime: (seconds, player = 0) => { if (this.rounds[player].pirate) this.rounds[player].pirate.time = seconds; },
-        finishTrip: (ids, player = 0) => { const r = this.rounds[player]; r.catches.push(...ids); r.tripCatches = 8; r.score += 123; r.phase = 'complete'; },
+        finishTrip: (ids, player = 0) => { const r = this.rounds[player]; r.catches.push(...ids); r.tripCatches = GOAL; r.score += 123; r.phase = 'complete'; },
         setTimeOfDay: (time) => this.scene.setTimeOfDay(time),
         setLooks: (looks) => { this.progress.looks = { ...this.progress.looks, ...looks }; this.persist(); },
         spawnBoss: (id) => this.scene.spawnBossForTest(id),
@@ -238,6 +239,7 @@ class FishingApp {
         release: () => this.scene.releaseTest(),
         expire: (player = 0) => { this.rounds[player].remaining = 0.01; },
         setMaps: (n, player = 0) => { this.rounds[player].maps = n; },
+        setTripCatches: (n, player = 0) => { this.rounds[player].tripCatches = n; },
         setDaily: (missions) => { const today = this.todayMissions(); today.missions = missions; today.allDone = false; today.seen = false; this.updateBookDot(); },
         daily: () => JSON.parse(JSON.stringify(this.progress.daily)),
         giveStickers: (ids) => this.giveStickers(ids),
@@ -512,8 +514,21 @@ class FishingApp {
     toast.textContent = text;
     toast.hidden = false;
     toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
+    // The message takes the place of the status line above the cast button for a moment (never the sea).
+    $('.stage').classList.add('captioning');
     clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => { toast.hidden = true; }, 1900);
+    this.toastTimer = setTimeout(() => { toast.hidden = true; $('.stage').classList.remove('captioning'); }, 1900);
+  }
+
+  // The "+points" of a catch float up beside that player's score box, in the sky, instead of over the water.
+  showGain(i, landing) {
+    const chip = $(`#gain${sfx(i)}`);
+    chip.textContent = landing.multiplier > 1 ? `+${landing.points} x${landing.multiplier}` : `+${landing.points}`;
+    chip.classList.toggle('big', Boolean(landing.points >= 80));
+    chip.hidden = false;
+    chip.classList.remove('show'); void chip.offsetWidth; chip.classList.add('show');
+    clearTimeout(chip.timer);
+    chip.timer = setTimeout(() => { chip.hidden = true; }, 1500);
   }
 
   hudSignature(r, i) {
@@ -532,7 +547,9 @@ class FishingApp {
     // Shared parts of the HUD.
     const r = this.round;
     const seconds = Math.ceil(r.remaining);
-    $('#caught-count').textContent = this.twoPlayers ? `${Math.min(this.match.catches, TEAM_GOAL)} / ${TEAM_GOAL}` : `${Math.min(r.tripCatches, GOAL)} / ${GOAL}`;
+    // Relaxed: progress towards the goal. Arcade: no goal, just how many have been caught so far.
+    const caught = this.twoPlayers ? this.match.catches : r.tripCatches;
+    $('#caught-count').textContent = r.mode === 'arcade' ? `${caught} ตัว` : this.twoPlayers ? `${Math.min(caught, TEAM_GOAL)} / ${TEAM_GOAL}` : `${Math.min(caught, GOAL)} / ${GOAL}`;
     $('#maps').textContent = `${r.maps}/${MAP_PIECES}`;
     $('#kind-chip').textContent = this.matchKind === 'versus' ? 'แข่งกัน' : 'ช่วยกัน';
     $('#timer').hidden = r.mode !== 'arcade';
@@ -561,6 +578,8 @@ class FishingApp {
     q('bonus-time').textContent = pirate ? `${Math.ceil(pirate.time)} วิ` : wheel ? `${wheel.spin + 1}/${STOP_SPINS}` : bonus;
     this.renderPowers(r, i);
     q('fever').hidden = fever <= 0;
+    q('score-label').hidden = fever > 0;
+    q('score-box').classList.toggle('fevering', fever > 0);
     q('fever-time').textContent = fever;
     const labels = { aim: 'ออกทะเลกัน!', casting: 'เบ็ดกำลังลง…', reeling: 'ติดเบ็ดแล้ว!', returning: 'ลองอีกครั้งได้เลย', celebrate: 'เยี่ยมเลย!', complete: 'กลับถึงฝั่งแล้ว', pirate: 'เล็งเป้าแล้วแตะยิง!', wheel: 'กดหยุดให้ตรงช่องรางวัลใหญ่!' };
     const finishedAlone = r.phase === 'complete' && this.twoPlayers && !this.match.finished;

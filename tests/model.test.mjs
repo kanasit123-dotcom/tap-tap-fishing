@@ -97,13 +97,22 @@ test('time running out during an empty cast returns the hook and ends', () => {
   const r = new FishingRound('arcade'); r.cast(); r.length = 200; r.remaining = 0.01;
   tick(r, 3); assert.equal(r.phase, 'complete'); assert.equal(r.score, 0);
 });
-test('eight landed catches complete a relaxed trip without a timer', () => {
+test('ten landed catches complete a relaxed trip without a timer', () => {
+  assert.equal(GOAL, 10);
   const r = new FishingRound();
   let points = 0;
   for (let i = 0; i < GOAL; i++) { catchFish(r); land(r); points += r.landing.points; tick(r, 2); }
-  // Eight in a row also earns a fever, so some catches count double.
-  assert.equal(r.phase, 'complete'); assert.equal(r.score, points); assert.ok(points > 40); assert.equal(r.catches.length, 8);
+  // Ten in a row also earns a fever, so some catches count double.
+  assert.equal(r.phase, 'complete'); assert.equal(r.score, points); assert.ok(points > 40); assert.equal(r.catches.length, 10);
   assert.equal(r.cast(), false);
+});
+test('arcade has no catch limit: the trip goes on past the relaxed goal and only the clock ends it', () => {
+  const r = new FishingRound('arcade'); r.remaining = 400;
+  for (let i = 0; i < GOAL + 4; i++) { catchFish(r); land(r); tick(r, 2); }
+  assert.equal(r.tripCatches, GOAL + 4); assert.equal(r.goalReached, false); assert.equal(r.phase, 'aim');
+  assert.equal(r.cast(), true);
+  r.remaining = 0.01; tick(r, 8);
+  assert.equal(r.phase, 'complete');
 });
 test('a message bottle doubles only the next catch, never itself', () => {
   const r = new FishingRound();

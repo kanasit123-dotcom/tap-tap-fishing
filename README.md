@@ -28,6 +28,12 @@ npm run build
 npm run preview -- --port 5194
 ```
 
+## Version 0.9.2
+
+Nothing is written over the water any more. Messages show on the sand above the cast button (in place of the status line for a moment), FEVER x2 and its seconds
+sit inside the score box, the "+points" of a catch float up beside the score box, and the bonus-stage chip hangs under the counters at the top right.
+A relaxed trip now ends after ten catches (two players: twenty together). Arcade has no catch limit: catch as many as you can before the clock runs out.
+
 ## Version 0.9.1
 
 Clearing the whole collection is now a button that must be held for three seconds (in the settings, reached from the pause button or from the bottom of the
@@ -139,7 +145,7 @@ Everything under Version 0.2.0 below, now with the redrawn artwork, the install 
 - Every accepted reel tap turns the wheel and shortens the line. Holding does not auto-reel.
 - Relaxed mode has no clock, slipping fish or penalty for pausing the tapping.
 - Arcade mode lasts 90 seconds; a fish already hooked may still be brought home afterwards.
-- A relaxed trip finishes after eight catches; scores, completion rewards and repeat trips.
+- A relaxed trip finishes after ten catches (two players: twenty together); arcade has no catch limit (as many as possible before the clock ends); scores, completion rewards and repeat trips.
 - Local collection, mode-specific best scores and sound preference are saved independently.
 - Pause/resume, collection book, restart, sound toggle and mode-switch confirmation.
 - Pointer, touch and keyboard activation. A stationary reel wrapper cancels native touch/gesture defaults,

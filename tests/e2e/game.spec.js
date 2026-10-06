@@ -20,8 +20,11 @@ async function reel(page, touch = false) {
   const n = (await snapshot(page)).requiredTaps;
   // A tap within 70 ms of the one before is ignored by design, and a stalled frame can bunch two clicks together: keep tapping until the catch is up.
   for (let i = 0; i < n * 2 && (await snapshot(page)).phase === 'reeling'; i++) {
-    if (touch) { const rect = await page.locator('#reel').boundingBox(); await page.touchscreen.tap(rect.x + rect.width / 2, rect.y + rect.height / 2); }
-    else await page.locator('#reel').click();
+    // The catch may land between the phase check and the click, which disables the button: a short click timeout lets the loop look again.
+    try {
+      if (touch) { const rect = await page.locator('#reel').boundingBox(); await page.touchscreen.tap(rect.x + rect.width / 2, rect.y + rect.height / 2); }
+      else await page.locator('#reel').click({ timeout: 2000 });
+    } catch (error) { if ((await snapshot(page)).phase === 'reeling') throw error; }
     await page.waitForTimeout(95);
   }
   await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase !== 'reeling');
@@ -104,20 +107,21 @@ test('a real cast into the live sea hooks whatever swims under the line', async 
   expect(errors).toEqual([]);
 });
 
-test('eight catches reward only once and start a fresh trip without losing the book', async ({ page }, info) => {
-  test.setTimeout(100_000); const errors = await boot(page);
-  for (let i = 0; i < 8; i++) { await fish(page); await reel(page); await landed(page); }
+test('ten catches reward only once and start a fresh trip without losing the book', async ({ page }, info) => {
+  test.setTimeout(120_000); const errors = await boot(page);
+  await expect(page.locator('#caught-count')).toHaveText('0 / 10');
+  for (let i = 0; i < 10; i++) { await fish(page); await reel(page); await landed(page); }
   await expect(page.locator('#dialog-title')).toHaveText('นักสำรวจอ่าวสมบัติ!');
-  // Eight in a row include a fever, so the trip scores more than 8 x 5.
+  // Ten in a row include a fever, so the trip scores more than 10 x 5.
   const total = (await snapshot(page)).score; expect(total).toBeGreaterThan(40);
   await expect(page.locator('.reward-score')).toContainText(String(total));
   await page.screenshot({ path: info.outputPath('reward.png') });
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('tap-tap-fishing-v1')));
-  expect(saved.trips).toBe(1); expect(saved.collection.goldfish).toBe(8); expect(saved.best.relaxed).toBe(total);
+  expect(saved.trips).toBe(1); expect(saved.collection.goldfish).toBe(10); expect(saved.best.relaxed).toBe(total);
   await page.locator('#again').click();
   const fresh = await snapshot(page);
   expect(fresh.phase).toBe('aim'); expect(fresh.fishes.length).toBeGreaterThan(10); await expect(page.locator('#score')).toHaveText('0');
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tap-tap-fishing-v1')).collection.goldfish)).toBe(8);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tap-tap-fishing-v1')).collection.goldfish)).toBe(10);
   expect(errors).toEqual([]);
 });
 
@@ -365,6 +369,23 @@ test('special items: the bottle doubles the next catch and four map pieces start
   expect(errors).toEqual([]);
 });
 
+test('arcade has no catch limit: the counter just counts, and the trip is still running past the relaxed goal', async ({ page }) => {
+  test.setTimeout(90_000); const errors = await boot(page);
+  await expect(page.locator('#caught-count')).toHaveText('0 / 10');
+  await page.locator('#arcade').click();
+  await expect(page.locator('#caught-count')).toHaveText('0 ตัว');
+  await fish(page); await reel(page); await landed(page);
+  await expect(page.locator('#caught-count')).toHaveText('1 ตัว');
+  // Past the relaxed goal the trip goes on: only the clock ends it.
+  await page.evaluate(() => window.__FISHING_QA__.setTripCatches(10));
+  await fish(page); await reel(page); await landed(page);
+  const s = await snapshot(page);
+  expect(s.tripCatches).toBeGreaterThanOrEqual(11);
+  expect(s.phase).not.toBe('complete'); await expect(page.locator('#dialog-title')).not.toBeVisible();
+  await expect(page.locator('#caught-count')).toHaveText(`${s.tripCatches} ตัว`);
+  expect(errors).toEqual([]);
+});
+
 test('the pocket watch adds ten seconds in arcade mode', async ({ page }) => {
   const errors = await boot(page); await page.locator('#arcade').click();
   await fish(page, 'watch');
@@ -534,7 +555,7 @@ test('trip end: the lucky wheel spins once and pays out; wheel powers start the 
   test.setTimeout(150_000); const errors = await boot(page);
   // Today's missions would give powers of their own: make them ones that cannot finish here.
   await page.evaluate(() => window.__FISHING_QA__.setDaily([{ kind: 'score', goal: 99999, progress: 0, done: false }, { kind: 'boss', goal: 9, progress: 0, done: false }, { kind: 'fever', goal: 99, progress: 0, done: false }]));
-  for (let i = 0; i < 8; i++) { await fish(page); await reel(page); await landed(page); }
+  for (let i = 0; i < 10; i++) { await fish(page); await reel(page); await landed(page); }
   await expect(page.locator('#dialog-title')).toHaveText('นักสำรวจอ่าวสมบัติ!');
   await expect(page.locator('#lucky-wheel .seg')).toHaveCount(8);
   const before = (await snapshot(page)).score;
@@ -781,7 +802,7 @@ test('two players: pick the kind of game, two boats with two rod tips and two se
   expect(s.players.map((p) => p.boat.flipped)).toEqual([false, true]);
   expect(s.players.every((p) => p.boat.visible)).toBe(true);
   for (const id of ['#cast', '#cast2', '#reel', '#reel2', '#score-box', '#score-box2']) await expect(page.locator(id)).toBeVisible();
-  await expect(page.locator('#caught-count')).toHaveText('0 / 16');
+  await expect(page.locator('#caught-count')).toHaveText('0 / 20');
   await expect(page.locator('#duo')).toHaveAttribute('aria-pressed', 'true');
   // Every control is fully on screen and none overlaps another.
   const boxes = await page.evaluate(() => ['#cast', '#cast2', '#reel', '#reel2'].map((id) => { const b = document.querySelector(id).getBoundingClientRect(); return { id, left: b.left, right: b.right, top: b.top, bottom: b.bottom }; }));
@@ -815,7 +836,7 @@ test('two players fish at the same time: each catch is scored for its own player
   expect(done.players[0].catches).toEqual(['goldfish']); expect(done.players[1].catches).toEqual(['clownfish']);
   expect(done.match.catches).toBe(2);
   await expect(page.locator('#score')).toHaveText('5'); await expect(page.locator('#score2')).toHaveText('8');
-  await expect(page.locator('#caught-count')).toHaveText('2 / 16');
+  await expect(page.locator('#caught-count')).toHaveText('2 / 20');
   await page.screenshot({ path: info.outputPath('two-players-caught.png') });
   // Both catches went into the one shared book.
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('tap-tap-fishing-v1')).collection);

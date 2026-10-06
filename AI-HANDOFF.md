@@ -87,7 +87,7 @@ special items **with effects + bonus stage**; **sea ambience + soft music** with
     `originX` 200 / 280), `controller.match` (null for one player), `get round()` = player 1 so single-player code and tests are unchanged.
     The scene keeps two *rigs* (boat, rod, line, hook, net, gold hook; rig 2 hidden in solo); player 2's boat is mirrored (`rig.sign = -1`), player 1's is the
     recoloured `boat-red` canvas texture, player 2's the original (button colours: red / blue). `Match.sync()` every frame holds everyone but the bonus
-    owner (`round.waiting`: no tick, no cast/reel/fire, clock stopped). Shared goal `TEAM_GOAL` 16 via `round.goalCheck`; arcade watch gives both boats +10 s.
+    owner (`round.waiting`: no tick, no cast/reel/fire, clock stopped). Shared goal `TEAM_GOAL` 20 (2 x GOAL; relaxed only) via `round.goalCheck`; arcade watch gives both boats +10 s.
     Co-op = team score; versus = higher score wins and spins the trip-end wheel (points from it are not a personal best: `applyPrize(..., { record: false })`).
     Two players do not persist maps/bonusTurn. Touch: `bindTapControl` now looks at `targetTouches`, so a finger on the other control never counts as a pinch.
     DOM ids of player 2 end in `2` (`#cast2`, `#reel2`, `#score2`, `#phase-text2`...). The sea tap casts player 1 on the left half, player 2 on the right.
@@ -254,7 +254,9 @@ No code, voices, progress or artwork was imported from sibling repositories.
 
 ## Depth And Artwork Update
 
-- Original eight collection IDs, point values, storage key and goal of eight catches per trip stay unchanged.
+- Rule (user, 2026-10-06): nothing may be written over the water. Messages go to the status label above the cast button (`#toast` lives inside the first `.phase-label`; `.captioning` hides the status text),
+  FEVER sits in the score box, "+points" is the DOM chip `#gain` beside the score box, bonus chips hang under `.hud-right`. New messages must use `toast()`; keep them short (about 3 lines in 172 px).
+- Original eight collection IDs, point values and storage key stay unchanged. The original goal of eight catches per trip was raised to ten (`GOAL`, 2026-10-06; two players share 20), and arcade now has no catch limit (`goalReached` is false in arcade: only the clock ends it; the HUD shows "N ตัว").
 - Added seal, shark, anglerfish and giant squid. The pufferfish was already present and remains in the middle rows.
 - Separate collectible species from swimming instances: SCHOOLS contains 32 fish, with 8/6/5/5/4/4 per row.
 - Common speed/direction within a row, 700-world-pixel loop and fixed slot spacing.

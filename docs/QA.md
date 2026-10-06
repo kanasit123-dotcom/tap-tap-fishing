@@ -2,7 +2,26 @@
 
 Date: 2026-10-04
 
-## Latest: v0.9.1 — hold-to-clear and smaller messages (deployed 2026-10-06)
+## Latest (NOT deployed yet, would be v0.9.2): messages off the water, ten catches, arcade without a limit
+
+- User (after v0.9.1): the captions still covered the water even when small; asked to move them (on the boat or on the screen), and: arcade should have no 8-catch limit
+  (as many as possible before the clock ends), or the normal mode should go from 8 to 10 catches. Both were done.
+- Where things went (nothing is drawn over the sea any more): the message (`#toast`) is now a child of the first status label and shows in its place above the cast button, on the sand
+  (class `captioning` on the stage hides the status text meanwhile; two players: centred above both docks); FEVER replaces the word "คะแนน" inside the score box (class `fevering`,
+  orange glow, seconds in the text); the "+points" of a catch is a DOM chip (`#gain`, `showGain`) floating up beside the score box in the sky (hidden with two players: the flying coins stay);
+  the bonus-stage chips hang under the right-hand counters (`.banners` is inside `.hud-right`). The Phaser "+points" text in `scene.celebrate` was removed.
+- Measured (bounding boxes) on 390x664, 750x342, 810x1080, 375x667, 568x320 and 1440x900: the message never overlaps the cast button or the reel (wide landscape: max width follows the free
+  space left of the cast button; short landscape: 6 px above the dock). The longest start message (evening sea + powers + level) is 3 lines, 61 px, reaching 8 px into the water on a phone.
+  Screenshots inspected: catch, FEVER, rain chip, boss message, two players, landscape, iPad, small phone.
+- Goals: `GOAL` 8 -> 10 (relaxed; `TEAM_GOAL` 20 for two players); arcade: `goalReached` is false, only the clock ends the trip, the counter reads "N ตัว" (two players: the team total).
+- `npm test`: 116 passed (new: arcade runs past the goal until the clock ends; the relaxed test expects ten). `npm run check`: build ok, offline copy 112 files (7.3 MB).
+- Browser suite via snapshot, on three projects: desktop 42 passed + 3 skipped, 2 failed; tablet+phone 93 passed, 1 failed. The 2 desktop failures (every-creature test and power-ups) were the same race
+  in the test helper: the catch landed between the phase check and the click, the button was disabled and the click waited for it for the whole test time (the run overlapped with my own screenshot scripts).
+  `reel()` now clicks with a 2 s timeout and looks at the phase again; both passed on rerun (with the new arcade test). The tablet failure was the first test of the run (full-bleed canvas edge pixel
+  transparent right after the server's cold start); it passed 6/6 when repeated on all three projects. Changed tests: ten-catch reward test (0 / 10 first), two players 0 / 20 and 2 / 20, new arcade test.
+- Not verified on a real iPhone/iPad: whether the message above the cast button is read in time (the thumb is nearby), the position of the "+points" chip beside the score box.
+
+## Previous: v0.9.1 — hold-to-clear and smaller messages (deployed 2026-10-06)
 
 - LIVE: commit e25cf9c, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37468623020 (success). Live bundle `index-Hjul-Q1i.js` + `index-dGMOQDl_.css` equal the local Pages build;
   `npm run test:pages -- https://kanasit123-dotcom.github.io/tap-tap-fishing/`: passed, 66 entries, colored and moving canvas, offline reload ok, no errors.

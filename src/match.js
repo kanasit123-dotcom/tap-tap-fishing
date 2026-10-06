@@ -1,5 +1,5 @@
 // Two players on one device share one sea: this ties their two FishingRounds together. Pure rules, no DOM.
-//  - One shared goal: the trip ends when the two together have brought up TEAM_GOAL creatures (arcade: each clock runs out).
+//  - One shared goal: the trip ends when the two together have brought up TEAM_GOAL creatures (arcade has no goal: each clock runs out).
 //  - Bonus stages take turns: the player who completed the map plays it alone, the other waits (held, clock included).
 //  - 'coop' adds the scores into one team score; 'versus' compares them.
 import { GOAL, WORLD } from './model.js';

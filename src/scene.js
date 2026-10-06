@@ -760,9 +760,7 @@ export class CoveScene extends Phaser.Scene {
     }
     rig.netted = [];
     rig.netMesh.clear();
-    const text = landing.multiplier > 1 ? `+${landing.points}  x${landing.multiplier}` : `+${landing.points}`;
-    const label = this.add.text(rig.originX, 176, text, { fontFamily: 'Tahoma, sans-serif', fontSize: species.jackpot ? '30px' : '22px', fontStyle: 'bold', color: '#ffea8e', stroke: '#145466', strokeThickness: 5 }).setOrigin(0.5).setDepth(21);
-    this.tweens.add({ targets: label, y: 120, alpha: 0, delay: species.jackpot ? 600 : 250, duration: species.jackpot ? 1400 : 900, onComplete: () => label.destroy() });
+    // (The "+points" of the catch are written beside the score box by the page, not over the water.)
     if (species.kind === 'item' || species.jackpot) this.coinBurst(x, species.jackpot ? 34 : 18);
     if (landing.points > 1) this.controller.flyCoins?.(x, WATERLINE - 10, Math.max(3, Math.min(14, Math.ceil(landing.points / 8))), rig.index);
     const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;

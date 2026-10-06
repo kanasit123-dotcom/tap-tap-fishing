@@ -4,7 +4,7 @@ import { difficultyOf, scaledTaps } from './difficulty.js';
 
 // origin = rod tip. rest = line length while aiming, leaving the hook just under the surface.
 export const WORLD = { width: 480, height: 760, originX: 240, originY: 74, rest: 90, floor: 600 };
-export const GOAL = 8;
+export const GOAL = 10;   // creatures to bring up in one relaxed trip (arcade has no limit: only the clock ends it)
 export const ROUND_SECONDS = 90;
 export const BONUS_SECONDS = 20;
 export const MAP_PIECES = 4;
@@ -190,7 +190,8 @@ export class FishingRound {
 
   pause(value = true) { this.paused = value; }
 
-  get goalReached() { return this.goalCheck ? this.goalCheck(this) : this.tripCatches >= GOAL; }
+  // Relaxed play ends at the goal; arcade has no catch limit (as many as possible before the clock ends).
+  get goalReached() { return this.mode === 'arcade' ? false : this.goalCheck ? this.goalCheck(this) : this.tripCatches >= GOAL; }
 
   swingAim(dt) {
     this.swingTime += dt;

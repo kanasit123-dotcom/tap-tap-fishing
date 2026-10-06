@@ -6,8 +6,8 @@
 - Run long browser suites with `npm run test:e2e:snapshot` (frozen copy on port 5195) so source edits during a run
   cannot reload the page under test.
 - Two players share one device (user decision 2026-10-06, both iPad and iPhone): two boats (player 1 red on the left, player 2 blue
-  mirrored on the right), each with its own cast button and reel; co-op (team score) or race (higher score wins); one shared goal of 16
-  catches; bonus stages take turns (the player who completed the map plays, the other waits). Keep each player's controls independent
+  mirrored on the right), each with its own cast button and reel; co-op (team score) or race (higher score wins); one shared goal of 20 catches (relaxed; arcade has no catch limit);
+  bonus stages take turns (the player who completed the map plays, the other waits). Keep each player's controls independent
   (touch handlers use `targetTouches`, so two hands never cancel each other). No online play (the site has no server).
 - Relaxed play must remain untimed and forgiving; do not randomly drop a fish after correct input.
 - Preserve saved collection and the dedicated `tap-tap-fishing-v1` storage key.

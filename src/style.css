@@ -38,10 +38,17 @@ nav { display: flex; gap: 8px; }
 @keyframes badge-pop { 50% { transform: scale(1.15); } }
 .bonus-banner { white-space: nowrap; justify-content: center; display: flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 14px; background: linear-gradient(#ffe68aee, #f5b52eee); border: 1.5px solid #fff6cf; color: #6b3d00; font-weight: 800; font-size: 13px; box-shadow: 0 2px 8px #8a5a0044; pointer-events: none; animation: bonus-glow 1.2s ease-in-out infinite; }
 .bonus-banner svg { width: 14px; height: 14px; }
-/* FEVER: a small chip that hangs on the bottom edge of the score box, so it never covers the sea. */
-.fever-banner { position: absolute; left: 8px; bottom: -14px; z-index: 1; white-space: nowrap; display: flex; align-items: center; gap: 5px; padding: 0 8px; border-radius: 12px; background: linear-gradient(#ff9a5a, #e8432f); border: 1.5px solid #ffe2b8; color: #fff; font-weight: 900; font-size: 11px; line-height: 1.55; box-shadow: 0 2px 6px #a8240f55; pointer-events: none; animation: fever-pulse 0.6s ease-in-out infinite; }
-.score .fever-banner strong { font-size: 11px; line-height: 1.55; display: inline-block; min-width: 18px; padding: 0 4px; border-radius: 8px; background: #fff3e2; color: #b2321c; text-align: center; font-variant-numeric: tabular-nums; }
-@keyframes fever-pulse { 50% { transform: scale(1.06); box-shadow: 0 2px 10px #ff7a3dcc; } }
+/* FEVER: the words and the seconds take the place of "คะแนน" inside the score box, which glows orange meanwhile; nothing is drawn over the sea. */
+.score.fevering { background: linear-gradient(#fff1d8, #ffc98a); border-color: #e8432f; box-shadow: 0 0 0 3px #ff7a3d66, 0 3px 0 #ba922952; }
+.score .fever-banner { color: #b2321c; font-weight: 900; font-size: 11px; line-height: 1.1; white-space: nowrap; transform-origin: left center; animation: fever-pulse 0.6s ease-in-out infinite; }
+.score .fever-banner b { font-variant-numeric: tabular-nums; }
+@keyframes fever-pulse { 50% { transform: scale(1.08); } }
+/* "+points" of a catch float up in the sky beside the score box. */
+.gain { position: absolute; left: calc(100% + 8px); top: 50%; translate: 0 -50%; z-index: 2; white-space: nowrap; font-size: 17px; font-weight: 900; color: #fff3b0; text-shadow: 0 0 3px #145466, 0 2px 3px #145466, 0 0 8px #145466; pointer-events: none; }
+.gain.big { font-size: 22px; }
+.gain.show { animation: gain-up 1.5s ease-out forwards; }
+.score.p2 .gain { left: auto; right: calc(100% + 8px); }
+@keyframes gain-up { 0% { opacity: 0; transform: translateY(8px) scale(0.8); } 15% { opacity: 1; transform: translateY(0) scale(1.1); } 70% { opacity: 1; transform: translateY(-6px) scale(1); } 100% { opacity: 0; transform: translateY(-14px); } }
 .coin-fly { position: fixed; z-index: 60; width: 18px; height: 18px; border-radius: 50%; pointer-events: none; background: #ffd34d center / contain no-repeat; box-shadow: 0 1px 3px #6b450b66; transition: transform 0.7s cubic-bezier(0.55, -0.25, 0.75, 0.6); }
 .score.bump { animation: score-bump 0.35s ease-out; }
 .powers { position: absolute; left: 0; top: calc(100% + 14px); display: flex; gap: 5px; pointer-events: none; }
@@ -82,9 +89,11 @@ nav { display: flex; gap: 8px; }
 @keyframes score-bump { 40% { transform: scale(1.14); } }
 .bonus-banner strong { min-width: 20px; padding: 0 5px; border-radius: 8px; background: #fff8de; text-align: center; font-variant-numeric: tabular-nums; }
 @keyframes bonus-glow { 50% { box-shadow: 0 4px 22px #ffd34dcc; } }
-.toast { position: absolute; left: 50%; top: calc(var(--scene-top) + 92px); transform: translateX(-50%); width: max-content; max-width: min(calc(var(--scene-width) - 70px), 300px); padding: 3px 11px; border-radius: 9px; background: #0b4f5fc2; color: #fff; font-weight: 700; font-size: 13px; line-height: 1.35; text-align: center; pointer-events: none; white-space: normal; }
+/* Messages live inside the status label above the cast button (on the sand), so they never cover the water; while one shows it takes the place of the status line. */
+.toast { position: absolute; left: 0; bottom: 0; z-index: 3; width: max-content; max-width: max(150px, calc(min(var(--scene-width) - 36px, 420px) - 166px)); padding: 4px 10px; border-radius: 10px; background: #0b4f5fe0; color: #fff; font-weight: 700; font-size: 13px; line-height: 1.35; text-align: center; pointer-events: none; white-space: normal; }
 .toast.show { animation: toast-in 1.9s ease forwards; }
-@keyframes toast-in { 0% { opacity: 0; transform: translate(-50%, 8px); } 10%, 80% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+.captioning .phase-text, .captioning .caught-name { visibility: hidden; }
+@keyframes toast-in { 0% { opacity: 0; translate: 0 6px; } 10%, 80% { opacity: 1; translate: 0 0; } 100% { opacity: 0; } }
 #music.off { color: #9bb3b3; }
 #music.off::before { content: ''; position: absolute; width: 30px; height: 2.5px; background: #c0525e; transform: rotate(-45deg); border-radius: 2px; }
 .timer { font-variant-numeric: tabular-nums; }
@@ -194,6 +203,7 @@ dialog p { font-size: 15px; color: #537577; }
   .wheel { inset: 11px; }
   .tap-count { font-size: 16px; }
   .phase-label { left: calc(50% - (var(--scene-width) - 30px) / 2); width: 152px; max-width: 48%; bottom: calc(var(--scene-gap) + 88px); }
+  .toast { max-width: max(150px, calc(var(--scene-width) - 176px)); }
   .phase-text { font-size: 16px; }
   .score { min-width: 90px; padding-right: 8px; }
   .score strong { font-size: 20px; }
@@ -231,11 +241,12 @@ dialog p { font-size: 15px; color: #537577; }
   .score strong { font-size: 16px; }
   .catch-count, .timer, .maps { padding: 5px; font-size: 12px; }
   .maps svg { width: 15px; }
-  .toast { top: calc(var(--scene-top) + 50px); font-size: 12px; max-width: min(calc(100% - 40px), 420px); }
+  .toast { bottom: 6px; font-size: 12px; max-width: calc(max(var(--scene-width), 270px) - 24px); }
   .catch-count svg { width: 17px; }
 }
 @media (max-height: 540px) and (min-width: 650px) {
   .phase-label { left: 24px; width: 180px; max-width: 180px; bottom: 30px; }
+  .toast { bottom: 0; max-width: max(150px, calc(50vw - max(var(--scene-width), 270px) / 2 - 30px)); }   /* beside the cast button, never over it */
 }
 @media (prefers-reduced-motion: reduce) { .reel.active, .reel.tapped, .fever-banner, .score.bump, .reel.tug .reel-progress, .reel.tug .wheel { animation: none; } .edge-flash.on { animation: none; box-shadow: inset 0 0 40px #ff5a28aa; } .wheel, .lucky-wheel { transition: none; } }
 
@@ -379,7 +390,12 @@ body:not(.two-players) .p2only { display: none !important; }
 @media (min-width: 700px) { .sticker-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
 
 /* ---------- chips at the top, the hold-to-reset button ---------- */
-.banners { position: absolute; left: 50%; top: calc(var(--scene-top) + 62px); transform: translateX(-50%); display: flex; gap: 6px; pointer-events: none; z-index: 3; }
+.hud-right { position: relative; }
+.banners { position: absolute; right: 0; top: calc(100% + 6px); display: flex; gap: 6px; pointer-events: none; z-index: 3; }
+.two-players .banners { right: auto; left: 50%; transform: translateX(-50%); }
+.two-players .gain { display: none; }   /* two players: the coins flying into the score box are enough, and there is no free sky beside it */
+/* two players: the message spans both docks, centred above the status lines */
+.two-players .toast { left: calc(var(--dock-w) / 2); transform: translateX(-50%); max-width: min(calc(var(--dock-w) - 16px), 340px); }
 .reset-box { margin-top: 12px; text-align: left; }
 .reset-box .hint { margin: 0 0 2px; }
 .danger.hold { position: relative; overflow: hidden; display: flex; width: 100%; justify-content: center; margin-top: 6px; min-height: 48px; touch-action: none; }
