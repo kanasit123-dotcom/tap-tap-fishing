@@ -2,7 +2,13 @@
 
 Date: 2026-10-04
 
-## Latest: v0.8.0 — two players, stop-the-wheel stage, offline, fog horn, rare visitors, faster giants (2026-10-06)
+## Latest: v0.8.0 — two players, stop-the-wheel stage, offline, fog horn, rare visitors, faster giants (deployed 2026-10-06)
+
+- LIVE: commit 205ccf1, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37415639871 (success; CI ran `npm test` and `build:pages`).
+  Live bundle `index-CmSBGZua.js` + `index-DMSSDtU0.css` equal the local Pages build; `sw.js`, the manifest and the new sprites return 200;
+  `npm run test:pages -- https://kanasit123-dotcom.github.io/tap-tap-fishing/`: passed, 55 entries, colored and moving canvas, reload with the
+  network cut starts and shows every picture, no errors. (The `sw.js` VERSION differs between the local and the CI build because Windows
+  checks text files out with CRLF; each build only needs its own version to change when its files change.)
 
 - User asked (2026-10-06): two players on one device (iPad and iPhone, co-op and race, bonus stages in turns), the stop-the-wheel bonus,
   offline use, the fog horn; and reported that some creatures (the lobster king...) were never seen and the giants swam too slowly.

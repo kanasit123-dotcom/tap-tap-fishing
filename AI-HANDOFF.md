@@ -56,7 +56,8 @@ special items **with effects + bonus stage**; **sea ambience + soft music** with
   (`sheet-f-pirate.png`, already in docs/ART-PROMPTS.md and `SHEETS`); then boss fish, lucky wheel at trip end, unlockable boat/hook
   skins from book zones, day/sunset/night. Power-up and pirate design notes are under prompt I in ART-PROMPTS.md.
   When sheet I arrives, `tests/assets.test.mjs` must allow the non-catalog prop ids (pirate ships, cannon, coin...).
-- **Round 4 (2026-10-06, built and tested locally, NOT deployed; user asked for: two players, stop-the-wheel stage, offline, fog horn, rare creatures
+- **v0.8.0 LIVE (2026-10-06):** commit 205ccf1, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37415639871.
+- **Round 4 (2026-10-06, shipped in v0.8.0; user asked for: two players, stop-the-wheel stage, offline, fog horn, rare creatures
   never seen, slower giants):**
   - **Giants** were slow because (a) their own speeds were 13-22 and the kraken's pulse motion averages 0.69x, and (b) the spawner slowed a boss to
     the speed of the creature ahead. Now bosses use speeds 21-30 and *wait* for a clear road (`bossWaiting`, lane 3 holds new arrivals) instead of
