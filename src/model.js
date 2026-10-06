@@ -25,7 +25,8 @@ export const PIRATE_DEFEAT = { small: 15, medium: 30, large: 60 };
 export const PIRATE_HP = { small: 1, medium: 2, large: 3 };
 
 export class FishingRound {
-  constructor(mode = 'relaxed', onLand = () => {}, { maps = 0, bonusTurn = 0, startPowers = {} } = {}) {
+  constructor(mode = 'relaxed', onLand = () => {}, { maps = 0, bonusTurn = 0, startPowers = {}, rng = Math.random } = {}) {
+    this.rng = rng;
     this.mode = mode === 'arcade' ? 'arcade' : 'relaxed';
     this.onLand = onLand;
     this.phase = 'aim';
@@ -110,6 +111,15 @@ export class FishingRound {
     this.taps++;
     this.targetLength = WORLD.rest + (this.targetLength - WORLD.rest) * (this.requiredTaps - this.taps) / (this.requiredTaps - this.taps + 1);
     return true;
+  }
+
+  // Points of one landed creature: fixed, or drawn from its prize list (the treasure chest is a surprise).
+  pointsFor(species) {
+    if (!species.prizes) return species.points;
+    const total = species.prizes.reduce((sum, [, weight]) => sum + weight, 0);
+    let roll = this.rng() * total;
+    for (const [points, weight] of species.prizes) if ((roll -= weight) < 0) return points;
+    return species.prizes.at(-1)[0];
   }
 
   // ---- pirate battle ----
@@ -208,7 +218,8 @@ export class FishingRound {
     const bottle = this.doubleNext && !all.some((s) => s.effect === 'double') ? 2 : 1;
     if (bottle > 1) this.doubleNext = false;
     const multiplier = bottle * (this.fever > 0 ? 2 : 1);
-    const points = all.reduce((sum, s) => sum + s.points, 0) * multiplier;
+    const base = all.reduce((sum, s) => sum + this.pointsFor(s), 0);
+    const points = base * multiplier;
     let bonusStarted = false;
     let bonusKind = null;
     const powers = [];
@@ -237,7 +248,7 @@ export class FishingRound {
     let feverStarted = false;
     if (species.kind === 'junk') this.combo = 0;
     else if (this.fever === 0 && ++this.combo >= COMBO_FOR_FEVER) { this.combo = 0; this.fever = FEVER_SECONDS; feverStarted = true; }
-    this.landing = { species, extras: all.slice(1), all, points, multiplier, bonusStarted, bonusKind, feverStarted, combo: this.combo, powers };
+    this.landing = { species, extras: all.slice(1), all, base, points, multiplier, bonusStarted, bonusKind, feverStarted, combo: this.combo, powers };
     this.phase = 'celebrate';
     this.celebration = all.some((s) => s.jackpot) ? 1.8 : 1.05;
     this.onLand(species, this);

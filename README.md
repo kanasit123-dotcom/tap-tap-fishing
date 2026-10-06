@@ -28,6 +28,12 @@ npm run build
 npm run preview -- --port 5194
 ```
 
+## Version 0.7.0
+
+Giant bosses announce themselves (siren, flashing frame, a huge shadow gliding below, then the fish enters); heavy fish fight on
+the line with a shaking reel, thump and buzz; the treasure chest holds a surprise prize (30-100); two ancient giants
+(Helicoprion and Dunkleosteus) join the book. 55 book entries.
+
 ## Version 0.6.1
 
 The trip-end wheel fits one phone screen; the pirate battle is 30 s of unlimited cannon fire; giant bosses come about

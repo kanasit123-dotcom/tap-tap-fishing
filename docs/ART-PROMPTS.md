@@ -18,6 +18,7 @@
 | I | `sheet-f-pirate.png` | 1536×1024 แนวนอน | เรือโจรสลัด 3 ลำ ปืนใหญ่ ไอเทมช่วยจับ (ใช้งานแล้ว) |
 | J | `background-sunset-*.png`, `background-night-*.png` | 4 รูป แนวตั้ง+แนวนอน | ฉากยามเย็นและกลางคืน (ใช้งานแล้ว) |
 | K | `sheet-g-boss.png` | 1536×1024 แนวนอน | ปลายักษ์ 3 ตัว (ใช้งานแล้ว) |
+| L | `sheet-h-ancient.png` | 1536×1024 แนวนอน | ปลาโบราณยักษ์ 2 ตัว: ปลาฟันก้นหอย ปลาเกราะยักษ์ (รอสั่ง) |
 
 ## วิธีทำ
 
@@ -262,6 +263,26 @@ LAYOUT: exactly 3 separate giant sea animals stacked in 3 rows (one per row, eac
 ```
 
 ชื่อชิ้นตอนตัด (ตามลำดับ): `boss-whale boss-kraken boss-marlin`
+
+## L — `sheet-h-ancient.png` ปลาโบราณยักษ์ 2 ตัว (2026-10-06 — ใช้งานแล้ว)
+
+> ปลายักษ์กลุ่มใหม่ในหมวด "ยักษ์ใหญ่" (ข้อ 5 ที่ตกลงกัน) ในเกมตั้งชื่อว่า ปลาฟันก้นหอยโบราณ (Helicoprion) และ ปลาเกราะยักษ์โบราณ (Dunkleosteus)
+> เกมเด็ก: ต้องดูสง่าแต่ใจดี ไม่น่ากลัว ปากปิด ไม่เห็นฟัน ทำในแชตเดิมที่ทำแผ่น K แล้วพิมพ์เพิ่มท้าย prompt ว่า `Match the exact art style of the earlier creature sheets.`
+
+```text
+Create a 1536x1024 landscape PNG with a TRANSPARENT background (real alpha, no checkerboard pattern drawn in).
+
+ART STYLE: semi-realistic painted illustration for a premium mobile fishing game, the same style as the earlier giant-creature sheet. Natural anatomy, rich detail, soft light from above with a gentle rim light. NOT cartoon. Majestic but gentle and friendly for children: mouths closed, NO visible teeth, calm eyes, no blood, no scars.
+
+LAYOUT: exactly 2 separate giant prehistoric fish stacked in 2 rows (one per row, each row a full-width band), in this order from top to bottom. Each animal is centred in its band, about 80% of the image width, with empty transparent space above and below. Nothing touches the other animal or the image edge. Strict side view facing RIGHT (head toward the right edge), long horizontal swimming pose, whole body visible including the full tail. No water, no bubbles, no shadows, no glow, no text, no labels, no grid lines, no frame.
+
+1) a Helicoprion: a long sleek ancient shark-like fish in grey-blue with a pale belly, a tall dorsal fin and a forked tail, and on its lower jaw a coiled spiral whorl of small pale tooth plates that curls under the chin like a seashell; the mouth is closed, so the whorl looks like an ornate spiral decoration
+2) a Dunkleosteus: a massive armoured prehistoric fish with a rounded head covered in thick bony plates in rust brown and bronze, a smooth tapering grey-olive body, a calm large eye set in the armour, the jaw closed with smooth bony plates, small fins and a crescent tail
+```
+
+ชื่อชิ้นตอนตัด (ตามลำดับ): `boss-helicoprion boss-dunkleosteus`
+ตัดแล้ว: `python tools/sprites.py sheet-h-ancient` ได้ `boss-helicoprion` 720x229 และ `boss-dunkleosteus` 720x237 (ใส่ในเกมแล้ว 2026-10-06 ผลออกมาตรงตาม prompt: ปากปิด ไม่เห็นฟัน หันขวา พื้นโปร่งใส)
+ข้อสังเกต: ภาพที่ได้มีแสงเรืองรองจางๆ รอบตัวในไฟล์ต้นฉบับ แต่เมื่อตัดแล้วขอบสะอาด ไม่มีขอบเรืองในเกม
 
 ---
 

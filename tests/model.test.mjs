@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { tugLevel } from '../src/species.js';
 import { FishingRound, WORLD, GOAL, BONUS_SECONDS, MAP_PIECES, TIME_BONUS, COMBO_FOR_FEVER, FEVER_SECONDS, TURBO_CATCHES, POWER_SECONDS, PIRATE_SECONDS, PIRATE_RELOAD, PIRATE_HIT, PIRATE_DEFEAT } from '../src/model.js';
 import { SPECIES } from '../src/species.js';
 
@@ -75,7 +76,8 @@ test('every species can be reeled to the surface with its own finite tap count',
   for (const s of SPECIES) {
     const r = new FishingRound('arcade'); catchFish(r, s.id, 400);
     assert.equal(r.requiredTaps, s.taps); land(r);
-    assert.equal(r.score, s.points); assert.deepEqual(r.catches, [s.id]);
+    if (s.prizes) assert.ok(s.prizes.some(([points]) => points === r.score), `${s.id} paid ${r.score}`); else assert.equal(r.score, s.points);
+    assert.deepEqual(r.catches, [s.id]);
   }
 });
 test('pause freezes the clock, hook, and taps and prevents casting', () => {
@@ -233,4 +235,29 @@ test('pirate battle: unlimited shots for 30 seconds with a reload, streak and si
   const idle = new FishingRound('relaxed', () => {}, { maps: 3 });
   catchFish(idle, 'map'); land(idle); tick(idle, 2); tick(idle, PIRATE_SECONDS + 1);
   assert.equal(idle.phase, 'aim', 'a battle without a single shot still ends by itself');
+});
+
+test('the treasure chest pays a surprise prize: only listed amounts, each one turns up, the average beats a plain catch', () => {
+  const chest = SPECIES.find((x) => x.id === 'chest');
+  let a = 11; const rng = () => { a = (a * 16807) % 2147483647; return a / 2147483647; };
+  const seen = new Map(); let total = 0; const N = 600;
+  for (let i = 0; i < N; i++) {
+    const r = new FishingRound('relaxed', () => {}, { rng }); catchAndLand(r, 'chest');
+    seen.set(r.score, (seen.get(r.score) ?? 0) + 1); total += r.score;
+    assert.equal(r.landing.base, r.score); assert.ok(chest.prizes.some(([p]) => p === r.score));
+  }
+  assert.deepEqual([...seen.keys()].sort((x, y) => x - y), chest.prizes.map(([p]) => p).sort((x, y) => x - y));
+  assert.ok(seen.get(30) > seen.get(100) * 2, 'the big prize is the rarest');
+  assert.ok(total / N > 35 && total / N < 60, `average ${(total / N).toFixed(1)}`);
+  const doubled = new FishingRound('relaxed', () => {}, { rng: () => 0 }); doubled.doubleNext = true; catchAndLand(doubled, 'chest');
+  assert.equal(doubled.landing.points, 60, 'the bottle doubles the drawn prize');
+});
+test('heavy fish fight back: tug level grows with the taps they need, bosses are always the heaviest', () => {
+  for (const x of SPECIES) {
+    const level = tugLevel(x);
+    if (x.boss) assert.equal(level, 2, x.id); else if (x.taps >= 20) assert.equal(level, 2, x.id); else if (x.taps >= 14) assert.equal(level, 1, x.id); else assert.equal(level, 0, x.id);
+  }
+  assert.equal(tugLevel(SPECIES.find((x) => x.id === 'goldfish')), 0);
+  assert.equal(tugLevel(SPECIES.find((x) => x.id === 'shark')), 1);
+  assert.equal(tugLevel(SPECIES.find((x) => x.id === 'whale-shark')), 2);
 });

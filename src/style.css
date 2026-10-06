@@ -99,6 +99,14 @@ nav { display: flex; gap: 8px; }
 #reel.active { animation: reel-invite 1.3s ease-in-out infinite; }
 #reel.tapped { animation: reel-tap 0.18s ease-out; }
 #reel.cranking .wheel { transition: none; }
+/* Heavy fish: shake only the decorative ring and wheel (the real hit area never moves). */
+#reel.tug .reel-progress, #reel.tug .wheel { animation: tug-shake 0.42s ease-out; }
+@keyframes tug-shake { 0%, 100% { translate: 0 0; } 15% { translate: -4px 2px; } 35% { translate: 4px -2px; } 55% { translate: -3px 1px; } 75% { translate: 2px 0; } }
+.edge-flash { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.edge-flash.on.boss { animation: edge-boss 0.5s ease-in-out 5; }
+.edge-flash.on.fever { animation: edge-fever 0.35s ease-in-out 3; }
+@keyframes edge-boss { 0%, 100% { box-shadow: inset 0 0 0 0 #ff5a2800, inset 0 0 0 #ff5a2800; } 50% { box-shadow: inset 0 0 0 7px #ff5a28e6, inset 0 0 70px #ff5a28aa; } }
+@keyframes edge-fever { 0%, 100% { box-shadow: inset 0 0 0 0 #ffd34d00; } 50% { box-shadow: inset 0 0 0 6px #ffd34de6, inset 0 0 55px #ffd34d99; } }
 @keyframes reel-invite { 50% { box-shadow: 0 7px 0 #0e515f, 0 0 0 9px #fff4b746; } }
 @keyframes reel-tap { 50% { box-shadow: 0 7px 0 #0e515f, 0 0 0 6px #ffce5b80; } }
 .save-warning { position: absolute; bottom: 0; left: 0; right: 0; color: #7c334a; background: #ffe3eb; text-align: center; font-size: 12px; }
@@ -217,4 +225,4 @@ dialog p { font-size: 15px; color: #537577; }
 @media (max-height: 540px) and (min-width: 650px) {
   .phase-label { left: 24px; width: 180px; max-width: 180px; bottom: 30px; }
 }
-@media (prefers-reduced-motion: reduce) { #reel.active, #reel.tapped, .fever-banner, .score.bump { animation: none; } .wheel, .lucky-wheel { transition: none; } }
+@media (prefers-reduced-motion: reduce) { #reel.active, #reel.tapped, .fever-banner, .score.bump, #reel.tug .reel-progress, #reel.tug .wheel { animation: none; } .edge-flash.on { animation: none; box-shadow: inset 0 0 40px #ff5a28aa; } .wheel, .lucky-wheel { transition: none; } }

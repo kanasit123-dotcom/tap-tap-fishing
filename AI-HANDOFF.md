@@ -56,6 +56,19 @@ special items **with effects + bonus stage**; **sea ambience + soft music** with
   (`sheet-f-pirate.png`, already in docs/ART-PROMPTS.md and `SHEETS`); then boss fish, lucky wheel at trip end, unlockable boat/hook
   skins from book zones, day/sunset/night. Power-up and pirate design notes are under prompt I in ART-PROMPTS.md.
   When sheet I arrives, `tests/assets.test.mjs` must allow the non-catalog prop ids (pirate ships, cannon, coin...).
+- **v0.6.1 LIVE (2026-10-06):** commit 5e91923, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37391291010
+  (wheel dialog fit, 30 s pirate battle, boss cadence, harder crank).
+- **Cabinet ideas 1/2/3/5 (2026-10-06, user: "ทำข้อ 1 2 3 5"; not deployed):**
+  - Boss warning layers: `bossWarning` + `bossShadow` (silhouette of the boss glides across lane 5, alpha .32) and the real boss is held
+    back `BOSS_WARNING_SECONDS` 3.2 s of game time (`bossPending`, not for warm-up); DOM `#edge` flashing frame (`flashEdges`: orange boss,
+    gold Fever), siren + horn. Reduced motion: steady glow, no shake.
+  - Tug (`tugLevel` in species.js: 0 / 1 for >=14 taps / 2 for >=20 taps or bosses): while reeling the scene calls `controller.onTug` every
+    ~0.7-1.8 s -> `#reel.tug` shakes only `.reel-progress` and `.wheel` via the CSS `translate` property (hit area never moves, AGENTS rule),
+    thump sound, `navigator.vibrate`, bigger on-screen struggle. Pure feel, no gameplay effect.
+  - Chest `prizes` [[30,4],[40,3],[60,2],[100,1]] drawn at landing (`FishingRound.pointsFor`, `rng` option, `landing.base`); toast "เปิดหีบได้ N คะแนน!".
+  - Ancient giants `boss-helicoprion` / `boss-dunkleosteus` (boss: true) + `SHEETS['sheet-h-ancient']` + prompt L. **Art delivered and cut
+    (2026-10-06):** both sprites in `public/assets/sprites/`, manifest regenerated, 5 giants, 55 book entries (production smoke shows 55).
+    Checked in game on phone and tablet. Idea 4 (stop-the-wheel bonus) was not requested.
 - **Feedback round after v0.6.0 (2026-10-06, user played on iPhone; not deployed):**
   - Trip-end dialog scrolled on iPhone (play-again button fell off): `.reward` = `reward-main` + `reward-side`; wheel size `--wheel`
     = clamp(112px, 25dvh, 190px) with all geometry relative to it; compact rules under (max-width 600 | max-height 760); two columns

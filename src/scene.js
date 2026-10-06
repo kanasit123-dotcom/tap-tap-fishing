@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { PROPS, propArt, SPECIES_BY_ID, SEABED, LANE_COUNT, PLACEHOLDER_ART, isMystery, isTreasure, displaySize, revealForRise } from './species.js';
+import { PROPS, propArt, tugLevel, SPECIES_BY_ID, SEABED, LANE_COUNT, PLACEHOLDER_ART, isMystery, isTreasure, displaySize, revealForRise } from './species.js';
 import { computeLayout, backgroundPlacement, BG_EDGE, WATERLINE } from './layout.js';
 import { Spawner, emptyLane } from './spawner.js';
 import { WORLD, NET_EXTRA } from './model.js';
@@ -15,6 +15,7 @@ const BOAT_HOLDER_X = 204;
 const ROD_TIP = { x: WORLD.originX, y: WORLD.originY };
 const SURFACE_Y = WORLD.originY + WORLD.rest;
 const WARM_UP_SECONDS = 26;
+const BOSS_WARNING_SECONDS = 3.2;
 // Colour washes over the day painting when no sunset/night painting is available (multiplied, fish stay bright).
 const TINTS = { sunset: { color: 0xffa36b, alpha: 0.55 }, night: { color: 0x34508f, alpha: 0.75 } };
 // Rod colours for the unlockable looks: [main, highlight, grip].
@@ -423,8 +424,24 @@ export class CoveScene extends Phaser.Scene {
     this.warmingUp = false;
   }
 
+  // A huge dark shape glides across the deep water a moment before the giant itself arrives.
+  bossShadow(species, dir) {
+    const size = this.sizeOf(species, 3);
+    const width = size.width * 1.25;
+    const key = this.silhouette(this.fitted(this.textureOf(species).key, width));
+    const y = this.view.lanes[5];
+    const from = dir > 0 ? this.view.left - width / 2 : this.view.right + width / 2;
+    const to = dir > 0 ? this.view.right + width / 2 : this.view.left - width / 2;
+    const shadow = this.add.image(from, y, key).setDepth(3.5).setAlpha(0.32).setFlipX(dir < 0);
+    shadow.setDisplaySize(width, width * shadow.height / shadow.width);
+    this.bossShadowImage = shadow;
+    this.tweens.add({ targets: shadow, x: to, duration: (BOSS_WARNING_SECONDS + 1.5) * 1000, ease: 'Sine.easeInOut',
+      onComplete: () => { shadow.destroy(); if (this.bossShadowImage === shadow) this.bossShadowImage = null; } });
+  }
+
   // The sea darkens for a moment and a horn sounds before a giant swims in.
-  bossWarning(species) {
+  bossWarning(species, order) {
+    this.bossShadow(species, order.dir ?? this.spawner.dir[3]);
     const shade = this.add.rectangle(240, this.view.height / 2, this.view.width + 4, this.view.height + 4, 0x02121c, 0).setDepth(4);
     this.tweens.add({ targets: shade, fillAlpha: 0.35, duration: 500, yoyo: true, hold: 900, onComplete: () => shade.destroy() });
     const y = this.view.lanes[3];
@@ -437,8 +454,14 @@ export class CoveScene extends Phaser.Scene {
 
   spawnOrder(order) {
     const { species, lane, dir, speed, members } = order;
+    // Bosses announce themselves first: warning, a shadow crossing beneath, then the real one enters.
+    if (order.boss && !this.warmingUp && !order.warned) {
+      // A queue, not one slot: two warnings can overlap (a natural boss and one called by a test) and neither may be lost.
+      (this.bossQueue ??= []).push({ order: { ...order, warned: true }, at: this.time0 + BOSS_WARNING_SECONDS });
+      this.bossWarning(species, order);
+      return;
+    }
     const size = this.sizeOf(species, lane);
-    if (order.boss && !this.warmingUp) this.bossWarning(species);
     const edge = dir > 0 ? this.view.left - size.width / 2 - 6 : this.view.right + size.width / 2 + 6;
     for (const member of members) this.addCreature(species, lane, edge - dir * member.offset * this.view.scale, dir, speed, member, size);
   }
@@ -501,6 +524,7 @@ export class CoveScene extends Phaser.Scene {
 
   advanceSea(dt) {
     this.time0 += dt;
+    while (this.bossQueue?.length && this.time0 >= this.bossQueue[0].at) this.spawnOrder(this.bossQueue.shift().order);
     if (!this.qaHold) for (const order of this.spawner.tick(dt, this.laneStates())) this.spawnOrder(order);
     const t = this.time0;
     for (const fish of [...this.fishes.getChildren()]) {
@@ -783,7 +807,13 @@ export class CoveScene extends Phaser.Scene {
     this.hookGlow.setVisible(round.fever > 0 && !pirate);
     if (round.fever > 0) this.hookGlow.setPosition(h.x, h.y).setScale(1.6 + Math.sin(this.time0 * 8) * 0.3).setAngle(this.time0 * 60).setAlpha(0.85);
     if (this.caught && round.phase === 'reeling') {
-      const struggle = Math.sin(this.time0 * 15) * 9;
+      const level = tugLevel(this.caught.getData('species'));
+      const struggle = Math.sin(this.time0 * 15) * (9 + level * 5);
+      this.tugClock = (this.tugClock ?? 1) - dt;
+      if (level > 0 && this.tugClock <= 0) {
+        this.tugClock = (0.9 + Math.random() * 0.9) / (level > 1 ? 1.3 : 1);
+        this.controller.onTug?.(level);
+      }
       this.caught.setPosition(h.x + 4, h.y + 12 + this.caught.displayHeight * 0.25).setAngle((this.caught.flipX ? 18 : -18) + struggle);
       const reveal = (f) => round.spyglass > 0 ? 1 : revealForRise(f.getData('species'), h.y, f.getData('caughtY'), SURFACE_Y);
       this.caught.setData('reveal', reveal(this.caught));
@@ -796,6 +826,7 @@ export class CoveScene extends Phaser.Scene {
       this.drawNet();
     }
     this.drawDecor(bob);
+    if (!this.caught) this.tugClock = undefined;
     this.animateWater(dt);
     if (this.bonusActive) this.bonusGlow.setAlpha(0.08 + Math.sin(this.time0 * 3) * 0.04);
     this.controller.renderHUD();
@@ -887,6 +918,8 @@ export class CoveScene extends Phaser.Scene {
 
   resetRound() {
     this.pirate.clear();
+    this.bossQueue = [];
+    this.bossShadowImage?.destroy(); this.bossShadowImage = null;
     this.netted = [];
     this.netMesh.clear();
     this.testAim = false;
@@ -909,6 +942,7 @@ export class CoveScene extends Phaser.Scene {
       combo: round.combo, fever: round.fever, landing: round.landing ? { id: round.landing.species.id, points: round.landing.points, multiplier: round.landing.multiplier, extras: round.landing.extras.map((s) => s.id) } : null,
       powers: { net: round.netCharges, turbo: round.turbo, goldHook: round.goldHook, spyglass: round.spyglass, bigHook: this.bigHook }, extras: [...round.extraIds], netted: this.netted.length,
       pirate: round.pirate ? { ...round.pirate } : null, battle: this.pirate.state(round), bonusTurn: round.bonusTurn,
+      bossPending: Boolean(this.bossQueue?.length), bossShadow: Boolean(this.bossShadowImage?.active), tugs: this.controller.tugs ?? 0,
       timeOfDay: this.timeOfDay ?? 'day', tint: this.tint.visible, looks: { ...this.controller.progress.looks },
       view: { x: this.cameras.main.worldView.x, y: this.cameras.main.worldView.y, zoom: this.cameras.main.zoom, ...this.view },
       audio: { state: this.controller.audio.context?.state ?? 'locked', enabled: this.controller.audio.enabled, music: this.controller.audio.musicOn, level: this.controller.audio.level() },

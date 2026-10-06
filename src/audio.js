@@ -451,6 +451,14 @@ const EFFECTS = {
     [[62, 0], [66, 0.18], [69, 0.36], [74, 0.6]].forEach(([note, at]) => this.marimba(note, { at, vol: 0.12, dur: 0.5 }));
     this.tone({ freq: 147, type: 'sawtooth', dur: 0.9, vol: 0.05, lowpass: 700, at: 0.6 });
   },
+  siren() {
+    for (let i = 0; i < 6; i++) this.tone({ freq: i % 2 ? 520 : 740, end: i % 2 ? 740 : 520, type: 'sawtooth', at: i * 0.32, dur: 0.3, vol: 0.05, lowpass: 1800 });
+  },
+  tug({ level = 1 } = {}) {
+    this.tone({ freq: 90 + level * 20, end: 55, dur: 0.16, vol: 0.2 + level * 0.06 });
+    this.noise({ dur: 0.14, vol: 0.08 + level * 0.03, type: 'lowpass', freq: 700, end: 220 });
+    this.noise({ dur: 0.07, vol: 0.05, freq: 1500, end: 900, q: 2, at: 0.1 });
+  },
   boss() {
     for (const [at, f] of [[0, 98], [0.55, 98], [1.1, 131]]) this.tone({ freq: f, type: 'sawtooth', at, dur: 0.5, vol: 0.09, lowpass: 600 });
     this.noise({ dur: 1.4, vol: 0.06, type: 'lowpass', freq: 300, end: 120 });

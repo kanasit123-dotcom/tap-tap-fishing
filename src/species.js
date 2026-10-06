@@ -60,7 +60,7 @@ const catalog = [
   { id: 'moray', name: 'ปลาไหลมอเรย์', lane: 4, points: 36, taps: 16, size: 130, speed: 24, weight: 20, motion: 'eel', emoji: '🐍' },
   { id: 'anglerfish', name: 'ปลาตกเบ็ด', lane: 4, points: 38, taps: 17, size: 96, speed: 16, weight: 20, emoji: '🐟' },
   { id: 'swordfish', name: 'ปลากระโทงดาบ', lane: 4, points: 42, taps: 18, size: 150, speed: 60, weight: 10, emoji: '🐟' },
-  { id: 'chest', name: 'หีบสมบัติ', kind: 'item', lane: 4, points: 40, taps: 16, size: 76, speed: 18, weight: 7, motion: 'float', bonus: 14, emoji: '🧰' },
+  { id: 'chest', name: 'หีบสมบัติ', kind: 'item', prizes: [[30, 4], [40, 3], [60, 2], [100, 1]], lane: 4, points: 40, taps: 16, size: 76, speed: 18, weight: 7, motion: 'float', bonus: 14, emoji: '🧰' },
   { id: 'crown', name: 'มงกุฎทองคำ', kind: 'item', lane: 4, points: 80, taps: 18, size: 58, speed: 20, weight: 0.8, motion: 'float', rare: true, jackpot: true, bonus: 5, emoji: '👑' },
 
   { id: 'grouper', name: 'ปลาเก๋ายักษ์', lane: 5, points: 40, taps: 18, size: 120, speed: 18, weight: 30, emoji: '🐟' },
@@ -73,6 +73,8 @@ const catalog = [
   // Bosses: never in the normal mix; the spawner sends one every two to three minutes.
   { id: 'boss-whale', name: 'วาฬสีน้ำเงิน', lane: 3, points: 200, taps: 30, size: 300, speed: 15, weight: 1, boss: true, emoji: '🐋' },
   { id: 'boss-kraken', name: 'คราเคน', lane: 3, points: 180, taps: 28, size: 260, speed: 13, weight: 1, boss: true, motion: 'pulse', emoji: '🐙' },
+  { id: 'boss-helicoprion', name: 'ปลาฟันก้นหอยโบราณ', lane: 3, points: 220, taps: 30, size: 250, speed: 16, weight: 1, boss: true, emoji: '🦈' },
+  { id: 'boss-dunkleosteus', name: 'ปลาเกราะยักษ์โบราณ', lane: 3, points: 240, taps: 32, size: 270, speed: 18, weight: 1, boss: true, emoji: '🐟' },
   { id: 'boss-marlin', name: 'ราชาปลากระโทงทอง', lane: 3, points: 250, taps: 32, size: 280, speed: 22, weight: 1, boss: true, emoji: '🐟' },
 
   // Seabed: crawlers, the jackpot lobster and the odd old boot.
@@ -100,6 +102,8 @@ export const PLACEHOLDER_ART = { kind: 'emoji', w: 128, h: 128 };
 
 // Species without finished artwork stay out of the sea and the book (DEV QA can draw emoji instead).
 export const speciesWithArt = (placeholders = false) => SPECIES.filter((s) => s.art || placeholders);
+// How hard a creature fights on the line: 0 none, 1 big fish, 2 giants and bosses. Drives the reel shake and sounds only.
+export const tugLevel = (s) => s.boss || s.taps >= 20 ? 2 : s.taps >= 14 ? 1 : 0;
 export const isMystery = (s) => s.kind === 'animal' && s.lane >= MYSTERY_FROM;
 export const isTreasure = (s) => s.kind === 'item';
 

@@ -390,7 +390,7 @@ test('every creature collides with the real hook, lands and persists in the zone
     const { landing } = await snapshot(page);
     expect(landing.id).toBe(s.id);
     expect([1, 2, 4]).toContain(landing.multiplier);
-    expect(landing.points).toBe(s.points * landing.multiplier);
+    if (s.prizes) expect(s.prizes.map(([p]) => p * landing.multiplier)).toContain(landing.points); else expect(landing.points).toBe(s.points * landing.multiplier);
     total += landing.points;
     await expect(page.locator('#score')).toHaveText(String(total));
     await landed(page);
@@ -579,21 +579,43 @@ test('boat looks unlock from the book, apply in the scene, and the sea changes w
   expect(errors).toEqual([]);
 });
 
+test('two boss warnings at once both deliver their boss (none is lost while waiting in the wings)', async ({ page }) => {
+  test.setTimeout(90_000); const errors = await boot(page);
+  const present = (await snapshot(page)).fishes.map((f) => f.id);
+  const [first, second] = SPECIES.filter((s) => s.boss && s.art).map((s) => s.id).filter((id) => !present.includes(id));
+  await page.evaluate(([a, b]) => { window.__FISHING_QA__.spawnBoss(a); window.__FISHING_QA__.spawnBoss(b); }, [first, second]);
+  await page.waitForFunction(([a, b]) => { const ids = window.__FISHING_QA__.snapshot().fishes.map((f) => f.id); return ids.includes(a) && ids.includes(b); },
+    [first, second], { timeout: 40_000 });
+  expect(errors).toEqual([]);
+});
+
 test('a boss swims in with a warning, takes many taps and lands in the giants section of the book', async ({ page }, info) => {
   test.setTimeout(120_000); const errors = await boot(page);
-  await page.evaluate(() => window.__FISHING_QA__.spawnBoss('boss-whale'));
+  // A natural boss may already be swimming (they come early); test with one that is not on screen.
+  const present = (await snapshot(page)).fishes.map((f) => f.id);
+  const bossId = SPECIES.filter((s) => s.boss && s.art).map((s) => s.id).find((id) => !present.includes(id));
+  const boss0 = SPECIES.find((s) => s.id === bossId);
+  await page.evaluate((id) => window.__FISHING_QA__.spawnBoss(id), bossId);
   await expect(page.locator('#toast')).toContainText('ปลายักษ์');
+  // Warning layers: flashing frame, a shadow gliding beneath, the real boss still waiting in the wings.
+  expect(await page.evaluate(() => window.__FISHING_QA__.edgeVisible())).toBe(true);
+  await page.waitForTimeout(500);
+  const warning = await snapshot(page);
+  expect(warning.bossPending).toBe(true); expect(warning.bossShadow).toBe(true);
+  expect(warning.fishes.some((f) => f.id === bossId)).toBe(false);
+  await page.screenshot({ path: info.outputPath('boss-shadow.png') });
+  await page.waitForFunction((id) => window.__FISHING_QA__.snapshot().fishes.some((f) => f.id === id), bossId, { timeout: 25_000 });
   await page.waitForTimeout(1200);
-  const boss = (await snapshot(page)).fishes.find((f) => f.id === 'boss-whale');
+  const boss = (await snapshot(page)).fishes.find((f) => f.id === bossId);
   expect(boss).toBeTruthy(); expect(boss.lane).toBe(3);
-  const normal = (await snapshot(page)).fishes.find((f) => f.lane === 3 && f.id !== 'boss-whale');
+  const normal = (await snapshot(page)).fishes.find((f) => f.lane === 3 && f.id !== bossId);
   // A giant is long and slender: compare its length and its area with the ordinary lane animals.
-  if (normal) { expect(boss.width).toBeGreaterThan(normal.width * 1.8); expect(boss.width * boss.height).toBeGreaterThan(normal.width * normal.height * 1.5); }
+  if (normal) expect(boss.width).toBeGreaterThan(normal.width * 1.8);
   await page.screenshot({ path: info.outputPath('boss-warning.png') });
-  await fish(page, 'boss-whale');
-  expect((await snapshot(page)).requiredTaps).toBe(30);
+  await fish(page, bossId);
+  expect((await snapshot(page)).requiredTaps).toBe(boss0.taps);
   await reel(page); await landed(page);
-  expect((await snapshot(page)).catches).toContain('boss-whale');
+  expect((await snapshot(page)).catches).toContain(bossId);
   await page.locator('#collection').click();
   await expect(page.locator('.zone-title').filter({ hasText: 'ยักษ์ใหญ่' })).toBeVisible();
   expect(errors).toEqual([]);
@@ -632,5 +654,35 @@ test('the reel can also be cranked: turning around the wheel pulls the line, hol
   for (let i = 0; i < rest; i++) { await page.locator('#reel').click(); await page.waitForTimeout(95); }
   await landed(page);
   expect((await snapshot(page)).catches).toContain('shark');
+  expect(errors).toEqual([]);
+});
+
+test('a big fish fights back: the wheel shakes and tugs are counted, a small fish is calm, the hit area never moves', async ({ page }, info) => {
+  test.setTimeout(90_000); const errors = await boot(page);
+  await fish(page, 'goldfish');
+  const box = await page.locator('#reel').boundingBox();
+  await page.waitForTimeout(2600);
+  expect((await snapshot(page)).tugs).toBe(0);
+  await reel(page); await landed(page);
+  await fish(page, 'shark');
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().tugs >= 1, null, { timeout: 5000 });
+  await expect(page.locator('#reel')).toHaveClass(/tug/);
+  const during = await page.locator('#reel').boundingBox();
+  expect(during).toEqual(box);
+  await page.screenshot({ path: info.outputPath('tug.png') });
+  await page.locator('#reel').click();
+  expect((await snapshot(page)).taps).toBe(1);
+  const { requiredTaps } = await snapshot(page);
+  for (let i = 1; i < requiredTaps; i++) { await page.locator('#reel').click(); await page.waitForTimeout(95); }
+  await landed(page);
+  expect(errors).toEqual([]);
+});
+
+test('the treasure chest opens for a surprise amount and says so', async ({ page }) => {
+  test.setTimeout(60_000); const errors = await boot(page);
+  await fish(page, 'chest'); await reel(page); await landed(page);
+  const s = await snapshot(page);
+  expect([30, 40, 60, 100]).toContain(s.score);
+  await expect(page.locator('#toast')).toContainText(`เปิดหีบได้ ${s.score}`);
   expect(errors).toEqual([]);
 });

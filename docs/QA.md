@@ -2,7 +2,30 @@
 
 Date: 2026-10-04
 
-## Latest: Feedback Round After v0.6.0 (2026-10-06, not yet deployed)
+## Latest: Cabinet Ideas 1/2/3/5 (2026-10-06, not yet deployed)
+
+- v0.6.1 (wheel dialog fit, 30 s battle, boss cadence, crank) is live: commit 5e91923, run 37391291010, live smoke passed.
+- New: boss warning layers (siren, flashing frame, shadow gliding below, boss held back 3.2 s), tug shake for heavy fish
+  (reel ring/wheel only; the hit-area box is asserted unchanged), surprise chest prizes (30/40/60/100), ancient-giant catalog entries
+  waiting for prompt L art.
+- `npm test`: 74 passed. Full suite via snapshot (`test-results/r3-full/`): 81 passed, 2 skipped, 1 failed (phone boss test waited 8 s of
+  wall time for a boss that needs 3.2 s of game time under heavy load); wait raised to 25 s, reran on desktop/tablet/phone: 3 passed.
+- Tests fixed along the way (test bugs, not game bugs): the tug test clicked once more than the taps left; the boss test now picks a boss
+  that is not already swimming (natural bosses arrive within 15-30 s) and no longer compares areas of slender giants.
+- Screenshots inspected: orange flashing frame during the boss warning.
+- Ancient giants delivered (prompt L, `sheet-h-ancient.png`, SHA-256 in docs/ARTWORK.md): cut with `python tools/sprites.py sheet-h-ancient`
+  to `boss-helicoprion` 720x229 and `boss-dunkleosteus` 720x237, clean alpha, closed mouths, facing right. Checked in game on
+  phone (390x664) and tablet (810x1080): crisp, mid-lane, right way round when swimming either direction, no console or 4xx errors
+  (the swimming size is 215-282 px wide). Book now has 5 giants and 55 entries. The boss e2e test now picks from every boss with art.
+- Full browser suite after the art arrived (`npm run test:e2e:snapshot`, 28 min): 81 passed, 2 skipped, 1 failed. The failure (phone boss
+  test, the boss never entered within 25 s) was a real bug, not load: the boss waiting in the wings was kept in ONE slot, so a second
+  warning (a natural boss arriving while another was pending) overwrote and lost the first. Fixed with a queue (`bossQueue` in scene.js);
+  new e2e "two boss warnings at once both deliver their boss" fails on the old single slot (verified, timeout) and passes now.
+  Re-run after the fix: boss/tug/chest/two-boss tests 12 passed on desktop, tablet and phone; boss test 3x on phone and tablet passed.
+- `npm run check` passes (74 unit tests, build 1.31 MB JS); local production build smoke (`npm run test:pages`): 55 entries, canvas
+  colored and moving, no errors.
+
+## Previous: Feedback Round After v0.6.0 (2026-10-06, deployed in v0.6.1)
 
 - User (iPhone): wheel dialog needed scrolling; wanted the cabinet's unlimited 30 s cannon battle; bosses too rare; crank slightly too
   easy (taps are fine).

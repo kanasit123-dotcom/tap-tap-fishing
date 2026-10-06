@@ -52,6 +52,7 @@ $('#app').innerHTML = `
         <div class="maps" aria-label="แผนที่สมบัติ">${icon('map')}<strong id="maps">0/${MAP_PIECES}</strong></div>
       </div>
     </section>
+    <div id="edge" class="edge-flash" hidden></div>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
     <div class="phase-label"><div id="bonus" class="bonus-banner" role="status" hidden>${icon('sparkles')}<span id="bonus-label">ฝนสมบัติ!</span><strong id="bonus-time">20</strong></div><div id="fever" class="fever-banner" role="status" hidden><span>FEVER x2</span><strong id="fever-time">15</strong></div><span id="phase-text" role="status" aria-live="polite">ออกทะเลกัน!</span><span id="caught-name"></span></div>
     <div class="dock">
@@ -105,7 +106,7 @@ class FishingApp {
     this.progress.startPowers = {};
     if (Object.keys(startPowers).length) this.persist?.();
     this.startPowers = startPowers;
-    return new FishingRound(mode, (species, round) => this.landed(species, round), { maps: this.progress.maps, bonusTurn: this.progress.bonusTurn, startPowers });
+    return new FishingRound(mode, (species, round) => this.landed(species, round), { maps: this.progress.maps, bonusTurn: this.progress.bonusTurn, startPowers, rng: this.rng });
   }
 
   landed(species, round) {
@@ -118,7 +119,8 @@ class FishingApp {
     this.audio.play(species.jackpot ? 'jackpot' : species.kind === 'item' ? 'treasure' : species.kind === 'junk' ? 'junk' : 'land');
     // Lower-priority messages first; item and jackpot messages below replace them.
     if (landing.combo >= 2) { this.audio.play('combo', { combo: landing.combo }); this.toast(`คอมโบ ${landing.combo}! อีกตัวเดียวได้ FEVER`); }
-    if (landing.feverStarted) { this.audio.play('fever'); this.toast('FEVER! คะแนน x2 อยู่ 15 วินาที'); }
+    if (species.prizes) this.toast(`เปิดหีบได้ ${landing.base} คะแนน!`);
+    if (landing.feverStarted) { this.flashEdges('fever'); this.audio.play('fever'); this.toast('FEVER! คะแนน x2 อยู่ 15 วินาที'); }
     if (landing.extras.length) this.toast(`แหจับได้ ${landing.all.length} ตัว! ${landing.all.map((s) => s.name).join(' ')}`);
     const powerText = { net: 'ได้แห! ทอดครั้งต่อไปจับตัวข้างๆ ได้ด้วย', turbo: 'รอกเร็ว! 3 ครั้งถัดไปดึงง่ายขึ้น', goldhook: 'ตะขอทอง! ตะขอใหญ่ขึ้น 20 วินาที', spyglass: 'กล้องส่องทางไกล! เห็นสัตว์ลึกลับ 20 วินาที' };
     for (const power of landing.powers) { this.audio.play('powerup'); this.toast(powerText[power]); }
@@ -157,6 +159,7 @@ class FishingApp {
         setTimeOfDay: (time) => this.scene.setTimeOfDay(time),
         setLooks: (looks) => { this.progress.looks = { ...this.progress.looks, ...looks }; this.persist(); },
         spawnBoss: (id) => this.scene.spawnBossForTest(id),
+        edgeVisible: () => !$('#edge').hidden,
         setCollection: (ids) => { for (const id of ids) this.progress.collection[id] = Math.max(1, this.progress.collection[id] ?? 0); this.persist(); },
         freezeShips: () => this.scene.pirate.freeze(),
         aimAt: (x) => { this.scene.pirate.testAimX = x; },
@@ -279,7 +282,29 @@ class FishingApp {
     if (parts.length) setTimeout(() => this.toast(parts.join(' · ')), 400);
   }
 
+  // LED-style flashing frame around the sea for big moments.
+  flashEdges(kind) {
+    const edge = $('#edge');
+    edge.className = `edge-flash ${kind}`;
+    edge.hidden = false;
+    void edge.offsetWidth;
+    edge.classList.add('on');
+    clearTimeout(this.edgeTimer);
+    this.edgeTimer = setTimeout(() => { edge.hidden = true; edge.classList.remove('on'); }, kind === 'boss' ? 2600 : 1400);
+  }
+
+  // A heavy fish fights back: the wheel and its ring shake (decorative parts only), with a thump and a buzz.
+  onTug(level) {
+    this.tugs = (this.tugs ?? 0) + 1;
+    const reel = $('#reel');
+    reel.classList.remove('tug'); void reel.offsetWidth; reel.classList.add('tug');
+    this.audio.play('tug', { level });
+    if (navigator.vibrate) navigator.vibrate(level > 1 ? [30, 40, 30, 40, 30] : [30, 40, 30]);
+  }
+
   onBossWarning() {
+    this.flashEdges('boss');
+    this.audio.play('siren');
     this.audio.play('boss');
     this.toast('ปลายักษ์กำลังมา! แตะรอกเยอะหน่อยนะ');
     this.audio.say('ปลายักษ์กำลังมา');

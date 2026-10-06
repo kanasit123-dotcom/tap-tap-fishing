@@ -316,6 +316,16 @@ export default {
       "file": "sprites/boss-marlin.webp",
       "w": 720,
       "h": 194
+    },
+    "boss-helicoprion": {
+      "file": "sprites/boss-helicoprion.webp",
+      "w": 720,
+      "h": 229
+    },
+    "boss-dunkleosteus": {
+      "file": "sprites/boss-dunkleosteus.webp",
+      "w": 720,
+      "h": 237
     }
   },
   "backgrounds": {
