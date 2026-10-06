@@ -1,9 +1,12 @@
 import { SPECIES } from './species.js';
 import { MAP_PIECES, BONUS_KINDS } from './model.js';
+import { KINDS } from './daily.js';
+import { sanitizeStickers } from './stickers.js';
 import { sanitizeLooks, defaultLooks } from './extras.js';
+import { sanitizeDifficulty } from './difficulty.js';
 
 export const STORAGE_KEY = 'tap-tap-fishing-v1';
-export const freshProgress = () => ({ version: 1, collection: {}, best: { relaxed: 0, arcade: 0 }, trips: 0, sound: true, music: true, maps: 0, bonusTurn: 0, startPowers: {}, looks: defaultLooks() });
+export const freshProgress = () => ({ version: 1, collection: {}, best: { relaxed: 0, arcade: 0 }, trips: 0, sound: true, music: true, maps: 0, bonusTurn: 0, startPowers: {}, looks: defaultLooks(), difficulty: 'normal', daily: null, stars: 0, streak: { days: 0, last: null }, stickers: {} });
 const count = (n) => Number.isSafeInteger(n) && n >= 0 ? n : 0;
 
 export function loadProgress(storage) {
@@ -19,8 +22,29 @@ export function loadProgress(storage) {
       bonusTurn: count(raw.bonusTurn) % BONUS_KINDS.length,
       startPowers: Object.fromEntries(['net', 'turbo', 'goldhook'].filter((k) => raw.startPowers?.[k] === true).map((k) => [k, true])),
       looks: sanitizeLooks(raw.looks),
+      difficulty: sanitizeDifficulty(raw.difficulty),
+      daily: sanitizeDaily(raw.daily),
+      stars: count(raw.stars),
+      stickers: sanitizeStickers(raw.stickers),
+      streak: { days: count(raw.streak?.days), last: typeof raw.streak?.last === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.streak.last) ? raw.streak.last : null },
     };
   } catch { return freshProgress(); }
+}
+
+// Today's missions as saved: only well-formed missions of known kinds survive (a damaged save just means new missions).
+function sanitizeDaily(raw) {
+  if (!raw || typeof raw.date !== 'string' || !Array.isArray(raw.missions)) return null;
+  const missions = raw.missions.slice(0, 3).filter((m) => KINDS[m?.kind] && Number.isSafeInteger(m.goal) && m.goal > 0).map((m) => ({
+    kind: m.kind, ...(typeof m.species === 'string' ? { species: m.species } : {}), goal: m.goal,
+    progress: Math.min(m.goal, count(m.progress)), done: m.done === true && m.progress >= m.goal,
+  }));
+  if (missions.length !== raw.missions.length || !missions.length) return null;
+  return { date: raw.date, missions, seen: raw.seen === true, allDone: raw.allDone === true && missions.every((m) => m.done) };
+}
+
+// "Reset all": a clean book, scores, looks, missions and trips. The player's own settings (sound, music, difficulty) stay.
+export function resetProgress(progress) {
+  return { ...freshProgress(), sound: progress.sound, music: progress.music, difficulty: progress.difficulty };
 }
 
 export function saveProgress(storage, progress) {

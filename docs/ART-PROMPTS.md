@@ -286,7 +286,7 @@ LAYOUT: exactly 2 separate giant prehistoric fish stacked in 2 rows (one per row
 
 ---
 
-## M — `sheet-i-horn.png` แตรหมอก 1 ชิ้น (2026-10-06)
+## M — `sheet-i-horn.png` แตรหมอก 1 ชิ้น (2026-10-06 — ใช้งานแล้ว)
 
 > ไอเทมใหม่ "แตรหมอก" ลอยมาในทะเลลึก จับได้แล้วเป่าเรียกปลายักษ์ตัวต่อไปทันที ในเกมตั้งชื่อว่า `horn`
 > ทำในแชตเดิมที่ทำแผ่น I (ไอเทมช่วยจับ) แล้วพิมพ์เพิ่มท้าย prompt ว่า `Match the exact art style of the earlier sheets.`
@@ -326,6 +326,109 @@ LAYOUT: exactly 2 separate giant sea animals stacked in 2 rows (one per row, eac
 
 ชื่อชิ้นตอนตัด (ตามลำดับ): `boss-seal boss-turtle`
 ตัดแล้ว: `python tools/sprites.py sheet-j-giants` ได้ `boss-seal` 720x215 และ `boss-turtle` 720x283 (ใส่ในเกมแล้ว 2026-10-06 ภาพตรงตาม prompt: หันขวา ปากปิด หน้าใจดี พื้นโปร่งใส ขอบเรืองเหมือนแผ่น L แต่ตัดสะอาด) ค่าในเกม: แมวน้ำ size 280 speed 30, เต่า size 280 speed 22
+
+---
+
+## ชุดสั่งรอบเดียว (2026-10-06): แตรหมอก + ปลาพิเศษ 8 ตัว + ทะเลใหม่ 3 ฉาก + สติ๊กเกอร์ 16 ดวง — ได้รูปครบและใส่ในเกมแล้ว (2026-10-06)
+
+> ผลที่ได้: รูปตรง prompt ทั้งหมด (ปลาหันขวา พื้นโปร่งใส ขอบเรืองจางๆ ที่เครื่องมือตัดออกให้ ฉากใหม่เส้นผิวน้ำ 0.126/0.182 และขอบทราย 0.775/0.806 ตรงของเดิม) ตัวพิเศษตัดออกมาเล็กกว่าแผ่นก่อน (ด้านยาว 216-320 px) แต่พอสำหรับขนาดในเกม
+
+ทำในแชต ChatGPT **ห้องเดียวกับแผ่นก่อนๆ** (สไตล์จะตรงกัน) พิมพ์ต่อท้ายทุก prompt ว่า `Match the exact art style of the earlier sheets.`
+เซฟไฟล์ไว้ที่ `tap-tap-fishing\art\incoming\` แล้วบอกผมว่า "รูปมาแล้ว" ผมจะตัด ใส่เกม และเทสต์ให้ ส่งมาทีละรูปก็ได้ ไม่ต้องรอครบ
+
+| ลำดับ | ไฟล์ที่ต้องเซฟ | แนบรูปไปด้วย | prompt | ได้อะไรในเกม |
+|---|---|---|---|---|
+| 1 | `sheet-i-horn.png` | ไม่ต้อง | M (อยู่ข้างบน) | ไอเทมแตรหมอก |
+| 2 | `sheet-k-special.png` | ไม่ต้อง | O | ปลาพิเศษ 8 ตัว (หมวดใหม่ในสมุด "ปลาพิเศษ") |
+| 3 | `background-arctic-portrait.png` และ `background-arctic-landscape.png` | `background-portrait.png` / `background-landscape.png` | P1 | ทะเลน้ำแข็ง |
+| 4 | `background-lagoon-portrait.png` และ `background-lagoon-landscape.png` | เหมือนกัน | P2 | ลากูนมรกต |
+| 5 | `background-wreck-portrait.png` และ `background-wreck-landscape.png` | เหมือนกัน | P3 | อ่าวเรืออับปาง |
+| 6 | `sheet-l-stickers.png` | ไม่ต้อง | Q | สติ๊กเกอร์ความสำเร็จ 16 ดวง |
+
+รูปพื้นหลังเดิมอยู่ที่ `tap-tap-fishing\art\incoming\background-portrait.png` และ `background-landscape.png` (วิธีเดียวกับฉากยามเย็น/กลางคืน: แนบรูปเดิมแล้วสั่ง "วาดใหม่ภาพเดิม" เส้นผิวน้ำกับขอบทรายจะอยู่ตำแหน่งเดิม)
+
+## O — `sheet-k-special.png` ปลาพิเศษ 8 ตัว (2026-10-06 — ใช้งานแล้ว)
+
+> สัตว์ทะเลหายากแปลกตา เข้าสมุดหมวดใหม่ "ปลาพิเศษ" (ไม่กระทบเงื่อนไขปลดล็อกของแต่งเรือ) ผมกำหนดค่าในเกมไว้แล้ว: มังกรทะเลใบไม้ (ชั้น 2), หอยงวงช้าง (กลางน้ำ),
+> ปลาโมลา (ชั้นลึก), ปลาซีลาแคนท์ ปลาริบบิ้นยักษ์ หมึกยักษ์ลายจุด (ลึกสุด), กั้งตั๊กแตน กุ้งก้ามกรามยักษ์ (พื้นทราย) ตัวที่ยังไม่เคยจับจะแวะมาเยี่ยมบ่อยเป็นพิเศษ
+
+```text
+Create a 1536x1024 landscape PNG with a TRANSPARENT background (real alpha, no checkerboard pattern drawn in, no dark or coloured background, no vignette).
+
+ART STYLE: semi-realistic painted illustration for a premium mobile fishing game, the same style as the earlier creature sheets. Natural anatomy and real proportions, accurate species markings and real-world colours (slightly richer than life), fine scale, skin and fin detail, soft light from above with a gentle rim light, a small natural highlight in the eye. NOT cartoon: no big cute eyes, no smiles, no eyebrows, no thick outlines, no chibi proportions. Calm and friendly for children, mouths closed or only slightly open with no visible teeth, no blood.
+
+LAYOUT: exactly 8 separate sea animals in a grid of 2 rows x 4 columns, in this reading order (left to right, then top to bottom). Each animal is centred in its own invisible cell, about 75% of the cell width, with wide empty transparent space all around. Nothing touches or overlaps another animal or the image edge. Every animal in side view facing RIGHT (head toward the right edge), swimming or walking horizontally, whole body visible including fins, tail, legs, arms and antennae. No water, no sand, no bubbles, no shadows, no glow, no halo, no text, no labels, no numbers, no grid lines, no frame.
+
+1) a leafy sea dragon: slender yellow-green body covered in leaf-like and ribbon-like appendages in olive, gold and brown, long tubular snout, tiny transparent fins, upright gentle swimming pose
+2) a chambered nautilus: spiral shell with cream and rust-brown flame stripes, a soft hood and many thin tentacles spreading to the right, shell on the left
+3) an ocean sunfish (mola mola): tall rounded silver-grey disc body with a tall dorsal fin and a tall anal fin, a short rounded rear edge instead of a tail, small mouth closed, small calm eye
+4) a coelacanth: deep steel-blue body with pale white speckles, thick scales, fleshy paddle-like lobed fins, a three-lobed tail
+5) an oarfish: extremely long, thin silver ribbon-like body in a gentle horizontal wave, a crest of long red spines on the head and a red dorsal fin along the whole back, big calm eye
+6) a large spotted octopus: soft lavender-pink body with white spots, a big rounded head (mantle) on the right and eight arms curling and trailing to the left, rows of pale suckers on the arms, one calm eye
+7) a mantis shrimp walking: bright green, blue and orange body with red-orange legs and folded club-like claws, two stalked eyes in green and gold, segmented tail, no teeth, friendly
+8) a giant blue-green crayfish walking: large body in blue, green and brown with two big strong claws held forward on the right, long antennae, segmented tail on the left, orange-red joints
+```
+
+ชื่อชิ้นตอนตัด (ตามลำดับ): `leafy-dragon nautilus sunfish coelacanth oarfish giant-octopus mantis-shrimp giant-crayfish`
+
+## P — ทะเลใหม่ 3 ฉาก (แต่ละฉาก 2 รูป แนวตั้ง+แนวนอน, 2026-10-06 — ใช้งานแล้ว)
+
+> เกมจะสลับฉากทุกรอบที่เล่น: กลางวัน → ยามเย็น → กลางคืน → ทะเลน้ำแข็ง → ลากูนมรกต → อ่าวเรืออับปาง → กลับไปกลางวัน
+> **ต้องแนบรูปพื้นหลังเดิม** แล้วสั่งวาดใหม่ในองค์ประกอบเดิม เพื่อให้เส้นผิวน้ำ ขอบทราย และขอบแนวปะการังอยู่ตำแหน่งเดิม (ผมใช้ค่าวัดเดิม)
+
+### P1 ทะเลน้ำแข็ง (arctic)
+
+```text
+Repaint the attached image as the same scene in a calm polar sea in clear daylight. Keep EXACTLY the same composition, size and aspect ratio: the waterline stays at the same height, the sandy seabed top edge stays at the same height, the reef shapes stay on the left and right edges, the two islands stay where they are, the centre stays open water.
+Change the setting: the islands become snow-covered rocky islands with a few small icebergs, a pale cold blue sky with thin clouds, the water an icy clear turquoise with crisp white-cyan light rays, the left and right reefs become cold-water scenery (pale blue and white coral-like rock, purple and white anemones, golden kelp), and the sand a pale grey-white with small shells. Bright, friendly and readable for children: fish drawn on top must stand out. Same semi-realistic painted style. No fish, no animals, no boat, no people, no text, no frame.
+```
+
+### P2 ลากูนมรกต (lagoon)
+
+```text
+Repaint the attached image as the same scene in a sunny emerald lagoon. Keep EXACTLY the same composition, size and aspect ratio: the waterline stays at the same height, the sandy seabed top edge stays at the same height, the reef shapes stay on the left and right edges, the two islands stay where they are, the centre stays open water.
+Change the setting: the islands become small palm-tree islands with white beaches, a soft turquoise-and-peach sky, the water a glowing emerald green with golden-green light rays, the left and right sides become swaying forests of tall green kelp and sea-grass with a few pink and orange corals at the base, and the sand bright white and sparkling. Fresh, warm and friendly for children: fish drawn on top must stand out. Same semi-realistic painted style. No fish, no animals, no boat, no people, no text, no frame.
+```
+
+### P3 อ่าวเรืออับปาง (wreck)
+
+```text
+Repaint the attached image as the same scene in a quiet bay with old sunken treasure. Keep EXACTLY the same composition, size and aspect ratio: the waterline stays at the same height, the sandy seabed top edge stays at the same height, the reef shapes stay on the left and right edges, the two islands stay where they are as green rocky islets, the centre stays open water.
+Change the setting: the water a deeper teal-blue with soft green-gold light rays; on the LEFT edge, in place of the reef, the curved wooden ribs and broken hull of an old sunken sailing ship covered with barnacles, seaweed and small corals; on the RIGHT edge a tilted broken mast with torn sails, an old anchor and a few treasure chests with spilled gold coins half buried in the sand; some pale gold coins glinting on the seabed. Mysterious but cheerful and friendly for children, NOT scary: no skeletons, no skulls, no people. Fish drawn on top must stand out. Same semi-realistic painted style. No fish, no animals, no boat, no text, no frame.
+```
+
+## Q — `sheet-l-stickers.png` สติ๊กเกอร์ความสำเร็จ 16 ดวง (2026-10-06 — ใช้งานแล้ว)
+
+> สติ๊กเกอร์ที่ปลดล็อกเมื่อทำภารกิจสำเร็จ (ยังไม่ปลดล็อกจะเป็นเงาจาง ในสมุดสะสม) ความหมายของแต่ละดวง (ผมจะผูกกับเกมตอนได้รูป):
+> 1 จับปลาตัวแรก, 2 น้ำตื้นครบ, 3 กลางน้ำครบ, 4 ทะเลลึกครบ, 5 พื้นทะเลครบ, 6 ยักษ์ใหญ่ครบ, 7 ปลาพิเศษครบ, 8 เข้า FEVER, 9 แจ็กพอต, 10 ยิงเรือโจรสลัดจนแตก,
+> 11 วงล้อ ★100, 12 เล่น 2 คนจนจบ, 13 เป่าแตรหมอก, 14 ภารกิจประจำวันครบ 3, 15 ออกเรือกลางคืน, 16 สมุดสะสมครบทุกชนิด
+
+```text
+Create a 1536x1024 landscape PNG with a TRANSPARENT background (real alpha, no checkerboard pattern drawn in, no dark or coloured background, no vignette).
+
+ART STYLE: glossy collectible sticker medals for a premium children's fishing game, painted in the same semi-realistic style as the earlier sheets (real materials, soft light from above), but as shiny round badges: each sticker is a perfectly round medal with a coloured enamel ring, a thin gold rim and a soft white die-cut sticker border around it, with one simple, clearly readable object painted in the middle. Friendly and cheerful, no faces on objects, NO text, NO letters, NO numbers on any sticker.
+
+LAYOUT: exactly 16 separate round stickers in a grid of 4 rows x 4 columns, in this reading order (left to right, then top to bottom). Each sticker is centred in its own invisible cell, about 80% of the cell width, with empty transparent space around it. Nothing touches or overlaps another sticker or the image edge. All stickers face the viewer straight on, the same size. No shadows on the ground, no glow, no halo, no grid lines, no frame.
+
+1) a small silver fish on a light blue ring
+2) a pale pink-and-white seashell on a sky-blue ring
+3) a green sea turtle on a teal ring
+4) a shark fin above waves on a deep-blue ring
+5) a starfish and a small crab on a sand-gold ring
+6) a big whale tail above waves on a navy ring
+7) a sparkling pearl in an open shell, with tiny stars, on a violet ring
+8) a bright orange flame on a red ring
+9) a golden crown with red and blue jewels on a gold ring
+10) a small brass cannon and a black cannonball on a dark-brown ring
+11) a golden prize wheel with a single big star on a green ring
+12) two small fishing boats side by side, one red and one blue, on a turquoise ring
+13) a brass fog horn on a grey-blue ring
+14) a calendar page with a big check mark and a small sun on a yellow ring
+15) a crescent moon and a star above dark water on a midnight-blue ring
+16) a shining golden trophy cup with a small fish on it on a rainbow-coloured ring
+```
+
+ชื่อชิ้นตอนตัด (ตามลำดับ): `st-first-catch st-shallow st-middle st-deep st-seabed st-giants st-special st-fever st-jackpot st-pirate st-wheel st-duo st-horn st-daily st-night st-all`
 
 ---
 

@@ -1,5 +1,6 @@
 import { SPECIES_BY_ID } from './species.js';
 import { StopWheel } from './stopwheel.js';
+import { difficultyOf, scaledTaps } from './difficulty.js';
 
 // origin = rod tip. rest = line length while aiming, leaving the hook just under the surface.
 export const WORLD = { width: 480, height: 760, originX: 240, originY: 74, rest: 90, floor: 600 };
@@ -30,8 +31,9 @@ export const PIRATE_HP = { small: 1, medium: 2, large: 3 };
 export class FishingRound {
   // originX: where this player's rod tip hangs (two boats share the sea); goalCheck: the trip ends when this says so
   // instead of at GOAL catches of this player's own (two players share one goal).
-  constructor(mode = 'relaxed', onLand = () => {}, { maps = 0, bonusTurn = 0, startPowers = {}, rng = Math.random, originX = WORLD.originX, goalCheck = null } = {}) {
+  constructor(mode = 'relaxed', onLand = () => {}, { maps = 0, bonusTurn = 0, startPowers = {}, rng = Math.random, originX = WORLD.originX, goalCheck = null, difficulty = 'normal' } = {}) {
     this.rng = rng;
+    this.level = difficultyOf(difficulty);   // taps, hook swing and arcade clock follow the level chosen in the settings
     this.originX = originX;
     this.goalCheck = goalCheck;
     this.waiting = false;         // another player is in a bonus stage: this player's game is held (the clock too)
@@ -46,7 +48,7 @@ export class FishingRound {
     this.swingTime = 0;
     this.length = WORLD.rest;
     this.targetLength = WORLD.rest;
-    this.remaining = ROUND_SECONDS;
+    this.remaining = this.level.seconds;
     this.score = 0;
     this.catches = [];
     this.tripCatches = 0;
@@ -105,7 +107,7 @@ export class FishingRound {
     this.extraIds = this.netCharges > 0 ? extraIds.filter((x) => SPECIES_BY_ID[x]).slice(0, NET_EXTRA) : [];
     if (this.extraIds.length) this.netCharges--;
     this.hookedInBonus = this.bonus > 0;
-    const taps = Math.max(species.taps, ...this.extraIds.map((x) => SPECIES_BY_ID[x].taps));
+    const taps = scaledTaps(Math.max(species.taps, ...this.extraIds.map((x) => SPECIES_BY_ID[x].taps)), this.level);
     // The treasure rain and the turbo reel both halve the taps.
     const half = this.hookedInBonus || this.turbo > 0;
     if (this.turbo > 0) this.turbo--;
@@ -192,7 +194,7 @@ export class FishingRound {
 
   swingAim(dt) {
     this.swingTime += dt;
-    this.angle = Math.sin(this.swingTime * 1.12) * this.swing;
+    this.angle = Math.sin(this.swingTime * 1.12 * this.level.swing) * this.swing;
   }
 
   tick(dt) {

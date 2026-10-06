@@ -3,11 +3,14 @@ import { createGame } from './scene.js';
 import { FishingRound, GOAL, MAP_PIECES, TIME_BONUS, BONUS_KINDS } from './model.js';
 import { Match, TEAM_GOAL, originFor } from './match.js';
 import { SPECIES_BY_ID, ZONES, speciesWithArt } from './species.js';
-import { loadProgress, saveProgress, recordCatch, recordTrip, recordMatch } from './progress.js';
+import { loadProgress, saveProgress, recordCatch, recordTrip, recordMatch, resetProgress } from './progress.js';
+import { DIFFICULTIES, DIFFICULTY_IDS, difficultyOf } from './difficulty.js';
+import { dateKey, ensureToday, recordLanding, rewardPower, bumpStreak, shownStreak, missionText, MISSION_COUNT } from './daily.js';
 import { FishingAudio } from './audio.js';
 import { bindTapControl } from './input.js';
 import { STOP_SEGMENTS, STOP_SPINS, SEGMENT_DEGREES, segmentAt } from './stopwheel.js';
-import { WHEEL, spinWheel, applyPrize, LOOKS, isUnlocked, zoneProgress, timeOfDay, TIME_NAMES } from './extras.js';
+import { WHEEL, spinWheel, applyPrize, LOOKS, isUnlocked, zoneProgress, timeOfDay, TRIP_MESSAGES } from './extras.js';
+import { STICKERS, STICKER_BY_ID, earnedByCollection, earnedByLanding, award } from './stickers.js';
 import './style.css';
 
 const icons = { Anchor, BookOpen, Volume2, VolumeX, Pause, Play, Fish, Trophy, Timer, X, RotateCcw, ArrowRight, Check, Music, Map: MapIcon, Sparkles };
@@ -152,7 +155,7 @@ class FishingApp {
       // Only the one-player game carries its map pieces from trip to trip.
       maps: this.players === 1 ? this.progress.maps : 0,
       bonusTurn: (this.progress.bonusTurn + i) % BONUS_KINDS.length,
-      startPowers, rng: this.rng, originX: originFor(this.players, i),
+      startPowers, rng: this.rng, originX: originFor(this.players, i), difficulty: this.progress.difficulty,
     }));
     this.match = this.players === 2 ? new Match(rounds, this.matchKind) : null;
     return rounds;
@@ -198,6 +201,8 @@ class FishingApp {
       this.audio.say('แผนที่ครบแล้ว ฝนสมบัติมาแล้ว');
     }
     if (landing.bonusStarted && landing.bonusKind === 'pirate') say('แผนที่ครบ! เรือโจรสลัดกำลังมา');
+    this.countMissions(landing);
+    this.giveStickers([...earnedByCollection(this.progress.collection, this.species, ZONES), ...earnedByLanding(landing)]);
     if (landing.bonusStarted && this.twoPlayers) setTimeout(() => this.toast(`ผู้เล่น ${player + 1} เล่นด่านโบนัส อีกคนรอสักครู่นะ`), 1700);
     this.scene?.celebrate(this.scene.rigs[player], species, landing);
   }
@@ -207,8 +212,10 @@ class FishingApp {
     $('.loading').hidden = !this.failed;
     $('#sea canvas').setAttribute('aria-hidden', 'true');
     scene.setTimeOfDay(timeOfDay(this.progress.trips));
+    this.todayMissions();
     this.measure(); this.renderHUD();
     this.announceTrip();
+    if (timeOfDay(this.progress.trips) === 'night') this.giveStickers(['night']);
     if (QA) {
       window.__FISHING_QA__ = {
         snapshot: () => this.scene.snapshot(),
@@ -228,6 +235,10 @@ class FishingApp {
         release: () => this.scene.releaseTest(),
         expire: (player = 0) => { this.rounds[player].remaining = 0.01; },
         setMaps: (n, player = 0) => { this.rounds[player].maps = n; },
+        setDaily: (missions) => { const today = this.todayMissions(); today.missions = missions; today.allDone = false; today.seen = false; this.updateBookDot(); },
+        daily: () => JSON.parse(JSON.stringify(this.progress.daily)),
+        giveStickers: (ids) => this.giveStickers(ids),
+        progress: () => JSON.parse(JSON.stringify(this.progress)),
         scene: () => this.scene,
       };
     }
@@ -360,8 +371,9 @@ class FishingApp {
     const names = { net: 'แห', turbo: 'รอกเร็ว', goldhook: 'ตะขอทอง' };
     const powers = Object.keys(this.startPowers ?? {}).map((k) => names[k]);
     const parts = [];
-    if (time !== 'day') parts.push(`ออกเรือ${TIME_NAMES[time]}`);
+    if (TRIP_MESSAGES[time]) parts.push(TRIP_MESSAGES[time]);
     if (powers.length) parts.push(`มี${powers.join(' ')}ติดเรือมาด้วย!`);
+    if (this.progress.difficulty !== 'normal') parts.push(`ความยาก: ${difficultyOf(this.progress.difficulty).name}`);
     if (parts.length) setTimeout(() => this.toast(parts.join(' · ')), 400);
   }
 
@@ -413,7 +425,7 @@ class FishingApp {
     if (!result) return;
     if (shot.hit) {
       this.audio.play('hit');
-      if (shot.sunk) this.toast(`เรือโจรสลัดทิ้งสมบัติหนีไป! +${result.points}`);
+      if (shot.sunk) { this.toast(`เรือโจรสลัดทิ้งสมบัติหนีไป! +${result.points}`); this.giveStickers(['pirate']); }
       else this.toast(result.streak >= 2 ? `โดนติดกัน ${result.streak} ลูก! +${result.points}` : `โดน! +${result.points}`);
     }
     this.lastHUD = '';
@@ -525,7 +537,7 @@ class FishingApp {
     const busy = this.rounds.some((x) => x.bonus > 0 || x.phase === 'pirate' || x.phase === 'wheel' || x.waiting);
     if (r.mode === 'arcade' && seconds <= 10 && seconds > 0 && !r.paused && !busy && this.lastSecond !== seconds && !this.rounds.every((x) => x.phase === 'complete')) this.audio.play('tick');
     this.lastSecond = seconds;
-    if (this.match) { if (this.match.finished && recordMatch(this.progress, this.match)) { this.persist(); this.openMatchReward(); } }
+    if (this.match) { if (this.match.finished && recordMatch(this.progress, this.match)) { this.persist(); this.giveStickers(['duo']); this.openMatchReward(); } }
     else if (r.phase === 'complete' && recordTrip(this.progress, r)) { this.persist(); this.openReward(); }
   }
 
@@ -601,6 +613,7 @@ class FishingApp {
       out.textContent = last.jackpot ? `แจ็กพอต! +${last.points}` : `+${last.points}`;
       out.classList.toggle('jackpot', last.jackpot);
       this.audio.play(last.jackpot ? 'jackpot' : last.points >= 30 ? 'treasure' : 'land');
+      if (last.jackpot) this.giveStickers(['wheel']);
       for (const el of document.querySelectorAll('#sw-wheel .seg')) el.classList.toggle('win', Number(el.dataset.index) === last.index);
     }
     if (w.state === 'spinning') { out.textContent = ''; out.classList.remove('jackpot'); for (const el of document.querySelectorAll('#sw-wheel .seg.win')) el.classList.remove('win'); }
@@ -622,12 +635,14 @@ class FishingApp {
   startRound(mode = this.mode, players = this.players, kind = this.matchKind) {
     this.rewardView = null; this.wheelPrize = null;
     if ($('#modal').open) $('#modal').close();
+    this.todayMissions();
     this.audio.stop();
     this.rounds = this.makeRounds(mode, players, kind);
     document.body.classList.toggle('two-players', this.twoPlayers);
     this.scene?.setTimeOfDay(timeOfDay(this.progress.trips));
     this.scene?.resetRound();
     this.announceTrip();
+    if (timeOfDay(this.progress.trips) === 'night') this.giveStickers(['night']);
     this.wheelAngles = [0, 0];
     for (let i = 0; i < 2; i++) $(`#reel${sfx(i)}`).style.setProperty('--wheel-angle', '0deg');
     for (const m of ['relaxed', 'arcade']) $(`#${m}`).setAttribute('aria-pressed', String(m === this.mode));
@@ -669,11 +684,118 @@ class FishingApp {
     $('#pick-cancel').onclick = () => $('#modal').close();
   }
 
+  // "Pause" is also the settings: the level of difficulty and the way to clear the collection.
   pause() {
-    if (!this.scene || $('#modal').open || this.rounds.every((r) => r.phase === 'complete')) return;
-    this.showDialog(`<div class="dialog-emblem">${icon('anchor')}</div><h2 id="dialog-title">พักที่ท่าเรือ</h2><div class="dialog-actions"><button id="resume" class="primary">${icon('play')}เล่นต่อ</button><button id="restart" class="secondary">${icon('rotate-ccw')}เริ่มรอบใหม่</button></div>`);
+    if (!this.scene || $('#modal').open) return;
+    this.openSettings();
+  }
+
+  openSettings() {
+    const level = difficultyOf(this.progress.difficulty);
+    const buttons = DIFFICULTY_IDS.map((id) => `<button class="diff" data-level="${id}" aria-pressed="${id === level.id}">${DIFFICULTIES[id].name}</button>`).join('');
+    this.showDialog(`<div class="dialog-emblem">${icon('anchor')}</div><h2 id="dialog-title">พักที่ท่าเรือ</h2><div class="dialog-actions"><button id="resume" class="primary">${icon('play')}เล่นต่อ</button><button id="restart" class="secondary">${icon('rotate-ccw')}เริ่มรอบใหม่</button></div><section class="settings"><h3 class="zone-title">ความยาก <small>ใช้ตั้งแต่รอบใหม่</small></h3><div class="diff-row" role="group" aria-label="ความยาก">${buttons}</div><p id="diff-hint" class="hint">${level.hint}</p><button id="reset-all" class="danger">${icon('rotate-ccw')}ล้างการสะสมทั้งหมด…</button></section>`);
     $('#resume').onclick = () => $('#modal').close();
     $('#restart').onclick = () => this.startRound();
+    for (const button of document.querySelectorAll('.diff')) {
+      button.onclick = () => {
+        this.progress.difficulty = button.dataset.level;
+        this.persist();
+        // Marked in place (the dialog is not drawn again), applied to the next trip.
+        for (const other of document.querySelectorAll('.diff')) other.setAttribute('aria-pressed', String(other === button));
+        $('#diff-hint').textContent = DIFFICULTIES[button.dataset.level].hint;
+        this.audio.play('powerup');
+      };
+    }
+    $('#reset-all').onclick = () => this.confirmReset(() => this.openSettings());
+  }
+
+  // Clearing everything cannot be undone: a second dialog, and the button only works after a short wait.
+  confirmReset(back) {
+    this.showDialog(`<div class="dialog-emblem">${icon('rotate-ccw')}</div><h2 id="dialog-title">ล้างการสะสมทั้งหมด?</h2><p>สมุดสะสม คะแนนสูงสุด ของแต่งเรือ ดาว และภารกิจ จะหายไปทั้งหมด <b>เอากลับคืนไม่ได้</b><br>เสียง เพลง และความยากจะไม่เปลี่ยน</p><div class="dialog-actions"><button id="reset-cancel" class="secondary">${icon('x')}ยกเลิก</button><button id="reset-go" class="danger solid" disabled>ล้างทั้งหมด (3)</button></div>`);
+    $('#reset-cancel').onclick = () => { clearInterval(this.resetTimer); back(); };
+    let left = 3;
+    clearInterval(this.resetTimer);
+    this.resetTimer = setInterval(() => {
+      const go = $('#reset-go');
+      if (!go) { clearInterval(this.resetTimer); return; }
+      left--;
+      go.textContent = left > 0 ? `ล้างทั้งหมด (${left})` : 'ล้างทั้งหมด';
+      if (left <= 0) { go.disabled = false; clearInterval(this.resetTimer); }
+    }, 1000);
+    $('#reset-go').onclick = () => {
+      if ($('#reset-go').disabled) return;
+      this.progress = resetProgress(this.progress);
+      this.persist();
+      this.startRound();
+      this.toast('ล้างการสะสมเรียบร้อยแล้ว เริ่มใหม่ได้เลย!');
+    };
+  }
+
+  // ---- daily missions ----
+  // Today's missions (made again on a new day, also when the page has stayed open past midnight).
+  todayMissions() {
+    const key = dateKey();
+    const before = this.progress.daily;
+    this.progress.daily = ensureToday(before, key, this.species);
+    if (this.progress.daily !== before) { this.persist(); this.updateBookDot(); }
+    return this.progress.daily;
+  }
+
+  // The gold dot on the book button: today's missions have not been looked at yet.
+  updateBookDot() { $('#collection').classList.toggle('has-news', this.progress.daily ? !this.progress.daily.seen : false); }
+
+  countMissions(landing) {
+    const daily = this.todayMissions();
+    const { done, all } = recordLanding(daily, landing);
+    if (!done.length) { this.persist(); return; }
+    const names = { net: 'แห', turbo: 'รอกเร็ว', goldhook: 'ตะขอทอง' };
+    for (const mission of done) {
+      const power = rewardPower(daily, mission);
+      this.progress.startPowers = { ...this.progress.startPowers, [power]: true };
+      this.say(`ภารกิจสำเร็จ! ${missionText(mission, SPECIES_BY_ID)} · ได้${names[power]} ใช้ตอนออกเรือรอบหน้า`, 1000);
+    }
+    if (all) {
+      this.progress.stars++;
+      this.progress.maps = Math.min(3, this.progress.maps + 1);
+      this.progress.streak = bumpStreak(this.progress.streak, daily.date);
+      this.audio.play('jackpot');
+      this.say(`ภารกิจวันนี้ครบ ${MISSION_COUNT} ข้อ! ได้ดาว 1 ดวง และแผนที่ 1 ชิ้น`, 3300);
+      this.giveStickers(['daily']);
+    } else this.audio.play('powerup');
+    daily.seen = false;
+    this.persist();
+    this.updateBookDot();
+    this.lastHUD = ''; this.renderHUD();
+  }
+
+  // Gives stickers (new ones only) with one message and a fanfare; the gold dot on the book button shows there is news.
+  giveStickers(ids) {
+    const fresh = award(this.progress, ids);
+    if (!fresh.length) return;
+    this.persist();
+    if (this.progress.daily) this.progress.daily.seen = false;
+    this.updateBookDot();
+    this.audio.play('jackpot');
+    this.say(`ได้สติ๊กเกอร์ใหม่! ${fresh.map((id) => STICKER_BY_ID[id].name).join(' · ')}`, 2200);
+  }
+
+  stickersHtml() {
+    const earned = STICKERS.filter((s) => this.progress.stickers[s.id]).length;
+    const items = STICKERS.map((s) => {
+      const have = Boolean(this.progress.stickers[s.id]);
+      return `<figure class="sticker ${have ? 'earned' : 'locked'}"><img src="${assetUrl(`sprites/${s.art}.webp`)}" alt="${have ? s.name : 'สติ๊กเกอร์ที่ยังไม่ได้'}" draggable="false"><figcaption>${have ? s.name : '???'}<small>${s.how}</small></figcaption></figure>`;
+    }).join('');
+    return `<section class="stickers"><h3 class="zone-title">สติ๊กเกอร์ <small>${earned} / ${STICKERS.length}</small></h3><div class="sticker-grid">${items}</div></section>`;
+  }
+
+  // A message a moment later (after the messages of the catch itself).
+  say(text, delay = 0) { setTimeout(() => this.toast(text), delay); }
+
+  missionsHtml() {
+    const daily = this.todayMissions();
+    const streak = shownStreak(this.progress.streak, daily.date);
+    const rows = daily.missions.map((m) => `<li class="mission ${m.done ? 'done' : ''}"><span class="mission-text">${m.done ? '✓ ' : ''}${missionText(m, SPECIES_BY_ID)}</span><span class="mission-count">${m.progress}/${m.goal}</span><span class="bar"><i style="width:${Math.round(m.progress / m.goal * 100)}%"></i></span></li>`).join('');
+    return `<section class="missions"><h3 class="zone-title">ภารกิจวันนี้ <small>⭐ ${this.progress.stars} · 🔥 ${streak} วันติดกัน</small></h3><ul>${rows}</ul><p class="hint">ทำสำเร็จทีละข้อได้ของใช้ตอนออกเรือรอบหน้า (แห รอกเร็ว ตะขอทอง) ครบ ${MISSION_COUNT} ข้อได้ดาวและแผนที่สมบัติ</p></section>`;
   }
 
   showDialog(html) {
@@ -693,8 +815,10 @@ class FishingApp {
       if (!list.length) return '';
       return `<h3 class="zone-title">${zone.name}</h3><div class="collection-grid">${list.map((s) => `<article class="collection-item ${this.progress.collection[s.id] ? '' : 'undiscovered'}">${art(s)}<h4>${s.name}</h4><span>${this.progress.collection[s.id] ? `${this.progress.collection[s.id]} ครั้ง` : 'ยังไม่พบ'}</span></article>`).join('')}</div>`;
     }).join('');
-    this.showDialog(`<div class="dialog-heading"><div><small>สัตว์ทะเลและสมบัติ</small><h2 id="dialog-title">สมุดสะสม <span>${found} / ${this.species.length}</span></h2></div><button id="close-book" class="icon-button" aria-label="ปิดสมุดสะสม">${icon('x')}</button></div>${this.looksHtml()}${sections}`);
+    this.showDialog(`<div class="dialog-heading"><div><small>สัตว์ทะเลและสมบัติ</small><h2 id="dialog-title">สมุดสะสม <span>${found} / ${this.species.length}</span></h2></div><button id="close-book" class="icon-button" aria-label="ปิดสมุดสะสม">${icon('x')}</button></div>${this.missionsHtml()}${this.stickersHtml()}${this.looksHtml()}${sections}<button id="book-reset" class="danger">${icon('rotate-ccw')}ล้างการสะสมทั้งหมด…</button>`);
+    this.progress.daily.seen = true; this.persist(); this.updateBookDot();
     $('#close-book').onclick = () => back ? back() : $('#modal').close();
+    $('#book-reset').onclick = () => this.confirmReset(() => this.openCollection(back));
     for (const button of document.querySelectorAll('.look:not([disabled])')) {
       button.onclick = () => {
         this.progress.looks = { ...this.progress.looks, [button.dataset.part]: button.dataset.look };

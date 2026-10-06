@@ -2,7 +2,38 @@
 
 Date: 2026-10-04
 
-## Latest: v0.8.1 — giant seal and turtle, trip-end book fix (deployed 2026-10-06)
+## Latest: v0.9.0 — settings, daily missions, clear-all, new pictures (2026-10-06)
+
+- Full browser suite via snapshot (59 min, 145 tests): **142 passed, 3 skipped, 0 failed**. Unit tests: 114 passed.
+- Found while testing the new pictures: loading all 18 sea pictures at start (each several MB decoded) slowed the phone profile until a reel tap was
+  now and then dropped (the tug test hung at 15/16 taps). Now only the sea of the trip (and the day sea) loads at start; the others load when their trip comes
+  (`loadSea`), which also saves memory on a real iPhone. Mistakes of my own tests fixed on the way: a comment swallowed a `boot()` call; the trip-end wheel test
+  must keep today's missions from finishing (they give powers of their own); the book is longer now (missions, stickers).
+- Do not run a second Playwright run or edit `package.json` during a long run: it clears `test-results/` / reloads the page under test.
+
+- The user delivered every picture ordered in the batch (docs/ART-PROMPTS.md: M, O, P1-P3, Q), checked one by one: all transparent/right-facing as asked, the six
+  sea pictures keep the waterline and sand lines of the originals. Cut with `python tools/sprites.py <names>`; the manifest now holds 66 creatures, 16 stickers, the
+  horn and 18 background variants.
+- In the game: fog horn and the eight special creatures (sunfish, oarfish, octopus and coelacanth may use up to 1.45 lanes of height: `big`), three new seas in the trip cycle
+  (`TIMES` has six entries), sixteen stickers (`src/stickers.js`; earned by finishing book sections, a FEVER, a jackpot creature, the fog horn, sinking a pirate ship, the wheel
+  star, finishing a two-player trip, all three daily missions, a night trip, the whole book) shown in the book with locked ones grey, and a gold dot on the book button.
+
+- User asked: a "reset all" button, daily missions, difficulty settings (all without new pictures) and all remaining picture prompts in one batch.
+- Pictures: prompts M (fog horn), O (eight special creatures), P1-P3 (arctic, lagoon, wreck seas) and Q (sixteen stickers) are in docs/ART-PROMPTS.md
+  under "ชุดสั่งรอบเดียว"; `tools/sprites.py` already knows the sheets and background names; the eight creatures are in species.js (own book section
+  "ปลาพิเศษ", hidden until their picture arrives, so they do not change what the boat looks need).
+- Pause dialog = settings: difficulty (`src/difficulty.js`: taps x0.7/1/1.3, fish speed x0.85/1/1.2, hook swing x0.8/1/1.2, arcade 120/90/75 s; applies
+  from the next trip, marked in place) and "ล้างการสะสมทั้งหมด…" (second dialog, the red button works after 3 s; sound, music and the level stay).
+  The same reset sits at the bottom of the book. Reset = `resetProgress`.
+- Daily missions (`src/daily.js`): the date picks three different kinds (catch a species, count, score, deep, treasure, fever, map piece, giant;
+  at most one of count/score), saved in `progress.daily`; each finished one gives a power for the next trip, all three give a star, a map piece and a streak;
+  a gold dot on the book button until today's missions have been looked at. Two players count together.
+- Bug found by a test: a giant waiting for a clear road kept the middle lane shut for the whole treasure rain (`bossWaiting` was not cleared when the rain
+  started). Fixed with a regression test.
+- `npm test`: 108 passed (new: difficulty, daily/progress/reset, boss waiting during the rain). New e2e: difficulty changes taps (4/6/8) and the arcade clock,
+  clear-all (cancel keeps everything, confirm empties the book and keeps sound/music/level), daily missions end to end, settings dialog fits five screen sizes.
+
+## Previous: v0.8.1 — giant seal and turtle, trip-end book fix (deployed 2026-10-06)
 
 - LIVE: commit 5dcff9b, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37429255762 (success). Live bundle
   `index-I_Nyzk_z.js` + `index-DMSSDtU0.css` equal the local Pages build; `sw.js` and both new sprites return 200;

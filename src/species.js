@@ -5,11 +5,13 @@ export const LANE_COUNT = 7;
 export const SEABED = 6;
 export const MYSTERY_FROM = 4;
 
+// The special creatures have a section of their own, so they never change what a depth section needs for the boat looks.
 export const ZONES = [
-  { id: 'shallow', name: 'น้ำตื้น', match: (s) => s.kind === 'animal' && !s.boss && s.lane <= 1 },
-  { id: 'middle', name: 'กลางน้ำ', match: (s) => s.kind === 'animal' && !s.boss && (s.lane === 2 || s.lane === 3) },
-  { id: 'deep', name: 'ทะเลลึก', match: (s) => s.kind === 'animal' && !s.boss && (s.lane === 4 || s.lane === 5) },
-  { id: 'seabed', name: 'พื้นทะเล', match: (s) => s.kind === 'animal' && !s.boss && s.lane === SEABED },
+  { id: 'shallow', name: 'น้ำตื้น', match: (s) => s.kind === 'animal' && !s.boss && !s.special && s.lane <= 1 },
+  { id: 'middle', name: 'กลางน้ำ', match: (s) => s.kind === 'animal' && !s.boss && !s.special && (s.lane === 2 || s.lane === 3) },
+  { id: 'deep', name: 'ทะเลลึก', match: (s) => s.kind === 'animal' && !s.boss && !s.special && (s.lane === 4 || s.lane === 5) },
+  { id: 'seabed', name: 'พื้นทะเล', match: (s) => s.kind === 'animal' && !s.boss && !s.special && s.lane === SEABED },
+  { id: 'special', name: 'ปลาพิเศษ', match: (s) => Boolean(s.special) },
   { id: 'boss', name: 'ยักษ์ใหญ่', match: (s) => Boolean(s.boss) },
   { id: 'treasure', name: 'สมบัติและของแปลก', match: (s) => s.kind !== 'animal' },
 ];
@@ -70,6 +72,16 @@ const catalog = [
 
   { id: 'manta', name: 'กระเบนราหู', lane: 5, points: 50, taps: 20, size: 150, speed: 26, weight: 14, motion: 'glide', emoji: '🐟' },
   { id: 'whale-shark', name: 'ฉลามวาฬ', lane: 5, points: 90, taps: 22, size: 190, speed: 22, weight: 4, cooldown: 40, emoji: '🦈' },
+
+  // Special creatures (own book section "ปลาพิเศษ"; weights are small, and creatures never caught visit on their own anyway).
+  { id: 'leafy-dragon', name: 'มังกรทะเลใบไม้', special: true, lane: 1, points: 32, taps: 10, size: 62, speed: 14, weight: 8, motion: 'bob', emoji: '🐉' },
+  { id: 'nautilus', name: 'หอยงวงช้าง', special: true, lane: 3, points: 42, taps: 14, size: 84, speed: 16, weight: 9, motion: 'pulse', emoji: '🐚' },
+  { id: 'sunfish', big: true, name: 'ปลาโมลา', special: true, lane: 4, points: 55, taps: 17, size: 118, speed: 18, weight: 8, emoji: '🐟' },
+  { id: 'coelacanth', big: true, name: 'ปลาซีลาแคนท์', special: true, lane: 5, points: 85, taps: 20, size: 140, speed: 18, weight: 5, cooldown: 40, emoji: '🐟' },
+  { id: 'oarfish', big: true, name: 'ปลาริบบิ้นยักษ์', special: true, lane: 5, points: 70, taps: 20, size: 190, speed: 24, weight: 6, motion: 'glide', emoji: '🐍' },
+  { id: 'giant-octopus', big: true, name: 'หมึกยักษ์ลายจุด', special: true, lane: 5, points: 75, taps: 22, size: 150, speed: 20, weight: 6, motion: 'pulse', emoji: '🐙' },
+  { id: 'mantis-shrimp', name: 'กั้งตั๊กแตน', special: true, lane: 6, points: 40, taps: 14, size: 60, speed: 13, weight: 8, motion: 'crawl', noFlip: true, emoji: '🦐' },
+  { id: 'giant-crayfish', name: 'กุ้งก้ามกรามยักษ์', special: true, lane: 6, points: 110, taps: 22, size: 110, speed: 15, weight: 3, motion: 'crawl', cooldown: 45, emoji: '🦞' },
 
   // Bosses: never in the normal mix; the spawner sends one every two to three minutes.
   { id: 'boss-whale', name: 'วาฬสีน้ำเงิน', lane: 3, points: 200, taps: 30, size: 300, speed: 21, weight: 1, boss: true, emoji: '🐋' },

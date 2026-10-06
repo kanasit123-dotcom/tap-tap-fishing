@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { SPECIES, LANE_COUNT, SEABED, ZONES, PROPS, isMystery, displaySize, revealForRise, speciesWithArt } from '../src/species.js';
 import manifest from '../src/art-manifest.js';
+import { STICKERS } from '../src/stickers.js';
 
 const ORIGINAL_IDS = ['goldfish', 'clownfish', 'bluefish', 'angelfish', 'pufferfish', 'turtle', 'octopus', 'chest', 'seal', 'shark', 'anglerfish', 'giant-squid'];
 
@@ -40,15 +41,16 @@ test('catalog keeps every saved collection id and describes each creature comple
 });
 
 test('every creature, the boat and both seas have processed artwork that exists with the recorded size', () => {
-  // Only creatures still waiting for their sheet may lack a sprite (the fog horn, prompt M); production hides them.
-  // Remove an id from this list when its picture is cut.
-  const waiting = new Set(['horn']);
+  // Only creatures still waiting for their sheet may lack a sprite (production hides them): add an id here while its picture is awaited.
+  const waiting = new Set([]);
   for (const s of SPECIES) assert.ok(s.art || waiting.has(s.id), `${s.id} has a sprite in the manifest`);
   assert.equal(speciesWithArt(false).length, SPECIES.filter((s) => s.art).length);
   assert.ok(speciesWithArt(false).every((s) => s.art));
   assert.ok(manifest.sprites.boat && manifest.backgrounds.portrait && manifest.backgrounds.landscape);
-  for (const id of Object.keys(manifest.sprites)) assert.ok(id === 'boat' || PROPS.includes(id) || SPECIES.some((s) => s.id === id), `${id} belongs to the catalog or the props`);
+  for (const id of Object.keys(manifest.sprites)) assert.ok(id === 'boat' || PROPS.includes(id) || SPECIES.some((s) => s.id === id) || STICKERS.some((s) => s.art === id), `${id} belongs to the catalog, the props or the stickers`);
   for (const id of PROPS) assert.ok(manifest.sprites[id], `prop ${id} has artwork`);
+  for (const sticker of STICKERS) assert.ok(manifest.sprites[sticker.art], `sticker ${sticker.id} has artwork`);
+  for (const sea of ['sunset', 'night', 'arctic', 'lagoon', 'wreck']) for (const shape of ['portrait', 'landscape']) assert.ok(manifest.backgrounds[`${sea}-${shape}`], `${sea}-${shape} sea picture`);
   const entries = [...Object.entries(manifest.sprites), ...Object.entries(manifest.backgrounds)];
   for (const [id, entry] of entries) {
     const url = new URL(`../public/assets/${entry.file}`, import.meta.url);

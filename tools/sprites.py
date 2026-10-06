@@ -43,6 +43,8 @@ SHEETS = {
     'sheet-h-ancient': ((2, 1), ['boss-helicoprion', 'boss-dunkleosteus'], 720),
     'sheet-i-horn': ((1, 1), ['horn'], 420),
     'sheet-j-giants': ((2, 1), ['boss-seal', 'boss-turtle'], 720),
+    'sheet-k-special': ((2, 4), ['leafy-dragon', 'nautilus', 'sunfish', 'coelacanth', 'oarfish', 'giant-octopus', 'mantis-shrimp', 'giant-crayfish'], 480),
+    'sheet-l-stickers': ((4, 4), ['st-first-catch', 'st-shallow', 'st-middle', 'st-deep', 'st-seabed', 'st-giants', 'st-special', 'st-fever', 'st-jackpot', 'st-pirate', 'st-wheel', 'st-duo', 'st-horn', 'st-daily', 'st-night', 'st-all'], 256),
     'boat': ((1, 1), ['boat'], 900),
 }
 # พื้นหลัง: (ชื่อ, ความสูงสูงสุดของไฟล์ผลลัพธ์) — เส้นน้ำ/ขอบทราย (สัดส่วนความสูง) อยู่ใน ANCHORS
@@ -53,6 +55,12 @@ BACKGROUNDS = {
     'background-sunset-landscape': ('sunset-landscape', 1536),
     'background-night-portrait': ('night-portrait', 1536),
     'background-night-landscape': ('night-landscape', 1536),
+    'background-arctic-portrait': ('arctic-portrait', 1536),
+    'background-arctic-landscape': ('arctic-landscape', 1536),
+    'background-lagoon-portrait': ('lagoon-portrait', 1536),
+    'background-lagoon-landscape': ('lagoon-landscape', 1536),
+    'background-wreck-portrait': ('wreck-portrait', 1536),
+    'background-wreck-landscape': ('wreck-landscape', 1536),
 }
 # ค่าที่วัดจากรูปที่ ChatGPT วาด (2026-10-05) เปิดดูเส้นแดง/เหลืองใน art/preview/background-*.png เพื่อตรวจ
 #   background: waterline = เส้นผิวน้ำ, seabed = ขอบบนของพื้นทราย (สัดส่วนของความสูงรูป)
@@ -65,6 +73,13 @@ ANCHORS = {
     'sunset-landscape': {'waterline': 0.182, 'seabed': 0.806},
     'night-portrait': {'waterline': 0.126, 'seabed': 0.775},
     'night-landscape': {'waterline': 0.182, 'seabed': 0.806},
+    # Arctic / lagoon / wreck seas are repaints of the day pictures too (prompts P1-P3); re-measure if the preview lines are off.
+    'arctic-portrait': {'waterline': 0.126, 'seabed': 0.775},
+    'arctic-landscape': {'waterline': 0.182, 'seabed': 0.806},
+    'lagoon-portrait': {'waterline': 0.126, 'seabed': 0.775},
+    'lagoon-landscape': {'waterline': 0.182, 'seabed': 0.806},
+    'wreck-portrait': {'waterline': 0.126, 'seabed': 0.775},
+    'wreck-landscape': {'waterline': 0.182, 'seabed': 0.806},
     'boat': {'holder': (1350, 462), 'waterline': 706},
 }
 ALPHA_MIN = 40      # ทึบกว่านี้ถือเป็นเนื้อภาพตอนหาก้อน

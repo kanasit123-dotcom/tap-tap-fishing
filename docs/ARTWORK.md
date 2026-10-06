@@ -25,6 +25,15 @@ reprocess. Only the processed output below is published.
 | `sheet-g-boss.png` (whale, kraken, golden marlin bosses; prompt K) | see file | `3eb6fe8830f9235cd2dd5138c83837f4db4ac8dd6f8ff87b01f7bd95b532e6cb` |
 | `sheet-h-ancient.png` (Helicoprion and Dunkleosteus ancient giants; prompt L, delivered 2026-10-06) | 1536x1024 RGBA | `7071294f7b819b16da5d3c9a9f0a084d176e8f054ad8af4a62d9b7c24d2feb5b` |
 | `sheet-j-giants.png` (giant seal and giant sea turtle; prompt N, delivered 2026-10-06) | 1536x1024 RGBA | `6217cd17bd18ae48ba1e164d358d1476a60cd4c9c30424eb18cbb31711853904` |
+| `sheet-i-horn.png` (fog horn; prompt M, delivered 2026-10-06) | 1536x1024 RGBA | `e020daded04692d964007456884c954948062d8addc0da77325f19c2bd5023bb` |
+| `sheet-k-special.png` (eight special creatures; prompt O) | 1536x1024 RGBA | `fb672c444459ba4445f81f44d7fa0243e06c67db4876b3f87e20940aa364fc9b` |
+| `sheet-l-stickers.png` (sixteen sticker medals; prompt Q) | 1536x1024 RGBA | `ac50a3a384317e41680b5e17a09bcf03c1397dd068c83294b703d7ec7d6b6d73` |
+| `background-arctic-portrait.png` (prompt P1) | 1024x1536 RGB | `277ae3d8ca6451c857a7a9a82d09910b2e04efc770f0f306038675040bcbe3df` |
+| `background-arctic-landscape.png` (prompt P1) | 1536x1024 RGB | `bd492b158a3950a41065bbdc27b1ec764af4398d61ae5b6a0fe67beb74a8cb76` |
+| `background-lagoon-portrait.png` (prompt P2) | 1024x1536 RGB | `916bb657986c8183c78a327f11e14245100a19e266d7483d988bad446a132636` |
+| `background-lagoon-landscape.png` (prompt P2) | 1536x1024 RGB | `e7ca253a959e41a1509a2a0d5e373cd3e5d312eb59ce130acf4cd3f70e8323c6` |
+| `background-wreck-portrait.png` (prompt P3) | 1024x1536 RGB | `b9fe82cf15ea180680cff1a997e8a1f1f74e4a9dc12ed78a03ccc1cfb9969af5` |
+| `background-wreck-landscape.png` (prompt P3) | 1536x1024 RGB | `abc606a074c5d3f042707edb3e1825dbc8516af916619603e01bc4f9f203876d` |
 | `background-sunset-portrait.png` (prompt J1) | see file | `eda08156aaac54c6702c06d40511e4ab41470d57e982c676d03288548a73a308` |
 | `background-sunset-landscape.png` (prompt J1) | see file | `cba10a53904e86b2e11806f320a4a7ff5662c19f4e2c8a98853ce3561d9fc16e` |
 | `background-night-portrait.png` (prompt J2) | see file | `e15d259d9b0cd45684886a1d53280848ab12b2d8af7631ac913765f11f93c6f9` |

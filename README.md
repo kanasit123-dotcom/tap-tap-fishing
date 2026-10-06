@@ -28,6 +28,15 @@ npm run build
 npm run preview -- --port 5194
 ```
 
+## Version 0.9.0
+
+New pictures are in: the fog horn, eight special creatures (own book section), three new seas (ice sea, emerald lagoon, wrecked-ship bay; the trips now
+go day, sunset, night, ice, lagoon, wreck), and sixteen achievement stickers shown in the book. 66 book entries.
+
+Settings in the pause dialog: difficulty (easy / normal / hard: taps, hook swing, fish speed, arcade clock) and a two-step "clear the whole
+collection" (also at the bottom of the book). Daily missions in the book (three small goals a day; powers for the next trip, a star and a map
+piece for all three, a streak). Fixed: a giant waiting for a clear road kept the middle lane shut during the treasure rain.
+
 ## Version 0.8.1
 
 Two more giant bosses: a giant seal and a giant sea turtle (7 giants, 57 book entries). Fixed: opening the book from the trip-end

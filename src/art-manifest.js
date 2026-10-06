@@ -336,6 +336,131 @@ export default {
       "file": "sprites/boss-turtle.webp",
       "w": 720,
       "h": 283
+    },
+    "horn": {
+      "file": "sprites/horn.webp",
+      "w": 420,
+      "h": 211
+    },
+    "leafy-dragon": {
+      "file": "sprites/leafy-dragon.webp",
+      "w": 298,
+      "h": 243
+    },
+    "nautilus": {
+      "file": "sprites/nautilus.webp",
+      "w": 260,
+      "h": 211
+    },
+    "sunfish": {
+      "file": "sprites/sunfish.webp",
+      "w": 216,
+      "h": 282
+    },
+    "coelacanth": {
+      "file": "sprites/coelacanth.webp",
+      "w": 306,
+      "h": 175
+    },
+    "oarfish": {
+      "file": "sprites/oarfish.webp",
+      "w": 311,
+      "h": 209
+    },
+    "giant-octopus": {
+      "file": "sprites/giant-octopus.webp",
+      "w": 284,
+      "h": 214
+    },
+    "mantis-shrimp": {
+      "file": "sprites/mantis-shrimp.webp",
+      "w": 320,
+      "h": 167
+    },
+    "giant-crayfish": {
+      "file": "sprites/giant-crayfish.webp",
+      "w": 310,
+      "h": 199
+    },
+    "st-first-catch": {
+      "file": "sprites/st-first-catch.webp",
+      "w": 194,
+      "h": 191
+    },
+    "st-shallow": {
+      "file": "sprites/st-shallow.webp",
+      "w": 195,
+      "h": 191
+    },
+    "st-middle": {
+      "file": "sprites/st-middle.webp",
+      "w": 196,
+      "h": 191
+    },
+    "st-deep": {
+      "file": "sprites/st-deep.webp",
+      "w": 194,
+      "h": 191
+    },
+    "st-seabed": {
+      "file": "sprites/st-seabed.webp",
+      "w": 195,
+      "h": 191
+    },
+    "st-giants": {
+      "file": "sprites/st-giants.webp",
+      "w": 196,
+      "h": 194
+    },
+    "st-special": {
+      "file": "sprites/st-special.webp",
+      "w": 197,
+      "h": 194
+    },
+    "st-fever": {
+      "file": "sprites/st-fever.webp",
+      "w": 196,
+      "h": 194
+    },
+    "st-jackpot": {
+      "file": "sprites/st-jackpot.webp",
+      "w": 195,
+      "h": 191
+    },
+    "st-pirate": {
+      "file": "sprites/st-pirate.webp",
+      "w": 196,
+      "h": 193
+    },
+    "st-wheel": {
+      "file": "sprites/st-wheel.webp",
+      "w": 197,
+      "h": 195
+    },
+    "st-duo": {
+      "file": "sprites/st-duo.webp",
+      "w": 196,
+      "h": 193
+    },
+    "st-horn": {
+      "file": "sprites/st-horn.webp",
+      "w": 195,
+      "h": 194
+    },
+    "st-daily": {
+      "file": "sprites/st-daily.webp",
+      "w": 197,
+      "h": 194
+    },
+    "st-night": {
+      "file": "sprites/st-night.webp",
+      "w": 195,
+      "h": 194
+    },
+    "st-all": {
+      "file": "sprites/st-all.webp",
+      "w": 197,
+      "h": 194
     }
   },
   "backgrounds": {
@@ -378,6 +503,48 @@ export default {
       "waterline": 0.126,
       "seabed": 0.775,
       "file": "sea-sunset-portrait.webp",
+      "w": 1024,
+      "h": 1536
+    },
+    "arctic-landscape": {
+      "waterline": 0.182,
+      "seabed": 0.806,
+      "file": "sea-arctic-landscape.webp",
+      "w": 1536,
+      "h": 1024
+    },
+    "arctic-portrait": {
+      "waterline": 0.126,
+      "seabed": 0.775,
+      "file": "sea-arctic-portrait.webp",
+      "w": 1024,
+      "h": 1536
+    },
+    "lagoon-landscape": {
+      "waterline": 0.182,
+      "seabed": 0.806,
+      "file": "sea-lagoon-landscape.webp",
+      "w": 1536,
+      "h": 1024
+    },
+    "lagoon-portrait": {
+      "waterline": 0.126,
+      "seabed": 0.775,
+      "file": "sea-lagoon-portrait.webp",
+      "w": 1024,
+      "h": 1536
+    },
+    "wreck-landscape": {
+      "waterline": 0.182,
+      "seabed": 0.806,
+      "file": "sea-wreck-landscape.webp",
+      "w": 1536,
+      "h": 1024
+    },
+    "wreck-portrait": {
+      "waterline": 0.126,
+      "seabed": 0.775,
+      "file": "sea-wreck-portrait.webp",
       "w": 1024,
       "h": 1536
     }

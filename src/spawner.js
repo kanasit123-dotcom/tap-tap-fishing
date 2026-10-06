@@ -34,8 +34,9 @@ export class Spawner {
   // species: creatures that have artwork (and may appear). Odds always come from the full catalog, so a
   // creature still waiting for its artwork leaves its slot empty instead of crowding the lane with the rest.
   // wanted: () => ids of creatures the player has not caught yet (they get visits from the guest rule).
-  constructor({ species = SPECIES, catalog = SPECIES, mode = 'relaxed', rng = Math.random, wanted = () => [] } = {}) {
+  constructor({ species = SPECIES, catalog = SPECIES, mode = 'relaxed', rng = Math.random, wanted = () => [], speedScale = 1 } = {}) {
     this.species = catalog;
+    this.speedScale = Number.isFinite(speedScale) && speedScale > 0 ? speedScale : 1;   // the difficulty: how fast creatures swim
     this.wanted = wanted;
     this.available = new Set(species.map((s) => s.id));
     this.mode = mode;
@@ -103,7 +104,8 @@ export class Spawner {
 
   // Exponential gaps feel like a natural sea: mostly short waits, sometimes a long lull.
   gap(lane) {
-    const mean = LANE_GAPS[lane] * (this.bonus ? 0.4 : 1);
+    // Faster creatures cross sooner, so the gaps shrink with them and the sea keeps the same number of creatures on screen.
+    const mean = LANE_GAPS[lane] * (this.bonus ? 0.4 : 1) / this.speedScale;
     const sample = -Math.log(1 - this.rng() * 0.999) * mean;
     return Math.min(mean * 3, Math.max(mean * 0.25, sample));
   }
@@ -151,9 +153,9 @@ export class Spawner {
   // A boss (with artwork) crosses the middle of the sea about once a minute and a half, never during the treasure rain.
   // It swims at its own pace: when the creature ahead is slower it waits for a clear road instead of crawling behind it.
   bossTick(dt, lanes) {
-    if (this.bonus) return null;
-    // One boss at a time: the countdown only runs while the sea is free of them.
-    if ((lanes[BOSS_LANE]?.bosses ?? 0) > 0) return null;
+    // Not waiting for a clear road any more when the treasure rain starts or another giant is already here
+    // (a boss that was waiting would otherwise keep its lane shut for the whole rain).
+    if (this.bonus || (lanes[BOSS_LANE]?.bosses ?? 0) > 0) { this.bossWaiting = false; return null; }
     this.bossIn -= dt;
     if (this.bossIn > 0) return null;
     const bosses = this.species.filter((s) => s.boss && this.available.has(s.id));
@@ -169,7 +171,7 @@ export class Spawner {
       this.nextBoss = this.pick(list);
     }
     const species = this.nextBoss;
-    const speed = species.speed * SWIM_PACE;
+    const speed = species.speed * SWIM_PACE * this.speedScale;
     // Faster than the creature ahead: it must be far enough ahead that the boss cannot catch it before it leaves.
     const tail = state?.sides?.[dir];
     if (tail && Number.isFinite(tail.tailGap) && tail.tailSpeed > 0 && speed > tail.tailSpeed) {
@@ -217,7 +219,7 @@ export class Spawner {
     const extra = this.wave.kind === 'rush' && lane === this.wave.rushLane && max > 2 ? 3 : 0;
     const count = this.bonus || solo ? 1 : min + Math.floor(this.rng() * (max - min + 1 + extra));
     // Treasure rain items drift faster than they crawl along the seabed, so the rain stays lively.
-    let speed = (this.bonus ? Math.max(species.speed, 26) : species.speed) * SWIM_PACE * this.between(0.8, 1.25);
+    let speed = (this.bonus ? Math.max(species.speed, 26) : species.speed) * SWIM_PACE * this.speedScale * this.between(0.8, 1.25);
     // Do not let a faster group catch the previous one while both are on screen.
     const tail = state.sides?.[dir];
     if (tail && Number.isFinite(tail.tailGap) && tail.tailSpeed > 0) {

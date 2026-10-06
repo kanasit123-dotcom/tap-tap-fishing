@@ -377,7 +377,8 @@ test('the pocket watch adds ten seconds in arcade mode', async ({ page }) => {
 });
 
 test('every creature collides with the real hook, lands and persists in the zoned book', async ({ page }, info) => {
-  test.setTimeout(480_000); const errors = await boot(page);
+  test.setTimeout(900_000);   // one catch each for every creature (66 of them): about 9 minutes on desktop
+  const errors = await boot(page);
   const sample = info.project.name === 'desktop' ? SPECIES : SPECIES.filter((s) => ['seal', 'anglerfish', 'giant-squid', 'crab', 'lobster-king', 'boot'].includes(s.id));
   let total = 0;
   for (const s of sample) {
@@ -398,8 +399,8 @@ test('every creature collides with the real hook, lands and persists in the zone
   }
   await page.reload(); await page.waitForFunction(() => window.__FISHING_QA__?.snapshot().ready);
   await page.locator('#collection').click();
-  // One heading per book section plus the boat-looks panel.
-  await expect(page.locator('.zone-title')).toHaveCount(ZONES.length + 1);
+  // One heading per book section plus today's missions, the stickers and the boat-looks panel.
+  await expect(page.locator('.zone-title')).toHaveCount(ZONES.length + 3);
   await expect(page.locator('.collection-item')).toHaveCount(SPECIES.length);
   // Every book picture is a real, decoded sprite (no broken images, no emoji placeholders).
   await page.waitForFunction(() => [...document.querySelectorAll('img.species-art')].every((img) => img.complete && img.naturalWidth > 0), null, { timeout: 15_000 });
@@ -529,6 +530,8 @@ test('the trip-end dialog with the lucky wheel fits one phone screen: no scrolli
 
 test('trip end: the lucky wheel spins once and pays out; wheel powers start the next trip', async ({ page }, info) => {
   test.setTimeout(150_000); const errors = await boot(page);
+  // Today's missions would give powers of their own: make them ones that cannot finish here.
+  await page.evaluate(() => window.__FISHING_QA__.setDaily([{ kind: 'score', goal: 99999, progress: 0, done: false }, { kind: 'boss', goal: 9, progress: 0, done: false }, { kind: 'fever', goal: 99, progress: 0, done: false }]));
   for (let i = 0; i < 8; i++) { await fish(page); await reel(page); await landed(page); }
   await expect(page.locator('#dialog-title')).toHaveText('นักสำรวจอ่าวสมบัติ!');
   await expect(page.locator('#lucky-wheel .seg')).toHaveCount(8);
@@ -930,16 +933,19 @@ test('looks keep answering: choosing a rod and a boat in the book changes it in 
   const press = (selector) => touch ? page.locator(selector).tap() : page.locator(selector).click();
   await page.evaluate(() => window.__FISHING_QA__.setCollection(window.__FISHING_QA__.scene().controller.species.map((s) => s.id)));
   await press('#collection');
-  const before = await page.evaluate(() => { const modal = document.querySelector('#modal'); modal.scrollTop = 40; return { open: modal.open, button: document.querySelector('.look[data-look="bamboo"]') !== null }; });
+  const before = await page.evaluate(() => ({ open: document.querySelector('#modal').open, button: document.querySelector('.look[data-look="bamboo"]') !== null }));
   expect(before.open).toBe(true);
   const heading = await page.locator('#dialog-title').elementHandle();
   for (const look of ['bamboo', 'gold', 'pennants', 'lanterns', 'golden', 'classic', 'plain', 'steel']) {
     await press(`.look[data-look="${look}"]`);
     await expect(page.locator(`.look[data-look="${look}"]`)).toHaveAttribute('aria-pressed', 'true');
   }
-  // The book was not drawn again (same heading element, same scroll position) and only one look per row is marked.
+  // The book was not drawn again (same heading element; a press does not move the scroll position) and only one look per row is marked.
   expect(await heading.evaluate((el) => el.isConnected)).toBe(true);
-  expect(await page.evaluate(() => document.querySelector('#modal').scrollTop)).toBe(40);
+  await page.locator('.look[data-look="steel"]').scrollIntoViewIfNeeded();
+  const scrolled = await page.evaluate(() => document.querySelector('#modal').scrollTop);
+  await press('.look[data-look="golden"]'); await press('.look[data-look="steel"]');
+  expect(await page.evaluate(() => document.querySelector('#modal').scrollTop)).toBe(scrolled);
   expect(await page.locator('.look[aria-pressed="true"]').count()).toBe(3);
   expect((await snapshot(page)).looks).toMatchObject({ rod: 'classic', hook: 'steel', boat: 'plain' });
   await press('.look[data-look="gold"]'); await press('.look[data-look="lanterns"]');
@@ -976,5 +982,187 @@ test('looks keep answering: choosing a rod and a boat in the book changes it in 
   await expect(page.locator('#cast')).toContainText('ออกเรืออีกครั้ง');
   await press('#cast');
   await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase === 'aim' && window.__FISHING_QA__.snapshot().score === 0, null, { timeout: 5000 });
+  expect(errors).toEqual([]);
+});
+
+// ---------- settings: difficulty, clearing the collection, daily missions ----------
+test('settings: the level of difficulty is chosen in the pause dialog, saved, and changes how many taps a catch needs from the next trip', async ({ page }, info) => {
+  test.setTimeout(90_000); const errors = await boot(page);
+  const taps = async (level) => {
+    await page.locator('#pause').click();
+    await page.locator(`.diff[data-level="${level}"]`).click();
+    await expect(page.locator(`.diff[data-level="${level}"]`)).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#diff-hint')).not.toHaveText('');
+    await page.locator('#restart').click();
+    await fish(page, 'goldfish');
+    return (await snapshot(page)).requiredTaps;
+  };
+  expect(await taps('easy')).toBe(4);
+  await page.screenshot({ path: info.outputPath('difficulty-easy.png') });
+  expect(await taps('hard')).toBe(8);
+  expect(await taps('normal')).toBe(6);
+  expect((await page.evaluate(() => JSON.parse(localStorage.getItem('tap-tap-fishing-v1')))).difficulty).toBe('normal');
+  await page.locator('#pause').click(); await page.locator('.diff[data-level="hard"]').click(); await page.locator('#resume').click();
+  await page.reload(); await page.waitForFunction(() => window.__FISHING_QA__?.snapshot().ready);
+  expect((await page.evaluate(() => window.__FISHING_QA__.progress())).difficulty).toBe('hard');
+  expect(errors).toEqual([]);
+});
+
+test('settings: the arcade clock follows the level', async ({ page }) => {
+  const errors = await boot(page);
+  for (const [level, seconds] of [['easy', 120], ['hard', 75], ['normal', 90]]) {
+    await page.locator('#pause').click(); await page.locator(`.diff[data-level="${level}"]`).click(); await page.locator('#restart').click();
+    await page.locator('#arcade').click();
+    if (await page.locator('#new-mode').count()) await page.locator('#new-mode').click();
+    await page.waitForFunction((s) => window.__FISHING_QA__.snapshot().remaining <= s && window.__FISHING_QA__.snapshot().remaining > s - 3, seconds);
+    await page.locator('#relaxed').click();
+    if (await page.locator('#new-mode').count()) await page.locator('#new-mode').click();
+  }
+  expect(errors).toEqual([]);
+});
+
+test('clear everything: two steps with a short wait, cancel keeps all, confirm empties the book but keeps sound, music and the level', async ({ page }, info) => {
+  test.setTimeout(90_000); const errors = await boot(page);
+  await page.evaluate(() => window.__FISHING_QA__.setCollection(['goldfish', 'clownfish', 'turtle', 'shark']));
+  await page.locator('#music').click();    // music off: a player's own setting
+  await page.locator('#pause').click(); await page.locator('.diff[data-level="easy"]').click(); await page.locator('#reset-all').click();
+  await expect(page.locator('#dialog-title')).toHaveText('ล้างการสะสมทั้งหมด?');
+  await expect(page.locator('#reset-go')).toBeDisabled();
+  await page.screenshot({ path: info.outputPath('reset-confirm.png') });
+  // Cancel brings the settings back and nothing is lost.
+  await page.locator('#reset-cancel').click();
+  await expect(page.locator('#reset-all')).toBeVisible();
+  expect(Object.values((await page.evaluate(() => window.__FISHING_QA__.progress())).collection).filter(Boolean).length).toBe(4);
+  // The same from the book.
+  await page.locator('#resume').click();
+  await page.locator('#collection').click();
+  await page.locator('#book-reset').scrollIntoViewIfNeeded(); await page.locator('#book-reset').click();
+  await expect(page.locator('#reset-go')).toBeDisabled();
+  await page.waitForTimeout(1000);
+  await expect(page.locator('#reset-go')).toBeDisabled();      // still counting
+  await expect(page.locator('#reset-go')).toBeEnabled({ timeout: 4000 });
+  await page.locator('#reset-go').click();
+  await expect(page.locator('#modal')).not.toHaveAttribute('open', '');
+  const after = await page.evaluate(() => window.__FISHING_QA__.progress());
+  expect(Object.values(after.collection).reduce((a, b) => a + b, 0)).toBe(0);
+  expect(after).toMatchObject({ trips: 0, stars: 0, music: false, difficulty: 'easy', looks: { rod: 'classic', hook: 'steel', boat: 'plain' }, best: { relaxed: 0, arcade: 0 } });
+  await page.locator('#collection').click();
+  await expect(page.locator('.collection-item:not(.undiscovered)')).toHaveCount(0);
+  await page.locator('#close-book').click();
+  await expect(page.locator('#cast')).toBeEnabled();
+  expect(errors).toEqual([]);
+});
+
+test('daily missions: three of them in the book with a dot on the book button until seen; finishing one gives a power, finishing all gives a star', async ({ page }, info) => {
+  test.setTimeout(90_000); const errors = await boot(page);
+  await expect(page.locator('#collection')).toHaveClass(/has-news/);
+  await page.locator('#collection').click();
+  await expect(page.locator('.mission')).toHaveCount(3);
+  await expect(page.locator('#collection')).not.toHaveClass(/has-news/);
+  await page.screenshot({ path: info.outputPath('missions.png') });
+  await page.locator('#close-book').click();
+  // Make today's missions known ones, then play them.
+  await page.evaluate(() => window.__FISHING_QA__.setDaily([
+    { kind: 'species', species: 'goldfish', goal: 1, progress: 0, done: false },
+    { kind: 'treasure', goal: 1, progress: 0, done: false },
+    { kind: 'count', goal: 2, progress: 0, done: false },   // animals only: the chest does not count
+  ]));
+  await expect(page.locator('#collection')).toHaveClass(/has-news/);
+  await fish(page, 'goldfish'); await reel(page); await landed(page);
+  let d = await page.evaluate(() => window.__FISHING_QA__.daily());
+  expect(d.missions.map((m) => m.done)).toEqual([true, false, false]);
+  await expect(page.locator('#toast')).toContainText('ภารกิจสำเร็จ', { timeout: 4000 });
+  expect((await page.evaluate(() => window.__FISHING_QA__.progress())).startPowers).toEqual({ net: true });
+  await fish(page, 'chest'); await reel(page); await landed(page);
+  await fish(page, 'clownfish'); await reel(page); await landed(page);
+  d = await page.evaluate(() => window.__FISHING_QA__.daily());
+  expect(d.missions.map((m) => m.done)).toEqual([true, true, true]); expect(d.allDone).toBe(true);
+  const saved = await page.evaluate(() => window.__FISHING_QA__.progress());
+  expect(saved.stars).toBe(1); expect(saved.streak.days).toBe(1); expect(saved.startPowers).toEqual({ net: true, turbo: true, goldhook: true });
+  await page.locator('#collection').click();
+  await expect(page.locator('.mission.done')).toHaveCount(3);
+  await page.screenshot({ path: info.outputPath('missions-done.png') });
+  await page.locator('#close-book').click();
+  // The powers are used on the next trip and the missions stay done for the day (also after a reload).
+  await page.locator('#pause').click(); await page.locator('#restart').click();
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().powers.net === 1 && window.__FISHING_QA__.snapshot().powers.turbo > 0);
+  await page.reload(); await page.waitForFunction(() => window.__FISHING_QA__?.snapshot().ready);
+  expect((await page.evaluate(() => window.__FISHING_QA__.daily())).missions.every((m) => m.done)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('the settings dialog (difficulty and clearing the collection) fits one screen without scrolling at phone sizes', async ({ page }) => {
+  const errors = await boot(page);
+  for (const [width, height] of [[390, 664], [375, 560], [430, 740], [844, 390], [1024, 768]]) {
+    await page.setViewportSize({ width, height }); await page.waitForTimeout(250);
+    await page.locator('#pause').click();
+    const fit = await page.evaluate(() => { const m = document.querySelector('#modal'); return { overflow: m.scrollHeight - m.clientHeight, bottom: document.querySelector('#reset-all').getBoundingClientRect().bottom, inner: innerHeight }; });
+    expect(fit.overflow, `${width}x${height} settings need no scrolling`).toBeLessThanOrEqual(1);
+    expect(fit.bottom).toBeLessThanOrEqual(fit.inner);
+    await page.locator('#resume').click();
+  }
+  expect(errors).toEqual([]);
+});
+
+// ---------- new seas and stickers ----------
+test('six seas: every trip moves on to the next one, each with its own pictures for portrait and landscape screens', async ({ page }, info) => {
+  test.setTimeout(90_000); const errors = await boot(page);
+  const seas = ['day', 'sunset', 'night', 'arctic', 'lagoon', 'wreck'];
+  for (const sea of seas) {
+    await page.evaluate((s) => window.__FISHING_QA__.setTimeOfDay(s), sea);
+    // The other seas are loaded when their trip comes: wait until the picture of this sea is the one drawn.
+    await page.waitForFunction((s) => window.__FISHING_QA__.scene().bgImages.some((i) => i.visible && i.texture.key.startsWith(s === 'day' ? 'bg-p' : `bg-${s}-`) || (s === 'day' && i.visible && i.texture.key.startsWith('bg-l'))), sea, { timeout: 10_000 });
+    const used = await page.evaluate(() => window.__FISHING_QA__.scene().bgImages.filter((i) => i.visible).map((i) => i.texture.key));
+    const want = sea === 'day' ? /^bg-(portrait|landscape)$/ : new RegExp(`^bg-${sea}-(portrait|landscape)$`);
+    expect(used.length, `${sea} draws a picture`).toBeGreaterThan(0);
+    for (const key of used) expect(key, sea).toMatch(want);
+    expect((await snapshot(page)).tint, `${sea} has its own picture, no colour wash`).toBe(false);
+    if (['arctic', 'lagoon', 'wreck'].includes(sea)) await page.screenshot({ path: info.outputPath(`sea-${sea}.png`) });
+  }
+  // The trips go round: after finishing three trips the fourth sea is the ice sea.
+  await page.evaluate(() => { localStorage.setItem('tap-tap-fishing-v1', JSON.stringify({ version: 1, trips: 3 })); });
+  await page.reload(); await page.waitForFunction(() => window.__FISHING_QA__?.snapshot().ready);
+  expect((await snapshot(page)).timeOfDay).toBe('arctic');
+  await expect(page.locator('#toast')).toContainText('ทะเลน้ำแข็ง', { timeout: 3000 });
+  expect(errors).toEqual([]);
+});
+
+test('stickers: sixteen in the book (locked ones in grey with how to get them), the first catch earns one with a message and a gold dot', async ({ page }, info) => {
+  test.setTimeout(90_000); const errors = await boot(page);
+  await page.locator('#collection').click();
+  await expect(page.locator('.sticker')).toHaveCount(16);
+  await expect(page.locator('.sticker.locked')).toHaveCount(16);
+  await expect(page.locator('.sticker.locked').first().locator('small')).not.toHaveText('');
+  await page.screenshot({ path: info.outputPath('stickers-locked.png') });
+  await page.locator('#close-book').click();
+  await fish(page, 'goldfish'); await reel(page); await landed(page);
+  await expect(page.locator('#toast')).toContainText('สติ๊กเกอร์ใหม่', { timeout: 6000 });
+  await expect(page.locator('#collection')).toHaveClass(/has-news/);
+  expect((await page.evaluate(() => window.__FISHING_QA__.progress())).stickers).toEqual({ 'first-catch': true });
+  // A FEVER (three catches in a row), a jackpot creature and the fog horn earn theirs.
+  await fish(page, 'clownfish'); await reel(page); await landed(page);
+  await fish(page, 'goldfish'); await reel(page); await landed(page);
+  await fish(page, 'crown'); await reel(page); await landed(page);
+  await fish(page, 'horn'); await reel(page); await landed(page);
+  const got = (await page.evaluate(() => window.__FISHING_QA__.progress())).stickers;
+  expect(got).toMatchObject({ 'first-catch': true, fever: true, jackpot: true, horn: true });
+  await page.locator('#collection').click();
+  await expect(page.locator('.sticker.earned')).toHaveCount(4);
+  await expect(page.locator('#collection')).not.toHaveClass(/has-news/);
+  await page.screenshot({ path: info.outputPath('stickers-earned.png') });
+  await page.locator('#close-book').click();
+  expect(errors).toEqual([]);
+});
+
+test('stickers: finishing a book section earns its sticker and "clear everything" takes them away', async ({ page }) => {
+  test.setTimeout(90_000); const errors = await boot(page);
+  const specials = SPECIES.filter((s) => s.special).map((s) => s.id);
+  await page.evaluate((ids) => window.__FISHING_QA__.setCollection(ids.slice(1)), specials);
+  await fish(page, specials[0]); await reel(page); await landed(page);
+  expect((await page.evaluate(() => window.__FISHING_QA__.progress())).stickers).toMatchObject({ special: true, 'first-catch': true });
+  await page.locator('#pause').click(); await page.locator('#reset-all').click();
+  await expect(page.locator('#reset-go')).toBeEnabled({ timeout: 5000 });
+  await page.locator('#reset-go').click();
+  expect((await page.evaluate(() => window.__FISHING_QA__.progress())).stickers).toEqual({});
   expect(errors).toEqual([]);
 });

@@ -161,12 +161,30 @@ test('the sea alternates calm, normal and rush waves', () => {
   assert.deepEqual([...kinds].sort(), ['calm', 'normal', 'rush']);
 });
 
+test('a boss waiting for a clear road does not keep its lane shut when the treasure rain starts', () => {
+  const spawner = new Spawner({ species: SPECIES, rng: seeded(4) });
+  spawner.bossIn = 0; spawner.wait.fill(0);
+  const dir = spawner.dir[BOSS_LANE];
+  const slow = Array.from({ length: LANE_COUNT }, () => emptyLane());
+  slow[BOSS_LANE].sides[dir] = { tailGap: 60, tailSpeed: 12 };
+  spawner.tick(0.1, slow);
+  assert.equal(spawner.bossWaiting, true, 'the boss waits behind a slow fish');
+  spawner.setBonus(true);
+  const clear = Array.from({ length: LANE_COUNT }, () => emptyLane());
+  const orders = spawner.tick(0.5, clear);
+  assert.equal(spawner.bossWaiting, false);
+  assert.ok(orders.some((o) => o.lane === BOSS_LANE), 'the boss lane takes part in the rain');
+});
+
 test('the treasure rain fills every lane with gold fish and treasure, quickly', () => {
-  const { spawns } = simulate({ seconds: 60, seed: 2, bonusAt: 30 });
-  const rain = spawns.filter((s) => s.time >= 30);
-  assert.ok(rain.length > 25, `${rain.length} treasures in 30 s`);
-  assert.ok(rain.every((s) => s.order.species.bonus));
-  assert.equal(new Set(rain.map((s) => s.order.lane)).size, LANE_COUNT);
+  // Which lane a given creature falls into is random, so every lane gets something over a whole rain (20 s of game time, a few seeds).
+  for (const seed of [2, 3, 4]) {
+    const { spawns } = simulate({ seconds: 70, seed, bonusAt: 30 });
+    const rain = spawns.filter((s) => s.time >= 30);
+    assert.ok(rain.length > 40, `${rain.length} treasures in 40 s`);
+    assert.ok(rain.every((s) => s.order.species.bonus));
+    assert.equal(new Set(rain.map((s) => s.order.lane)).size, LANE_COUNT, `seed ${seed}: every lane`);
+  }
 });
 
 test('creatures still waiting for artwork leave their slot empty instead of crowding the lane', () => {

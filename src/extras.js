@@ -73,7 +73,9 @@ export function sanitizeLooks(raw) {
   return looks;
 }
 
-// Each finished trip moves the clock on: day, sunset, night, day ...
-export const TIMES = ['day', 'sunset', 'night'];
+// Each finished trip moves the sea on: day, sunset, night, then three more seas, then day again.
+export const TIMES = ['day', 'sunset', 'night', 'arctic', 'lagoon', 'wreck'];
 export const timeOfDay = (trips) => TIMES[(Number.isSafeInteger(trips) && trips > 0 ? trips : 0) % TIMES.length];
-export const TIME_NAMES = { day: 'กลางวัน', sunset: 'ยามเย็น', night: 'กลางคืน' };
+export const TIME_NAMES = { day: 'กลางวัน', sunset: 'ยามเย็น', night: 'กลางคืน', arctic: 'ทะเลน้ำแข็ง', lagoon: 'ลากูนมรกต', wreck: 'อ่าวเรืออับปาง' };
+// What the start-of-trip message says for each sea.
+export const TRIP_MESSAGES = { sunset: 'ออกเรือยามเย็น', night: 'ออกเรือกลางคืน', arctic: 'ไปทะเลน้ำแข็ง', lagoon: 'ไปลากูนมรกต', wreck: 'ไปอ่าวเรืออับปาง' };

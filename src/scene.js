@@ -5,6 +5,8 @@ import { Spawner, emptyLane } from './spawner.js';
 import { WORLD, NET_EXTRA } from './model.js';
 import { PirateBattle } from './pirate.js';
 import { originFor } from './match.js';
+import { difficultyOf } from './difficulty.js';
+import { timeOfDay } from './extras.js';
 import manifest from './art-manifest.js';
 
 const asset = (file) => `${import.meta.env.BASE_URL}assets/${file}`;
@@ -34,7 +36,12 @@ export class CoveScene extends Phaser.Scene {
   get caught() { return this.rigs?.[0].caught ?? null; }
 
   preload() {
-    for (const [name, bg] of Object.entries(manifest.backgrounds ?? {})) this.load.image(`bg-${name}`, asset(bg.file));
+    // Only the sea of this trip (and the day sea that everything falls back on): each picture is several MB once decoded,
+    // so the other seas are loaded when their trip comes (loadSea).
+    const first = timeOfDay(this.controller.progress.trips);
+    for (const [name, bg] of Object.entries(manifest.backgrounds ?? {})) {
+      if (['portrait', 'landscape', `${first}-portrait`, `${first}-landscape`].includes(name)) this.load.image(`bg-${name}`, asset(bg.file));
+    }
     for (const s of this.controller.species) if (s.art?.kind === 'sprite') this.load.image(s.art.key, asset(s.art.file));
     if (manifest.sprites?.boat?.holder) this.load.image('boat', asset(manifest.sprites.boat.file));
     for (const id of PROPS) { const art = propArt(id); if (art) this.load.image(art.key, asset(art.file)); }
@@ -352,6 +359,16 @@ export class CoveScene extends Phaser.Scene {
     this.timeOfDay = time;
     this.controller.audio.setNight?.(time === 'night');
     if (this.view) { this.layoutBackground(); this.layoutRays(); }
+    this.loadSea(time);
+  }
+
+  // Loads the pictures of a sea that is not there yet and draws them as soon as they have arrived.
+  loadSea(time) {
+    const missing = Object.entries(manifest.backgrounds ?? {}).filter(([name]) => (name === `${time}-portrait` || name === `${time}-landscape`) && !this.textures.exists(`bg-${name}`));
+    if (!missing.length) return;
+    for (const [name, bg] of missing) this.load.image(`bg-${name}`, asset(bg.file));
+    this.load.once('complete', () => { if (this.timeOfDay === time && this.view) { this.layoutBackground(); this.layoutRays(); } });
+    this.load.start();
   }
 
   // Puts a player's boat where its rod tip is (mirrored for the second player) and fits the picture to the zoom
@@ -379,7 +396,7 @@ export class CoveScene extends Phaser.Scene {
 
   layoutBackground() {
     // Paintings for the current time of day ('portrait', 'sunset-portrait', ...); without them, the day ones plus a tint.
-    const all = Object.entries(manifest.backgrounds ?? {}).map(([name, bg]) => ({ ...bg, key: `bg-${name}`, name }));
+    const all = Object.entries(manifest.backgrounds ?? {}).map(([name, bg]) => ({ ...bg, key: `bg-${name}`, name })).filter((bg) => this.textures.exists(bg.key));
     const prefix = this.timeOfDay && this.timeOfDay !== 'day' ? `${this.timeOfDay}-` : '';
     const timed = all.filter((bg) => bg.name === `${prefix}portrait` || bg.name === `${prefix}landscape`);
     const options = timed.length ? timed : all.filter((bg) => bg.name === 'portrait' || bg.name === 'landscape');
@@ -446,7 +463,8 @@ export class CoveScene extends Phaser.Scene {
 
   sizeOf(species, lane = species.lane) {
     // Bosses are giants: they may fill more than one lane.
-    const maxHeight = species.boss ? this.view.spacing * 2.3 : lane === SEABED ? this.view.spacing * 1.2 : this.view.laneHeight;
+    // A few tall or long creatures (the sunfish, the oarfish...) may use more than one lane's height.
+    const maxHeight = species.boss ? this.view.spacing * 2.3 : species.big ? this.view.spacing * 1.45 : lane === SEABED ? this.view.spacing * 1.2 : this.view.laneHeight;
     return displaySize(species, this.textureOf(species), this.view.scale, maxHeight);
   }
 
@@ -474,7 +492,7 @@ export class CoveScene extends Phaser.Scene {
   newSea() {
     this.clearSea();
     const round = this.controller.rounds[0];
-    this.spawner = new Spawner({ species: this.controller.species, mode: round.mode, rng: this.controller.rng, wanted: () => this.controller.wantedIds() });
+    this.spawner = new Spawner({ species: this.controller.species, mode: round.mode, rng: this.controller.rng, wanted: () => this.controller.wantedIds(), speedScale: difficultyOf(this.controller.progress.difficulty).fishSpeed });
     this.bonusActive = false;
     this.bonusGlow.setVisible(false);
   }

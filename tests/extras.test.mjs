@@ -50,6 +50,6 @@ test('looks, start powers and the clock persist and are sanitized', () => {
   const p = loadProgress(storage);
   assert.equal(p.looks.rod, 'bamboo'); assert.equal(p.looks.hook, 'steel');
   assert.deepEqual(p.startPowers, { net: true });
-  assert.deepEqual([0, 1, 2, 3, 4].map(timeOfDay), ['day', 'sunset', 'night', 'day', 'sunset']);
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 6, 7].map(timeOfDay), ['day', 'sunset', 'night', 'arctic', 'lagoon', 'wreck', 'day', 'sunset']);
   assert.equal(timeOfDay(-3), 'day');
 });
