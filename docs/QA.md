@@ -2,7 +2,13 @@
 
 Date: 2026-10-04
 
-## Pending (NOT deployed, would be v0.9.3): orca, giant orca, giant dolphin with their pictures (2026-10-07)
+## Latest: v0.9.3 — orca, giant orca, giant dolphin (deployed 2026-10-07)
+
+- LIVE: commit d328cb2, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37632539105 (success; the run itself also executes `npm test`). Live bundle `index-B4tRX8oe.js` + `index-NEWGLoFz.css` equal the local Pages build; `sw.js` and the three new pictures return 200;
+  `npm run test:pages -- https://kanasit123-dotcom.github.io/tap-tap-fishing/`: passed, 69 entries, colored and moving canvas, offline reload ok, no errors (the same smoke passed on the local production preview first). The offline copy is now 115 files (7.4 MB).
+- Browser tests run for this release (desktop only, a subset): deep catch black first, creatures enter, every creature (69), two boss tests, clear everything, daily missions, both sticker tests: 9 passed (11 min). The tablet and phone projects were not rerun for this release;
+  the full three-project run was done for v0.9.2 and nothing outside the species list, pictures and tests changed since.
+- Not verified on a real iPhone/iPad: how the two giants look next to the other giants in play, and whether the children find the orca in the lower water.
 
 - User (the children): wanted an orca (normal + giant) and a dolphin (normal + giant); the normal ones live in the lower water and start as black shapes.
 - `src/species.js`: `dolphin` moved from lane 3 to lane 4 (black shape until reeled up; its picture already exists), new `orca` (lane 5, 80 points, 21 taps, speed 38, `big`), bosses `boss-orca`
@@ -11,7 +17,7 @@ Date: 2026-10-04
 - Checks: `npm test` 116 passed; browser tests on desktop: the four boss/creature-entry/deep-catch tests passed and the every-creature test (now 69 creatures: the three new ones as emoji placeholders) passed (8.8 min).
   The first try of the every-creature test failed because my own 2 s click limit in the `reel()` helper (added for v0.9.2) was too strict for a slow tap; the helper now allows 5 s, ignores a refused tap and checks the outcome at the end of the loop (20 s).
 
-## Latest: v0.9.2 — messages off the water, ten catches, arcade without a limit (deployed 2026-10-07)
+## Previous: v0.9.2 — messages off the water, ten catches, arcade without a limit (deployed 2026-10-07)
 
 - LIVE: commit f64af3c, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37546712844 (success). Live bundle `index-CMnoGk7g.js` + `index-NEWGLoFz.css` equal the local Pages build, `sw.js` returns 200;
   `npm run test:pages -- https://kanasit123-dotcom.github.io/tap-tap-fishing/`: passed, 66 entries, colored and moving canvas, offline reload ok, no errors. The same smoke passed on the local production preview first.
