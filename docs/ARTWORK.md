@@ -28,6 +28,7 @@ reprocess. Only the processed output below is published.
 | `sheet-i-horn.png` (fog horn; prompt M, delivered 2026-10-06) | 1536x1024 RGBA | `e020daded04692d964007456884c954948062d8addc0da77325f19c2bd5023bb` |
 | `sheet-k-special.png` (eight special creatures; prompt O) | 1536x1024 RGBA | `fb672c444459ba4445f81f44d7fa0243e06c67db4876b3f87e20940aa364fc9b` |
 | `sheet-l-stickers.png` (sixteen sticker medals; prompt Q) | 1536x1024 RGBA | `ac50a3a384317e41680b5e17a09bcf03c1397dd068c83294b703d7ec7d6b6d73` |
+| `sheet-m-orcas.png` (orca, giant orca, giant dolphin; prompt R, delivered 2026-10-07) | 1536x1024 RGBA | `591a3acdc1d623d26a9e06844cec36841919995199e92377e6db61599ae7730b` |
 | `background-arctic-portrait.png` (prompt P1) | 1024x1536 RGB | `277ae3d8ca6451c857a7a9a82d09910b2e04efc770f0f306038675040bcbe3df` |
 | `background-arctic-landscape.png` (prompt P1) | 1536x1024 RGB | `bd492b158a3950a41065bbdc27b1ec764af4398d61ae5b6a0fe67beb74a8cb76` |
 | `background-lagoon-portrait.png` (prompt P2) | 1024x1536 RGB | `916bb657986c8183c78a327f11e14245100a19e266d7483d988bad446a132636` |

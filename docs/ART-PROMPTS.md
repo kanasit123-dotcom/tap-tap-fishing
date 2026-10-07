@@ -432,6 +432,39 @@ LAYOUT: exactly 16 separate round stickers in a grid of 4 rows x 4 columns, in t
 
 ---
 
+## R — `sheet-m-orcas.png` วาฬเพชฌฆาต + วาฬเพชฌฆาตยักษ์ + โลมายักษ์ 3 ตัว (2026-10-07 — ใช้งานแล้ว)
+
+> เด็กๆ ขอ วาฬเพชฌฆาต (ปกติ + ยักษ์) และ โลมา (ปกติ + ยักษ์) · โลมาปกติมีรูปอยู่แล้ว (แผ่น H) จึงสั่งแค่ 3 ตัวที่ยังไม่มี
+> ในเกม (ลงทะเบียนไว้แล้ว ซ่อนอยู่จนกว่าจะมีรูป):
+> - `orca` วาฬเพชฌฆาต — **ตัวปกติอยู่ชั้นล่าง (เลน 5) เป็นเงาดำก่อนดึงขึ้นมา** 80 คะแนน แตะ 21 ครั้ง ว่ายเร็ว (หายากพอสมควร)
+> - `boss-orca` วาฬเพชฌฆาตยักษ์ — บอสหมวด "ยักษ์ใหญ่" 230 คะแนน แตะ 31 ครั้ง
+> - `boss-dolphin` โลมายักษ์ — บอสหมวด "ยักษ์ใหญ่" 195 คะแนน แตะ 28 ครั้ง
+> - `dolphin` โลมาปกติ (รูปเดิม) **ย้ายลงชั้นล่าง (เลน 4) เป็นเงาดำก่อน** แล้ว (เดิมอยู่กลางน้ำ)
+>
+> ทำในแชตเดิมที่ทำแผ่นก่อนๆ แล้วพิมพ์เพิ่มท้าย prompt ว่า `Match the exact art style of the earlier creature sheets, and the earlier dolphin.`
+> (ถ้าแนบรูปโลมาเดิม `public/assets/sprites/dolphin.webp` ไปด้วย โลมายักษ์จะหน้าตาเป็นพันธุ์เดียวกัน)
+
+```text
+Create a 1536x1024 landscape PNG with a TRANSPARENT background (real alpha, no checkerboard pattern drawn in, no dark or coloured background, no vignette).
+
+ART STYLE: semi-realistic painted illustration for a premium mobile fishing game, the same style as the earlier creature sheets. Natural anatomy, rich detail, soft light from above with a gentle rim light. NOT cartoon. Majestic but gentle and friendly for children: mouths closed, no teeth showing, calm kind eyes, no blood, no scars.
+
+LAYOUT: exactly 3 separate sea animals stacked in 3 rows (one per row, each row a full-width band about one third of the image height), in this order from top to bottom. Each animal is centred in its band and about 60% of the image width, with clear empty transparent space above and below, so the tall dorsal fin and the tail never touch the band above or below. Nothing touches another animal or the image edge. Strict side view facing RIGHT (head toward the right edge), swimming horizontally, whole body visible including the full tail fluke and every flipper. No water, no bubbles, no shadows, no glow, no halo, no text, no labels, no grid lines, no frame.
+
+1) an ordinary adult orca (killer whale): glossy jet-black back and sides, a crisp white belly and white lower jaw, a clear white oval patch just above and behind the eye, a pale grey saddle patch behind the tall upright dorsal fin, two broad rounded flippers, a strong tail fluke on the left; a rounded head on the right with the mouth closed in a friendly gentle line and one calm dark eye
+2) a giant ancient orca: the same black and white colours but much bigger and more powerful looking, an extra tall dorsal fin with a slight natural curve, very broad flippers and a huge tail fluke on the left, a wide strong body, a wise calm eye and a closed friendly mouth; it looks twice as big as an ordinary orca
+3) a giant dolphin: a huge bottlenose dolphin with a smooth silvery blue-grey back fading into a pale cream-white belly, a long beak-like snout on the right with the mouth closed in a friendly smile, a gentle dark eye, a curved dorsal fin, two pointed flippers and a strong horizontal tail fluke on the left; it looks twice as big and strong as an ordinary bottlenose dolphin
+
+Match the exact art style of the earlier creature sheets, and the earlier dolphin.
+```
+
+ชื่อชิ้นตอนตัด (ตามลำดับ): `orca boss-orca boss-dolphin`
+ตัดแล้ว: `python tools/sprites.py sheet-m-orcas` ได้ `orca` 720x284, `boss-orca` 720x254, `boss-dolphin` 720x228 (2026-10-07) รูปตรง prompt: หันขวา ปากปิด หน้าใจดี ครบทั้งครีบและหาง สามตัวแยกกันไม่ชนกัน
+ChatGPT ให้พื้นเป็นแสงเรืองสีเข้มจางๆ (alpha 0-254) แต่เครื่องมือตัดออกได้สะอาด ตรวจบนพื้นฟ้า 2 สีแล้วไม่มีขอบเรืองและไม่กินส่วนสีดำของตัววาฬ
+ข้อสังเกต: วาฬเพชฌฆาตปกติกับตัวยักษ์หน้าตาเกือบเหมือนกัน (ตัวยักษ์ถูกวาดอ้วนและครีบหลังสูงกว่าเล็กน้อย) ในเกมต่างกันที่ขนาด (175 กับ 290) ถ้าอยากให้ต่างกว่านี้สั่งวาดตัวยักษ์ใหม่ตัวเดียวได้ เช่น `Redraw only the giant orca with a much taller dorsal fin and a bigger, heavier body, keep everything else identical.`
+
+---
+
 ## สำหรับ AI ที่ทำงานต่อ
 
 - `python tools/sprites.py [ชื่อแผ่น]` อ่านไฟล์ตามชื่อในตารางจาก `art/incoming/` (ไฟล์ดิบไม่ถูก commit) → เขียน `public/assets/sprites/<id>.webp`,

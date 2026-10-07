@@ -28,6 +28,11 @@ npm run build
 npm run preview -- --port 5194
 ```
 
+## Version 0.9.3
+
+Three new sea animals the children asked for: the orca (lower water, a black shape until it is reeled up), the giant orca and the giant dolphin (both bosses in the
+"ยักษ์ใหญ่" section). The ordinary dolphin moved from the middle water to the lower water, so it is a black shape first too. The book now has 69 entries.
+
 ## Version 0.9.2
 
 Nothing is written over the water any more. Messages show on the sand above the cast button (in place of the status line for a moment), FEVER x2 and its seconds

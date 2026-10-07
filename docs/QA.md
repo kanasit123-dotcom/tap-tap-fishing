@@ -2,6 +2,15 @@
 
 Date: 2026-10-04
 
+## Pending (NOT deployed, would be v0.9.3): orca, giant orca, giant dolphin with their pictures (2026-10-07)
+
+- User (the children): wanted an orca (normal + giant) and a dolphin (normal + giant); the normal ones live in the lower water and start as black shapes.
+- `src/species.js`: `dolphin` moved from lane 3 to lane 4 (black shape until reeled up; its picture already exists), new `orca` (lane 5, 80 points, 21 taps, speed 38, `big`), bosses `boss-orca`
+  (230 points, 31 taps, speed 30) and `boss-dolphin` (195 points, 28 taps, speed 30). The pictures arrived the same day (sheet M: `python tools/sprites.py sheet-m-orcas`, 720x284 / 720x254 / 720x228, clean cut, nothing eaten from the black bodies); the `waiting` list in `tests/assets.test.mjs` is empty again; 69 book entries.
+- `tools/sprites.py`: sheet `sheet-m-orcas` (3 rows: `orca boss-orca boss-dolphin`); the prompt is section R of docs/ART-PROMPTS.md. In game on a phone (screenshots inspected): the orca hooks as a black shape and shows its colours and name while reeling, the dolphin hooks as a black shape in lane 4, both giants swim in large.
+- Checks: `npm test` 116 passed; browser tests on desktop: the four boss/creature-entry/deep-catch tests passed and the every-creature test (now 69 creatures: the three new ones as emoji placeholders) passed (8.8 min).
+  The first try of the every-creature test failed because my own 2 s click limit in the `reel()` helper (added for v0.9.2) was too strict for a slow tap; the helper now allows 5 s, ignores a refused tap and checks the outcome at the end of the loop (20 s).
+
 ## Latest: v0.9.2 — messages off the water, ten catches, arcade without a limit (deployed 2026-10-07)
 
 - LIVE: commit f64af3c, run https://github.com/kanasit123-dotcom/tap-tap-fishing/actions/runs/37546712844 (success). Live bundle `index-CMnoGk7g.js` + `index-NEWGLoFz.css` equal the local Pages build, `sw.js` returns 200;

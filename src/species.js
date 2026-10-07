@@ -51,7 +51,6 @@ const catalog = [
   { id: 'tuna', name: 'ปลาทูน่า', lane: 3, points: 30, taps: 14, size: 100, speed: 52, weight: 18, group: [2, 3], motion: 'school', emoji: '🐟' },
   { id: 'ray', name: 'ปลากระเบน', lane: 3, points: 32, taps: 15, size: 96, speed: 28, weight: 16, motion: 'glide', emoji: '🐟' },
   { id: 'barracuda', name: 'ปลาสาก', lane: 3, points: 30, taps: 14, size: 110, speed: 56, weight: 16, emoji: '🐟' },
-  { id: 'dolphin', name: 'โลมา', lane: 3, points: 45, taps: 16, size: 120, speed: 64, weight: 6, cooldown: 30, emoji: '🐬' },
   { id: 'pearl', name: 'หอยมุก', kind: 'item', lane: 3, points: 50, taps: 14, size: 52, speed: 20, weight: 6, motion: 'float', bonus: 18, emoji: '🦪' },
   { id: 'map', name: 'แผนที่สมบัติ', kind: 'item', effect: 'map', lane: 3, points: 20, taps: 10, size: 50, speed: 20, weight: 12, motion: 'float', cooldown: 30, emoji: '🗺️' },
   { id: 'watch', name: 'นาฬิกาพก', kind: 'item', effect: 'time', lane: 3, points: 10, taps: 8, size: 48, speed: 22, weight: 7, motion: 'float', cooldown: 25, arcadeOnly: true, emoji: '⏱️' },
@@ -63,6 +62,8 @@ const catalog = [
   { id: 'moray', name: 'ปลาไหลมอเรย์', lane: 4, points: 36, taps: 16, size: 130, speed: 24, weight: 20, motion: 'eel', emoji: '🐍' },
   { id: 'anglerfish', name: 'ปลาตกเบ็ด', lane: 4, points: 38, taps: 17, size: 96, speed: 16, weight: 20, emoji: '🐟' },
   { id: 'swordfish', name: 'ปลากระโทงดาบ', lane: 4, points: 42, taps: 18, size: 150, speed: 60, weight: 10, emoji: '🐟' },
+  // Dolphin and orca live in the lower water (a black shape until they are reeled up); their giants are bosses below.
+  { id: 'dolphin', name: 'โลมา', lane: 4, points: 45, taps: 16, size: 120, speed: 64, weight: 6, cooldown: 30, emoji: '🐬' },
   { id: 'chest', name: 'หีบสมบัติ', kind: 'item', prizes: [[30, 4], [40, 3], [60, 2], [100, 1]], lane: 4, points: 40, taps: 16, size: 76, speed: 18, weight: 7, motion: 'float', bonus: 14, emoji: '🧰' },
   { id: 'crown', name: 'มงกุฎทองคำ', kind: 'item', lane: 4, points: 80, taps: 18, size: 58, speed: 20, weight: 0.8, motion: 'float', rare: true, jackpot: true, bonus: 5, emoji: '👑' },
 
@@ -72,6 +73,7 @@ const catalog = [
 
   { id: 'manta', name: 'กระเบนราหู', lane: 5, points: 50, taps: 20, size: 150, speed: 26, weight: 14, motion: 'glide', emoji: '🐟' },
   { id: 'whale-shark', name: 'ฉลามวาฬ', lane: 5, points: 90, taps: 22, size: 190, speed: 22, weight: 4, cooldown: 40, emoji: '🦈' },
+  { id: 'orca', big: true, name: 'วาฬเพชฌฆาต', lane: 5, points: 80, taps: 21, size: 175, speed: 38, weight: 6, cooldown: 40, emoji: '🐋' },
 
   // Special creatures (own book section "ปลาพิเศษ"; weights are small, and creatures never caught visit on their own anyway).
   { id: 'leafy-dragon', name: 'มังกรทะเลใบไม้', special: true, lane: 1, points: 32, taps: 10, size: 62, speed: 14, weight: 8, motion: 'bob', emoji: '🐉' },
@@ -91,6 +93,8 @@ const catalog = [
   { id: 'boss-seal', name: 'แมวน้ำยักษ์', lane: 3, points: 190, taps: 28, size: 280, speed: 30, weight: 1, boss: true, emoji: '🦭' },
   { id: 'boss-turtle', name: 'เต่าทะเลยักษ์', lane: 3, points: 210, taps: 30, size: 280, speed: 22, weight: 1, boss: true, emoji: '🐢' },
   { id: 'boss-marlin', name: 'ราชาปลากระโทงทอง', lane: 3, points: 250, taps: 32, size: 280, speed: 30, weight: 1, boss: true, emoji: '🐟' },
+  { id: 'boss-orca', name: 'วาฬเพชฌฆาตยักษ์', lane: 3, points: 230, taps: 31, size: 290, speed: 30, weight: 1, boss: true, emoji: '🐋' },
+  { id: 'boss-dolphin', name: 'โลมายักษ์', lane: 3, points: 195, taps: 28, size: 280, speed: 30, weight: 1, boss: true, emoji: '🐬' },
 
   // Seabed: crawlers, the jackpot lobster and the odd old boot.
   { id: 'starfish', name: 'ปลาดาว', lane: 6, points: 10, taps: 7, size: 44, speed: 13, weight: 24, group: [1, 2], motion: 'spin', noFlip: true, emoji: '⭐' },

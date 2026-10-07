@@ -44,6 +44,7 @@ SHEETS = {
     'sheet-i-horn': ((1, 1), ['horn'], 420),
     'sheet-j-giants': ((2, 1), ['boss-seal', 'boss-turtle'], 720),
     'sheet-k-special': ((2, 4), ['leafy-dragon', 'nautilus', 'sunfish', 'coelacanth', 'oarfish', 'giant-octopus', 'mantis-shrimp', 'giant-crayfish'], 480),
+    'sheet-m-orcas': ((3, 1), ['orca', 'boss-orca', 'boss-dolphin'], 720),
     'sheet-l-stickers': ((4, 4), ['st-first-catch', 'st-shallow', 'st-middle', 'st-deep', 'st-seabed', 'st-giants', 'st-special', 'st-fever', 'st-jackpot', 'st-pirate', 'st-wheel', 'st-duo', 'st-horn', 'st-daily', 'st-night', 'st-all'], 256),
     'boat': ((1, 1), ['boat'], 900),
 }

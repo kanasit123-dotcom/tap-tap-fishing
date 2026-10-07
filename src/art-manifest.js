@@ -461,6 +461,21 @@ export default {
       "file": "sprites/st-all.webp",
       "w": 197,
       "h": 194
+    },
+    "orca": {
+      "file": "sprites/orca.webp",
+      "w": 720,
+      "h": 284
+    },
+    "boss-orca": {
+      "file": "sprites/boss-orca.webp",
+      "w": 720,
+      "h": 254
+    },
+    "boss-dolphin": {
+      "file": "sprites/boss-dolphin.webp",
+      "w": 720,
+      "h": 228
     }
   },
   "backgrounds": {

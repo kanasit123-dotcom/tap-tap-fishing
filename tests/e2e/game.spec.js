@@ -23,11 +23,11 @@ async function reel(page, touch = false) {
     // The catch may land between the phase check and the click, which disables the button: a short click timeout lets the loop look again.
     try {
       if (touch) { const rect = await page.locator('#reel').boundingBox(); await page.touchscreen.tap(rect.x + rect.width / 2, rect.y + rect.height / 2); }
-      else await page.locator('#reel').click({ timeout: 2000 });
-    } catch (error) { if ((await snapshot(page)).phase === 'reeling') throw error; }
+      else await page.locator('#reel').click({ timeout: 5000 });
+    } catch { /* a slow or refused tap is not the verdict: the catch must still be up at the end of the loop */ }
     await page.waitForTimeout(95);
   }
-  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase !== 'reeling');
+  await page.waitForFunction(() => window.__FISHING_QA__.snapshot().phase !== 'reeling', null, { timeout: 20_000 });
 }
 async function landed(page) { await page.waitForFunction(() => ['aim', 'complete'].includes(window.__FISHING_QA__.snapshot().phase)); }
 const key = (f) => f.uid;
